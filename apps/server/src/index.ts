@@ -5,7 +5,7 @@ import { appRouter } from "@contract-builder/api/routers/index";
 import { auth } from "@contract-builder/auth";
 import { env } from "@contract-builder/env/server";
 import { trpcServer } from "@hono/trpc-server";
-import { streamText, convertToModelMessages, wrapLanguageModel } from "ai";
+import { convertToModelMessages, streamText, wrapLanguageModel } from "ai";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -20,7 +20,7 @@ app.use(
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,
-  }),
+  })
 );
 
 app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
@@ -32,7 +32,7 @@ app.use(
     createContext: (_opts, context) => {
       return createContext({ context });
     },
-  }),
+  })
 );
 
 app.post("/ai", async (c) => {

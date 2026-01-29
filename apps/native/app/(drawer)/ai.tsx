@@ -7,20 +7,27 @@ import {
   Button,
   Divider,
   ErrorView,
-  Spinner,
   Surface,
   TextField,
   useThemeColor,
 } from "heroui-native";
-import { useRef, useEffect, useState } from "react";
-import { View, Text, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 
 import { Container } from "@/components/container";
 
 const generateAPIUrl = (relativePath: string) => {
   const serverUrl = env.EXPO_PUBLIC_SERVER_URL;
   if (!serverUrl) {
-    throw new Error("EXPO_PUBLIC_SERVER_URL environment variable is not defined");
+    throw new Error(
+      "EXPO_PUBLIC_SERVER_URL environment variable is not defined"
+    );
   }
   const path = relativePath.startsWith("/") ? relativePath : `/${relativePath}`;
   return serverUrl.concat(path);
@@ -54,11 +61,13 @@ export default function AIScreen() {
   if (error) {
     return (
       <Container>
-        <View className="flex-1 justify-center items-center px-4">
-          <Surface variant="secondary" className="p-4 rounded-lg">
+        <View className="flex-1 items-center justify-center px-4">
+          <Surface className="rounded-lg p-4" variant="secondary">
             <ErrorView isInvalid>
-              <Text className="text-danger text-center font-medium mb-1">{error.message}</Text>
-              <Text className="text-muted text-center text-xs">
+              <Text className="mb-1 text-center font-medium text-danger">
+                {error.message}
+              </Text>
+              <Text className="text-center text-muted text-xs">
                 Please check your connection and try again.
               </Text>
             </ErrorView>
@@ -71,53 +80,63 @@ export default function AIScreen() {
   return (
     <Container>
       <KeyboardAvoidingView
-        className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        className="flex-1"
       >
         <View className="flex-1 px-4 py-4">
-          <View className="py-4 mb-4">
-            <Text className="text-2xl font-semibold text-foreground tracking-tight">AI Chat</Text>
-            <Text className="text-muted text-sm mt-1">Chat with our AI assistant</Text>
+          <View className="mb-4 py-4">
+            <Text className="font-semibold text-2xl text-foreground tracking-tight">
+              AI Chat
+            </Text>
+            <Text className="mt-1 text-muted text-sm">
+              Chat with our AI assistant
+            </Text>
           </View>
 
           <ScrollView
+            className="mb-4 flex-1"
             ref={scrollViewRef}
-            className="flex-1 mb-4"
             showsVerticalScrollIndicator={false}
           >
             {messages.length === 0 ? (
-              <View className="flex-1 justify-center items-center py-10">
-                <Ionicons name="chatbubble-ellipses-outline" size={32} color={mutedColor} />
-                <Text className="text-muted text-sm mt-3">Ask me anything to get started</Text>
+              <View className="flex-1 items-center justify-center py-10">
+                <Ionicons
+                  color={mutedColor}
+                  name="chatbubble-ellipses-outline"
+                  size={32}
+                />
+                <Text className="mt-3 text-muted text-sm">
+                  Ask me anything to get started
+                </Text>
               </View>
             ) : (
               <View className="gap-2">
                 {messages.map((message) => (
                   <Surface
+                    className={`rounded-lg p-3 ${message.role === "user" ? "ml-10" : "mr-10"}`}
                     key={message.id}
                     variant={message.role === "user" ? "tertiary" : "secondary"}
-                    className={`p-3 rounded-lg ${message.role === "user" ? "ml-10" : "mr-10"}`}
                   >
-                    <Text className="text-xs font-medium mb-1 text-muted">
+                    <Text className="mb-1 font-medium text-muted text-xs">
                       {message.role === "user" ? "You" : "AI"}
                     </Text>
                     <View className="gap-1">
                       {message.parts.map((part, i) =>
                         part.type === "text" ? (
                           <Text
-                            key={`${message.id}-${i}`}
                             className="text-foreground text-sm leading-relaxed"
+                            key={`${message.id}-${i}`}
                           >
                             {part.text}
                           </Text>
                         ) : (
                           <Text
-                            key={`${message.id}-${i}`}
                             className="text-foreground text-sm leading-relaxed"
+                            key={`${message.id}-${i}`}
                           >
                             {JSON.stringify(part)}
                           </Text>
-                        ),
+                        )
                       )}
                     </View>
                   </Surface>
@@ -132,25 +151,25 @@ export default function AIScreen() {
             <View className="flex-1">
               <TextField>
                 <TextField.Input
-                  value={input}
-                  onChangeText={setInput}
-                  placeholder="Type a message..."
-                  onSubmitEditing={onSubmit}
                   autoFocus
+                  onChangeText={setInput}
+                  onSubmitEditing={onSubmit}
+                  placeholder="Type a message..."
+                  value={input}
                 />
               </TextField>
             </View>
             <Button
-              isIconOnly
-              variant={input.trim() ? "primary" : "secondary"}
-              onPress={onSubmit}
               isDisabled={!input.trim()}
+              isIconOnly
+              onPress={onSubmit}
               size="sm"
+              variant={input.trim() ? "primary" : "secondary"}
             >
               <Ionicons
+                color={input.trim() ? foregroundColor : mutedColor}
                 name="arrow-up"
                 size={18}
-                color={input.trim() ? foregroundColor : mutedColor}
               />
             </Button>
           </View>
