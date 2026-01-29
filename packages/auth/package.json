@@ -1,0 +1,25 @@
+{
+  "name": "@contract-builder/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@better-auth/expo": "catalog:",
+    "@contract-builder/db": "workspace:*",
+    "@contract-builder/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@contract-builder/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

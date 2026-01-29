@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "scheme": "contract-builder",
+    "userInterfaceStyle": "automatic",
+    "orientation": "default",
+    "web": {
+      "bundler": "metro"
+    },
+    "name": "contract-builder",
+    "slug": "contract-builder",
+    "plugins": ["expo-font"],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
