@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Home, LayoutDashboard, MessageSquare } from "lucide-react";
+import { FileText, Home, LayoutDashboard, MessageSquare } from "lucide-react";
 
 import {
   Sidebar,
@@ -22,6 +22,11 @@ const navigation = [
     title: "Home",
     url: "/",
     icon: Home,
+  },
+  {
+    title: "Templates",
+    url: "/templates",
+    icon: FileText,
   },
   {
     title: "Dashboard",
