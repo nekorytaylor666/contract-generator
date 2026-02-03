@@ -30,6 +30,7 @@
 
 # Environment & local files
 .env*
+src/routeTree.gen.ts
 !.env.example
 .DS_Store
 *.pem
