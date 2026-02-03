@@ -4,6 +4,7 @@ import * as schema from "@contract-builder/db/schema/auth";
 import { env } from "@contract-builder/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { organization } from "better-auth/plugins";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -22,5 +23,5 @@ export const auth = betterAuth({
       httpOnly: true,
     },
   },
-  plugins: [expo()],
+  plugins: [expo(), organization()],
 });
