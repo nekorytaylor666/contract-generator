@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { getUser } from "@/functions/get-user";
+import { getUserOrganizations } from "@/functions/get-user-organizations";
 import { useTRPC } from "@/utils/trpc";
 
 export const Route = createFileRoute("/dashboard")({
@@ -16,6 +17,16 @@ export const Route = createFileRoute("/dashboard")({
         to: "/login",
       });
     }
+
+    const { organizations } = await getUserOrganizations();
+
+    if (organizations.length === 0) {
+      throw redirect({
+        to: "/onboarding",
+      });
+    }
+
+    return { organizations };
   },
 });
 

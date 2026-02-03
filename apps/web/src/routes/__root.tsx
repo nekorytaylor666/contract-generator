@@ -12,7 +12,7 @@ import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 
 import { Toaster } from "@/components/ui/sonner";
 
-import Header from "../components/header";
+import { SidebarLayout } from "../components/sidebar-layout";
 import appCss from "../index.css?url";
 export interface RouterAppContext {
   trpc: TRPCOptionsProxy<AppRouter>;
@@ -46,15 +46,14 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 
 function RootDocument() {
   return (
-    <html className="dark" lang="en">
+    <html lang="en">
       <head>
         <HeadContent />
       </head>
       <body>
-        <div className="grid h-svh grid-rows-[auto_1fr]">
-          <Header />
+        <SidebarLayout>
           <Outlet />
-        </div>
+        </SidebarLayout>
         <Toaster richColors />
         <TanStackRouterDevtools position="bottom-left" />
         <ReactQueryDevtools buttonPosition="bottom-right" position="bottom" />
