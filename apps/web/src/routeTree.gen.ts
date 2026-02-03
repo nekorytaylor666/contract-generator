@@ -16,6 +16,7 @@ import { Route as AiRouteImport } from './routes/ai'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TemplatesIndexRouteImport } from './routes/templates/index'
 import { Route as TemplatesTemplateIdIndexRouteImport } from './routes/templates/$templateId/index'
+import { Route as TemplatesTemplateIdBuilderRouteImport } from './routes/templates/$templateId/builder'
 
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
@@ -53,6 +54,12 @@ const TemplatesTemplateIdIndexRoute =
     path: '/templates/$templateId/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const TemplatesTemplateIdBuilderRoute =
+  TemplatesTemplateIdBuilderRouteImport.update({
+    id: '/templates/$templateId/builder',
+    path: '/templates/$templateId/builder',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -61,6 +68,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/templates/': typeof TemplatesIndexRoute
+  '/templates/$templateId/builder': typeof TemplatesTemplateIdBuilderRoute
   '/templates/$templateId/': typeof TemplatesTemplateIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -70,6 +78,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/templates': typeof TemplatesIndexRoute
+  '/templates/$templateId/builder': typeof TemplatesTemplateIdBuilderRoute
   '/templates/$templateId': typeof TemplatesTemplateIdIndexRoute
 }
 export interface FileRoutesById {
@@ -80,6 +89,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/templates/': typeof TemplatesIndexRoute
+  '/templates/$templateId/builder': typeof TemplatesTemplateIdBuilderRoute
   '/templates/$templateId/': typeof TemplatesTemplateIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -91,6 +101,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/templates/'
+    | '/templates/$templateId/builder'
     | '/templates/$templateId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -100,6 +111,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/templates'
+    | '/templates/$templateId/builder'
     | '/templates/$templateId'
   id:
     | '__root__'
@@ -109,6 +121,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/templates/'
+    | '/templates/$templateId/builder'
     | '/templates/$templateId/'
   fileRoutesById: FileRoutesById
 }
@@ -119,6 +132,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   TemplatesIndexRoute: typeof TemplatesIndexRoute
+  TemplatesTemplateIdBuilderRoute: typeof TemplatesTemplateIdBuilderRoute
   TemplatesTemplateIdIndexRoute: typeof TemplatesTemplateIdIndexRoute
 }
 
@@ -173,6 +187,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TemplatesTemplateIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/templates/$templateId/builder': {
+      id: '/templates/$templateId/builder'
+      path: '/templates/$templateId/builder'
+      fullPath: '/templates/$templateId/builder'
+      preLoaderRoute: typeof TemplatesTemplateIdBuilderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -183,6 +204,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   TemplatesIndexRoute: TemplatesIndexRoute,
+  TemplatesTemplateIdBuilderRoute: TemplatesTemplateIdBuilderRoute,
   TemplatesTemplateIdIndexRoute: TemplatesTemplateIdIndexRoute,
 }
 export const routeTree = rootRouteImport

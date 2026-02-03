@@ -167,8 +167,10 @@ function RouteComponent() {
             ))}
           </div>
 
-          <Button className="mt-4 w-full" size="lg">
-            Use This Template
+          <Button asChild className="mt-4 w-full" size="lg">
+            <Link params={{ templateId }} to="/templates/$templateId/builder">
+              Use This Template
+            </Link>
           </Button>
         </div>
       </div>
