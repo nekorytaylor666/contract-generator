@@ -1,5 +1,12 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { FileText, Home, LayoutDashboard, MessageSquare } from "lucide-react";
+import {
+  Bookmark,
+  FileText,
+  FolderOpen,
+  Globe,
+  HelpCircle,
+  Settings,
+} from "lucide-react";
 
 import {
   Sidebar,
@@ -7,36 +14,40 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { NavUser } from "./nav-user";
-import { OrganizationSwitcher } from "./organization-switcher";
 
 const navigation = [
   {
-    title: "Home",
-    url: "/",
-    icon: Home,
+    title: "Шаблоны",
+    url: "/templates",
+    icon: FolderOpen,
   },
   {
-    title: "Templates",
-    url: "/templates",
+    title: "Мои документы",
+    url: "/documents",
     icon: FileText,
   },
   {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: LayoutDashboard,
+    title: "Закладки",
+    url: "/bookmarks",
+    icon: Bookmark,
   },
   {
-    title: "AI Chat",
-    url: "/ai",
-    icon: MessageSquare,
+    title: "Поддержка",
+    url: "/support",
+    icon: HelpCircle,
+  },
+  {
+    title: "Настройки",
+    url: "/settings",
+    icon: Settings,
   },
 ];
 
@@ -45,19 +56,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
-        <OrganizationSwitcher />
+      <SidebarHeader className="flex-row items-center justify-between px-4 py-3">
+        <span className="font-semibold text-lg tracking-tight">SHART</span>
+        <SidebarTrigger />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {navigation.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={location.pathname === item.url}
+                    isActive={
+                      location.pathname === item.url ||
+                      location.pathname.startsWith(`${item.url}/`)
+                    }
                     tooltip={item.title}
                   >
                     <Link to={item.url}>
@@ -71,7 +85,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="gap-1">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip="Сменить язык">
+              <Globe />
+              <span>Сменить язык</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
         <NavUser />
       </SidebarFooter>
       <SidebarRail />

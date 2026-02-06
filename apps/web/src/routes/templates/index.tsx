@@ -1,17 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { FileText, Search } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { Filter, Search } from "lucide-react";
+import { useMemo } from "react";
+import { useCommandSearch } from "@/components/command-search/command-search-context";
+import { TemplateCard } from "@/components/template-card";
+import { TemplateCategorySection } from "@/components/template-category-section";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { getUser } from "@/functions/get-user";
 import { getUserOrganizations } from "@/functions/get-user-organizations";
 import { useTRPC } from "@/utils/trpc";
@@ -25,15 +24,26 @@ export interface TemplateVariable {
   options?: string[];
 }
 
-const priceRanges = [
-  { label: "All Prices", value: "all" },
-  { label: "Under 30 SAR", value: "under-30" },
-  { label: "30-50 SAR", value: "30-50" },
-  { label: "Over 50 SAR", value: "over-50" },
-];
+// Mock categories - will be fetched from backend later
+const TEMPLATE_CATEGORIES = [
+  { id: "contracts-deals", name: "Договора и сделки" },
+  { id: "employment", name: "Трудовые договора" },
+  { id: "civil", name: "Гражданские договора" },
+] as const;
+
+// Mock category assignments - will come from backend later
+function getCategoryForTemplate(templateIndex: number): string {
+  const categories = TEMPLATE_CATEGORIES.map((c) => c.id);
+  return categories[templateIndex % categories.length];
+}
 
 export const Route = createFileRoute("/templates/")({
   component: RouteComponent,
+  validateSearch: (search: Record<string, unknown>): { q?: string } => {
+    return {
+      q: search.q ? String(search.q) : undefined,
+    };
+  },
   beforeLoad: async () => {
     const session = await getUser();
     return { session };
@@ -58,8 +68,18 @@ export const Route = createFileRoute("/templates/")({
 });
 
 function RouteComponent() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPriceRange, setSelectedPriceRange] = useState("all");
+  const navigate = useNavigate();
+  const { q } = Route.useSearch();
+  const searchQuery = q ?? "";
+  const { open: openCommandSearch } = useCommandSearch();
+
+  const handleSearchChange = (value: string) => {
+    navigate({
+      to: "/templates",
+      search: { q: value || undefined },
+      replace: true,
+    });
+  };
 
   const trpc = useTRPC();
   const { data: templates = [], isLoading } = useQuery(
@@ -75,133 +95,110 @@ function RouteComponent() {
           .includes(searchQuery.toLowerCase()) ??
           false);
 
-      const priceInSAR = template.price / 100;
-      let matchesPrice = true;
-      if (selectedPriceRange === "under-30") {
-        matchesPrice = priceInSAR < 30;
-      } else if (selectedPriceRange === "30-50") {
-        matchesPrice = priceInSAR >= 30 && priceInSAR <= 50;
-      } else if (selectedPriceRange === "over-50") {
-        matchesPrice = priceInSAR > 50;
-      }
-
-      return matchesSearch && matchesPrice;
+      return matchesSearch;
     });
-  }, [searchQuery, selectedPriceRange, templates]);
+  }, [searchQuery, templates]);
 
-  const formatPrice = (priceInCents: number) => {
-    return (priceInCents / 100).toFixed(2);
-  };
+  // Group templates by category
+  const groupedTemplates = useMemo(() => {
+    const groups: Record<
+      string,
+      Array<(typeof filteredTemplates)[number] & { categoryId: string }>
+    > = {};
+
+    for (const category of TEMPLATE_CATEGORIES) {
+      groups[category.id] = [];
+    }
+
+    for (const [index, template] of filteredTemplates.entries()) {
+      const categoryId = getCategoryForTemplate(index);
+      groups[categoryId].push({ ...template, categoryId });
+    }
+
+    return groups;
+  }, [filteredTemplates]);
 
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="text-muted-foreground">Loading templates...</div>
+        <div className="text-muted-foreground">Загрузка шаблонов...</div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full flex-col p-4">
-      {/* Header */}
-      <div className="mb-4">
-        <h1 className="font-semibold text-base text-foreground">
-          Contract Templates
-        </h1>
-        <p className="mt-0.5 text-muted-foreground text-xs">
-          Browse and select a template to create your contract
-        </p>
-      </div>
-
-      {/* Filters */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[200px] max-w-sm flex-1">
-          <Search className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-8"
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search templates..."
+    <div className="flex h-full flex-col overflow-auto">
+      {/* Search Bar */}
+      <div className="sticky top-0 z-10 bg-background px-6 py-4">
+        <InputGroup className="h-10">
+          <InputGroupAddon align="inline-start">
+            <Search className="size-4" />
+          </InputGroupAddon>
+          <InputGroupInput
+            onChange={(e) => handleSearchChange(e.target.value)}
+            onFocus={openCommandSearch}
+            placeholder="Поиск шаблонов... (⌘K)"
+            readOnly
             value={searchQuery}
           />
-        </div>
-
-        <Select
-          onValueChange={setSelectedPriceRange}
-          value={selectedPriceRange}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Price Range" />
-          </SelectTrigger>
-          <SelectContent>
-            {priceRanges.map((range) => (
-              <SelectItem key={range.value} value={range.value}>
-                {range.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              onClick={openCommandSearch}
+              size="sm"
+              variant="ghost"
+            >
+              <Filter className="size-3.5" />
+              Фильтр
+            </InputGroupButton>
+          </InputGroupAddon>
+        </InputGroup>
       </div>
 
-      {/* Results Count */}
-      <p className="mb-3 text-muted-foreground text-xs">
-        {filteredTemplates.length} template
-        {filteredTemplates.length !== 1 ? "s" : ""} found
-      </p>
+      {/* Content */}
+      <div className="flex flex-col gap-8 p-6">
+        {TEMPLATE_CATEGORIES.map((category) => {
+          const categoryTemplates = groupedTemplates[category.id];
+          if (categoryTemplates.length === 0 && searchQuery) {
+            return null;
+          }
 
-      {/* Templates Grid */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredTemplates.map((template) => {
-          const variables = template.variables as TemplateVariable[];
           return (
-            <Link
-              className="block"
-              key={template.id}
-              params={{ templateId: template.id }}
-              to="/templates/$templateId"
+            <TemplateCategorySection
+              key={category.id}
+              title={category.name}
+              viewAllHref="#"
             >
-              <Card className="h-full cursor-pointer transition-colors hover:bg-accent/50">
-                {/* Preview Placeholder */}
-                <div className="flex h-28 items-center justify-center rounded-t-lg bg-muted">
-                  <FileText className="size-10 text-muted-foreground/40" />
+              {categoryTemplates.length > 0 ? (
+                categoryTemplates.map((template) => (
+                  <TemplateCard
+                    createdAt={template.createdAt}
+                    description={template.description}
+                    id={template.id}
+                    key={template.id}
+                    title={template.title}
+                  />
+                ))
+              ) : (
+                <div className="col-span-full py-8 text-center text-muted-foreground text-sm">
+                  Нет шаблонов в этой категории
                 </div>
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="line-clamp-1">
-                      {template.title}
-                    </CardTitle>
-                    <Badge className="shrink-0" variant="secondary">
-                      {formatPrice(template.price)} SAR
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="line-clamp-2 text-muted-foreground">
-                    {template.description}
-                  </p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-muted-foreground text-xs">
-                      {variables.length} fields
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+              )}
+            </TemplateCategorySection>
           );
         })}
-      </div>
 
-      {/* Empty State */}
-      {filteredTemplates.length === 0 && (
-        <div className="flex flex-1 flex-col items-center justify-center py-8">
-          <FileText className="size-12 text-muted-foreground/40" />
-          <p className="mt-3 font-medium text-foreground text-sm">
-            No templates found
-          </p>
-          <p className="mt-0.5 text-muted-foreground text-xs">
-            Try adjusting your search or filters
-          </p>
-        </div>
-      )}
+        {/* Empty State */}
+        {filteredTemplates.length === 0 && searchQuery && (
+          <div className="flex flex-1 flex-col items-center justify-center py-12">
+            <p className="font-medium text-foreground text-sm">
+              Шаблоны не найдены
+            </p>
+            <p className="mt-1 text-muted-foreground text-xs">
+              Попробуйте изменить поисковый запрос
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
