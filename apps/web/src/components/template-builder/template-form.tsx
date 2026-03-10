@@ -1,4 +1,5 @@
-import { useForm } from "@tanstack/react-form";
+import { useForm, useStore } from "@tanstack/react-form";
+import { useEffect, useRef } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import type { TemplateVariable } from "@/routes/templates";
@@ -7,6 +8,7 @@ import { VariableField } from "./variable-field";
 interface TemplateFormProps {
   variables: TemplateVariable[];
   onSubmit: (values: Record<string, unknown>) => void;
+  onValuesChange?: (values: Record<string, unknown>) => void;
   isSubmitting?: boolean;
 }
 
@@ -91,6 +93,7 @@ function buildZodSchema(variables: TemplateVariable[]) {
 export function TemplateForm({
   variables,
   onSubmit,
+  onValuesChange,
   isSubmitting,
 }: TemplateFormProps) {
   const form = useForm({
@@ -102,6 +105,17 @@ export function TemplateForm({
       onSubmit: buildZodSchema(variables),
     },
   });
+
+  const values = useStore(form.store, (s) => s.values);
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    onValuesChange?.(values);
+  }, [values, onValuesChange]);
 
   return (
     <form

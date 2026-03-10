@@ -1,52 +1,36 @@
 import { Download, FileText } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 
 interface PdfPreviewProps {
-  pdfDataUrl: string | null;
+  svgPages: string[] | null;
   isLoading?: boolean;
-  templateTitle?: string;
+  onDownload?: () => void;
+  isDownloading?: boolean;
 }
 
 export function PdfPreview({
-  pdfDataUrl,
+  svgPages,
   isLoading,
-  templateTitle,
+  onDownload,
+  isDownloading,
 }: PdfPreviewProps) {
-  const handleDownload = () => {
-    if (!pdfDataUrl) {
-      return;
-    }
-
-    const link = document.createElement("a");
-    link.href = pdfDataUrl;
-    link.download = `${templateTitle ?? "document"}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  if (isLoading) {
+  if (!(svgPages || isLoading)) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-primary" />
-          <p className="text-muted-foreground text-sm">Generating PDF...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!pdfDataUrl) {
-    return (
-      <div className="flex aspect-[8.5/11] items-center justify-center rounded-lg border border-border border-dashed bg-background">
+      <motion.div
+        animate={{ opacity: 1, scale: 1 }}
+        className="flex aspect-[8.5/11] items-center justify-center rounded-lg border border-border border-dashed bg-background"
+        initial={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.3 }}
+      >
         <div className="text-center">
           <FileText className="mx-auto size-16 text-muted-foreground/30" />
           <p className="mt-3 text-muted-foreground text-sm">PDF Preview</p>
           <p className="mt-0.5 text-muted-foreground/60 text-xs">
-            Fill in the form and click "Generate PDF" to see your document
+            Start filling in the form to see a live preview
           </p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -54,19 +38,66 @@ export function PdfPreview({
     <div className="flex h-full flex-col gap-3">
       <div className="flex items-center justify-between">
         <h2 className="font-medium text-foreground text-sm">
-          Generated Document
+          {isLoading && !svgPages ? "Generating..." : "Preview"}
         </h2>
-        <Button onClick={handleDownload} size="sm" variant="outline">
-          <Download className="mr-1.5 size-3.5" />
-          Download PDF
-        </Button>
+        <AnimatePresence>
+          {svgPages && (
+            <motion.div
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              initial={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Button
+                disabled={isDownloading}
+                onClick={onDownload}
+                size="sm"
+                variant="outline"
+              >
+                <Download className="mr-1.5 size-3.5" />
+                {isDownloading ? "Downloading..." : "Download PDF"}
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-      <div className="flex-1 overflow-hidden rounded-lg border border-border bg-white">
-        <iframe
-          className="size-full"
-          src={`${pdfDataUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-          title="PDF Preview"
-        />
+      <div className="relative flex-1 overflow-auto rounded-lg border border-border bg-white">
+        <AnimatePresence mode="popLayout">
+          {isLoading && (
+            <motion.div
+              animate={{ opacity: 1 }}
+              className="absolute inset-x-0 top-0 z-10 flex justify-center py-3"
+              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
+              key="loading-indicator"
+              transition={{ duration: 0.15 }}
+            >
+              <div className="flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 shadow-sm backdrop-blur-sm">
+                <div className="size-3.5 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-primary" />
+                <span className="text-muted-foreground text-xs">
+                  Updating...
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="flex flex-col items-center gap-4 p-4">
+          {svgPages ? (
+            svgPages.map((svg, i) => (
+              <div
+                className="w-full shadow-sm"
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: SVG from our own Typst compiler
+                dangerouslySetInnerHTML={{ __html: svg }}
+                key={`page-${i + 1}`}
+              />
+            ))
+          ) : (
+            <div className="flex aspect-[8.5/11] w-full items-center justify-center">
+              <div className="mx-auto size-8 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-primary" />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

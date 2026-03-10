@@ -1,8 +1,8 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
+import { useCallback, useRef, useState } from "react";
+import { LogoUpload } from "@/components/template-builder/logo-upload";
 import { PdfPreview } from "@/components/template-builder/pdf-preview";
 import { TemplateForm } from "@/components/template-builder/template-form";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +39,9 @@ export const Route = createFileRoute("/templates/$templateId/builder")({
 function RouteComponent() {
   const { templateId } = Route.useParams();
   const trpc = useTRPC();
-  const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
+  const [svgPages, setSvgPages] = useState<string[] | null>(null);
+  const [logo, setLogo] = useState<string | null>(null);
+  const latestValuesRef = useRef<Record<string, unknown> | null>(null);
 
   const {
     data: template,
@@ -47,24 +49,110 @@ function RouteComponent() {
     error,
   } = useQuery(trpc.templates.getById.queryOptions({ id: templateId }));
 
-  const compileMutation = useMutation(
-    trpc.templates.compile.mutationOptions({
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const previewMutation = useMutation(
+    trpc.templates.preview.mutationOptions({
       onSuccess: (data) => {
-        setPdfDataUrl(data.pdfDataUrl);
-        toast.success("PDF generated successfully");
-      },
-      onError: (error) => {
-        toast.error(error.message || "Failed to generate PDF");
+        setSvgPages(data.pages);
       },
     })
   );
 
+  const compileMutation = useMutation(
+    trpc.templates.compile.mutationOptions({
+      onSuccess: (data) => {
+        const link = document.createElement("a");
+        link.href = data.pdfDataUrl;
+        link.download = data.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      },
+    })
+  );
+
+  const getChangedVariables = useCallback(
+    (values: Record<string, unknown>): string[] => {
+      const prev = latestValuesRef.current;
+      if (!prev) {
+        return [];
+      }
+      const changed: string[] = [];
+      for (const key of Object.keys(values)) {
+        if (String(values[key]) !== String(prev[key])) {
+          changed.push(key);
+        }
+      }
+      return changed;
+    },
+    []
+  );
+
+  const logoRef = useRef<string | null>(null);
+  logoRef.current = logo;
+
+  const previewWithValues = useCallback(
+    (
+      values: Record<string, unknown>,
+      options?: { changedVariables?: string[]; logoOverride?: string | null }
+    ) => {
+      const currentLogo =
+        options?.logoOverride !== undefined
+          ? options.logoOverride
+          : logoRef.current;
+      previewMutation.mutate({
+        templateId,
+        variables: values,
+        changedVariables: options?.changedVariables,
+        logo: currentLogo ?? undefined,
+      });
+      latestValuesRef.current = values;
+    },
+    [templateId, previewMutation.mutate]
+  );
+
+  const handleValuesChange = useCallback(
+    (values: Record<string, unknown>) => {
+      const changed = getChangedVariables(values);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      debounceRef.current = setTimeout(() => {
+        previewWithValues(values, { changedVariables: changed });
+      }, 500);
+    },
+    [previewWithValues, getChangedVariables]
+  );
+
   const handleFormSubmit = (values: Record<string, unknown>) => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    previewWithValues(values);
+  };
+
+  const handleDownload = useCallback(() => {
+    if (!latestValuesRef.current) {
+      return;
+    }
     compileMutation.mutate({
       templateId,
-      variables: values,
+      variables: latestValuesRef.current,
+      logo: logo ?? undefined,
     });
-  };
+  }, [templateId, compileMutation.mutate, logo]);
+
+  const handleLogoChange = useCallback(
+    (newLogo: string | null) => {
+      setLogo(newLogo);
+      // Trigger preview with current or empty values
+      previewWithValues(latestValuesRef.current ?? {}, {
+        logoOverride: newLogo,
+      });
+    },
+    [previewWithValues]
+  );
 
   if (isLoading) {
     return (
@@ -125,9 +213,10 @@ function RouteComponent() {
         <div className="flex-1 overflow-auto bg-muted/30 p-4">
           <div className="mx-auto h-full max-w-3xl">
             <PdfPreview
-              isLoading={compileMutation.isPending}
-              pdfDataUrl={pdfDataUrl}
-              templateTitle={template.title}
+              isDownloading={compileMutation.isPending}
+              isLoading={previewMutation.isPending}
+              onDownload={handleDownload}
+              svgPages={svgPages}
             />
           </div>
         </div>
@@ -141,9 +230,12 @@ function RouteComponent() {
             Fill in the required information to generate your document.
           </p>
 
+          <LogoUpload logo={logo} onLogoChange={handleLogoChange} />
+
           <TemplateForm
             isSubmitting={compileMutation.isPending}
             onSubmit={handleFormSubmit}
+            onValuesChange={handleValuesChange}
             variables={variables}
           />
         </div>
