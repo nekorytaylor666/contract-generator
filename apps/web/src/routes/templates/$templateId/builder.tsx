@@ -2,6 +2,10 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
+import {
+  type DocumentStyle,
+  DocumentStyleSettings,
+} from "@/components/template-builder/document-style-settings";
 import { LogoUpload } from "@/components/template-builder/logo-upload";
 import { PdfPreview } from "@/components/template-builder/pdf-preview";
 import { TemplateForm } from "@/components/template-builder/template-form";
@@ -41,6 +45,10 @@ function RouteComponent() {
   const trpc = useTRPC();
   const [svgPages, setSvgPages] = useState<string[] | null>(null);
   const [logo, setLogo] = useState<string | null>(null);
+  const [documentStyle, setDocumentStyle] = useState<DocumentStyle>({
+    font: "New Computer Modern",
+    preset: "default",
+  });
   const latestValuesRef = useRef<Record<string, unknown> | null>(null);
 
   const {
@@ -91,21 +99,32 @@ function RouteComponent() {
 
   const logoRef = useRef<string | null>(null);
   logoRef.current = logo;
+  const styleRef = useRef<DocumentStyle>(documentStyle);
+  styleRef.current = documentStyle;
 
   const previewWithValues = useCallback(
     (
       values: Record<string, unknown>,
-      options?: { changedVariables?: string[]; logoOverride?: string | null }
+      options?: {
+        changedVariables?: string[];
+        logoOverride?: string | null;
+        styleOverride?: DocumentStyle;
+      }
     ) => {
       const currentLogo =
         options?.logoOverride !== undefined
           ? options.logoOverride
           : logoRef.current;
+      const currentStyle = options?.styleOverride ?? styleRef.current;
       previewMutation.mutate({
         templateId,
         variables: values,
         changedVariables: options?.changedVariables,
         logo: currentLogo ?? undefined,
+        style: {
+          font: currentStyle.font,
+          preset: currentStyle.preset,
+        },
       });
       latestValuesRef.current = values;
     },
@@ -140,15 +159,28 @@ function RouteComponent() {
       templateId,
       variables: latestValuesRef.current,
       logo: logo ?? undefined,
+      style: {
+        font: documentStyle.font,
+        preset: documentStyle.preset,
+      },
     });
-  }, [templateId, compileMutation.mutate, logo]);
+  }, [templateId, compileMutation.mutate, logo, documentStyle]);
 
   const handleLogoChange = useCallback(
     (newLogo: string | null) => {
       setLogo(newLogo);
-      // Trigger preview with current or empty values
       previewWithValues(latestValuesRef.current ?? {}, {
         logoOverride: newLogo,
+      });
+    },
+    [previewWithValues]
+  );
+
+  const handleStyleChange = useCallback(
+    (newStyle: DocumentStyle) => {
+      setDocumentStyle(newStyle);
+      previewWithValues(latestValuesRef.current ?? {}, {
+        styleOverride: newStyle,
       });
     },
     [previewWithValues]
@@ -205,6 +237,14 @@ function RouteComponent() {
             {(template.price / 100).toFixed(2)} SAR
           </Badge>
         </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 border-border border-b bg-background px-4 py-2">
+        <DocumentStyleSettings
+          onStyleChange={handleStyleChange}
+          style={documentStyle}
+        />
       </div>
 
       {/* Content */}
