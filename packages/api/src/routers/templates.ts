@@ -78,8 +78,91 @@ function replaceVariablesWithHighlight(
   );
 }
 
+const STYLE_PRESETS: Record<
+  string,
+  { fontSize: string; margin: string; leading: string; spacing: string }
+> = {
+  compact: {
+    fontSize: "9pt",
+    margin: "1.5cm",
+    leading: "0.55em",
+    spacing: "0.6em",
+  },
+  default: {
+    fontSize: "11pt",
+    margin: "2cm",
+    leading: "0.65em",
+    spacing: "0.8em",
+  },
+  comfortable: {
+    fontSize: "12pt",
+    margin: "2.5cm",
+    leading: "0.75em",
+    spacing: "1em",
+  },
+  spacious: {
+    fontSize: "13pt",
+    margin: "3cm",
+    leading: "0.85em",
+    spacing: "1.2em",
+  },
+};
+
+const SET_TEXT_REGEX = /#set text\([^)]*\)/;
+const SET_TEXT_SIZE_REGEX = /#set text\(([^)]*)\bsize:\s*[\w.]+([^)]*)\)/;
+const SET_PAGE_MARGIN_REGEX = /#set page\(margin:\s*[\w.]+\)/;
+const SET_PAR_REGEX = /#set par\([^)]*\)/;
+
+function applyStyleOverrides(
+  typstContent: string,
+  style?: { font?: string; preset?: string }
+): string {
+  if (!style) {
+    return typstContent;
+  }
+
+  const presetKey = style.preset ?? "default";
+  const preset = STYLE_PRESETS[presetKey] ?? STYLE_PRESETS.default;
+  if (!preset) {
+    return typstContent;
+  }
+
+  let result = typstContent;
+
+  if (style.font) {
+    result = result.replace(
+      SET_TEXT_REGEX,
+      `#set text(font: "${style.font}", size: ${preset.fontSize})`
+    );
+  } else {
+    result = result.replace(
+      SET_TEXT_SIZE_REGEX,
+      `#set text($1size: ${preset.fontSize}$2)`
+    );
+  }
+
+  result = result.replace(
+    SET_PAGE_MARGIN_REGEX,
+    `#set page(margin: ${preset.margin})`
+  );
+
+  const parRule = `#set par(leading: ${preset.leading}, spacing: ${preset.spacing})`;
+  if (result.includes("#set par(")) {
+    result = result.replace(SET_PAR_REGEX, parRule);
+  } else {
+    const textSetIdx = result.indexOf("#set text(");
+    if (textSetIdx !== -1) {
+      const lineEnd = result.indexOf("\n", textSetIdx);
+      result = `${result.slice(0, lineEnd + 1)}${parRule}\n${result.slice(lineEnd + 1)}`;
+    }
+  }
+
+  return result;
+}
+
 interface CompileOptions {
   logoBase64?: string;
+  style?: { font?: string; preset?: string };
 }
 
 async function setupTempDir(
@@ -89,7 +172,7 @@ async function setupTempDir(
 ): Promise<{ inputPath: string; cleanupFiles: string[] }> {
   const inputPath = join(tmpdir(), `${id}.typ`);
   const filesToCleanup = [inputPath];
-  let content = typstContent;
+  let content = applyStyleOverrides(typstContent, options?.style);
 
   if (options?.logoBase64) {
     const logoPath = join(tmpdir(), `${id}-logo.png`);
@@ -220,6 +303,12 @@ export const templatesRouter = router({
         variables: z.record(z.string(), z.unknown()),
         changedVariables: z.array(z.string()).optional(),
         logo: z.string().optional(),
+        style: z
+          .object({
+            font: z.string().optional(),
+            preset: z.string().optional(),
+          })
+          .optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -252,6 +341,7 @@ export const templatesRouter = router({
       try {
         const pages = await compileTypstToSvg(processedContent, {
           logoBase64: input.logo,
+          style: input.style,
         });
         return { pages };
       } catch (error) {
@@ -271,6 +361,12 @@ export const templatesRouter = router({
         templateId: z.string(),
         variables: z.record(z.string(), z.unknown()),
         logo: z.string().optional(),
+        style: z
+          .object({
+            font: z.string().optional(),
+            preset: z.string().optional(),
+          })
+          .optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -295,6 +391,7 @@ export const templatesRouter = router({
       try {
         const pdf = await compileTypst(processedContent, {
           logoBase64: input.logo,
+          style: input.style,
         });
         const base64 = pdf.toString("base64");
         return {
