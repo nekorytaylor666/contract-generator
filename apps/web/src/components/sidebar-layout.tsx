@@ -37,8 +37,22 @@ function usePageHeader() {
   };
 }
 
+function useIsAuthRoute() {
+  const loginMatch = useMatch({ from: "/login", shouldThrow: false });
+  const onboardingMatch = useMatch({
+    from: "/onboarding",
+    shouldThrow: false,
+  });
+  return Boolean(loginMatch || onboardingMatch);
+}
+
 export function SidebarLayout({ children }: SidebarLayoutProps) {
   const { title } = usePageHeader();
+  const isAuthRoute = useIsAuthRoute();
+
+  if (isAuthRoute) {
+    return <>{children}</>;
+  }
 
   return (
     <CommandSearchProvider>

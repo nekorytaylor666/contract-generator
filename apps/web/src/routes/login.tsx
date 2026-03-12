@@ -9,11 +9,20 @@ export const Route = createFileRoute("/login")({
 });
 
 function RouteComponent() {
-  const [showSignIn, setShowSignIn] = useState(false);
+  const [showSignUp, setShowSignUp] = useState(false);
 
-  return showSignIn ? (
-    <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
-  ) : (
-    <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
+  return (
+    <div className="flex h-screen w-full">
+      <div className="hidden w-1/2 bg-primary lg:block" />
+      <div className="flex w-full flex-1 items-center justify-center px-6 lg:w-1/2">
+        <div className="w-full max-w-md">
+          {showSignUp ? (
+            <SignUpForm onSwitchToSignIn={() => setShowSignUp(false)} />
+          ) : (
+            <SignInForm onSwitchToSignUp={() => setShowSignUp(true)} />
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
