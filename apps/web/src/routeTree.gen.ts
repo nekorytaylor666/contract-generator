@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as DocumentsRouteImport } from './routes/documents'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AiRouteImport } from './routes/ai'
 import { Route as IndexRouteImport } from './routes/index'
@@ -26,6 +27,11 @@ const OnboardingRoute = OnboardingRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocumentsRoute = DocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
   '/dashboard': typeof DashboardRoute
+  '/documents': typeof DocumentsRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/templates/': typeof TemplatesIndexRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
   '/dashboard': typeof DashboardRoute
+  '/documents': typeof DocumentsRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/templates': typeof TemplatesIndexRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
   '/dashboard': typeof DashboardRoute
+  '/documents': typeof DocumentsRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/templates/': typeof TemplatesIndexRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ai'
     | '/dashboard'
+    | '/documents'
     | '/login'
     | '/onboarding'
     | '/templates/'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ai'
     | '/dashboard'
+    | '/documents'
     | '/login'
     | '/onboarding'
     | '/templates'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ai'
     | '/dashboard'
+    | '/documents'
     | '/login'
     | '/onboarding'
     | '/templates/'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiRoute: typeof AiRoute
   DashboardRoute: typeof DashboardRoute
+  DocumentsRoute: typeof DocumentsRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   TemplatesIndexRoute: typeof TemplatesIndexRoute
@@ -150,6 +163,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/documents': {
+      id: '/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof DocumentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -201,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiRoute: AiRoute,
   DashboardRoute: DashboardRoute,
+  DocumentsRoute: DocumentsRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   TemplatesIndexRoute: TemplatesIndexRoute,

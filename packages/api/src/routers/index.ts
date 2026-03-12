@@ -1,4 +1,5 @@
 import { protectedProcedure, publicProcedure, router } from "../index";
+import { documentsRouter } from "./documents";
 import { templatesRouter } from "./templates";
 
 export const appRouter = router({
@@ -12,5 +13,6 @@ export const appRouter = router({
     };
   }),
   templates: templatesRouter,
+  documents: documentsRouter,
 });
 export type AppRouter = typeof appRouter;

@@ -1,4 +1,4 @@
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, Save } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 
@@ -7,6 +7,8 @@ interface PdfPreviewProps {
   isLoading?: boolean;
   onDownload?: () => void;
   isDownloading?: boolean;
+  onSave?: () => void;
+  isSaving?: boolean;
 }
 
 export function PdfPreview({
@@ -14,6 +16,8 @@ export function PdfPreview({
   isLoading,
   onDownload,
   isDownloading,
+  onSave,
+  isSaving,
 }: PdfPreviewProps) {
   if (!(svgPages || isLoading)) {
     return (
@@ -44,10 +48,22 @@ export function PdfPreview({
           {svgPages && (
             <motion.div
               animate={{ opacity: 1, x: 0 }}
+              className="flex items-center gap-2"
               exit={{ opacity: 0, x: 10 }}
               initial={{ opacity: 0, x: 10 }}
               transition={{ duration: 0.2 }}
             >
+              {onSave && (
+                <Button
+                  disabled={isSaving}
+                  onClick={onSave}
+                  size="sm"
+                  variant="outline"
+                >
+                  <Save className="mr-1.5 size-3.5" />
+                  {isSaving ? "Saving..." : "Save"}
+                </Button>
+              )}
               <Button
                 disabled={isDownloading}
                 onClick={onDownload}

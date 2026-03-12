@@ -1,5 +1,5 @@
 import { useForm, useStore } from "@tanstack/react-form";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import type { TemplateVariable } from "@/routes/templates";
@@ -10,6 +10,7 @@ interface TemplateFormProps {
   onSubmit: (values: Record<string, unknown>) => void;
   onValuesChange?: (values: Record<string, unknown>) => void;
   isSubmitting?: boolean;
+  initialValues?: Record<string, unknown>;
 }
 
 function buildDefaultValues(
@@ -95,9 +96,10 @@ export function TemplateForm({
   onSubmit,
   onValuesChange,
   isSubmitting,
+  initialValues,
 }: TemplateFormProps) {
   const form = useForm({
-    defaultValues: buildDefaultValues(variables),
+    defaultValues: initialValues ?? buildDefaultValues(variables),
     onSubmit: ({ value }) => {
       onSubmit(value);
     },
@@ -107,13 +109,8 @@ export function TemplateForm({
   });
 
   const values = useStore(form.store, (s) => s.values);
-  const isFirstRender = useRef(true);
 
   useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
     onValuesChange?.(values);
   }, [values, onValuesChange]);
 
