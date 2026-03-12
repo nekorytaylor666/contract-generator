@@ -15,10 +15,20 @@ function usePageHeader() {
     from: "/templates/",
     shouldThrow: false,
   });
+  const documentsMatch = useMatch({
+    from: "/documents",
+    shouldThrow: false,
+  });
 
   if (templatesMatch) {
     return {
       title: "Шаблоны договоров",
+    };
+  }
+
+  if (documentsMatch) {
+    return {
+      title: "Мои документы",
     };
   }
 
