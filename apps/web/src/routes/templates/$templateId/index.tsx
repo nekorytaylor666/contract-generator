@@ -51,7 +51,7 @@ function RouteComponent() {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="text-muted-foreground">Loading template...</div>
+        <div className="text-muted-foreground">Загрузка шаблона...</div>
       </div>
     );
   }
@@ -61,13 +61,13 @@ function RouteComponent() {
       <div className="flex h-full flex-col items-center justify-center">
         <FileText className="size-12 text-muted-foreground/40" />
         <p className="mt-3 font-medium text-foreground text-sm">
-          Template not found
+          Шаблон не найден
         </p>
         <Link
           className="mt-2 text-primary text-sm hover:underline"
           to="/templates"
         >
-          Back to Templates
+          Назад к шаблонам
         </Link>
       </div>
     );
@@ -84,7 +84,7 @@ function RouteComponent() {
           to="/templates"
         >
           <ArrowLeft className="size-3.5" />
-          Back to Templates
+          Назад к шаблонам
         </Link>
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -96,7 +96,7 @@ function RouteComponent() {
             </p>
             <div className="mt-2 flex items-center gap-2">
               <span className="text-muted-foreground text-xs">
-                {variables.length} fields to fill
+                {variables.length} полей для заполнения
               </span>
             </div>
           </div>
@@ -112,16 +112,16 @@ function RouteComponent() {
         <div className="flex-1 overflow-auto bg-muted/30 p-4">
           <div className="mx-auto max-w-3xl">
             <h2 className="mb-3 font-medium text-foreground text-sm">
-              Contract Preview
+              Предпросмотр договора
             </h2>
             <div className="flex aspect-[8.5/11] items-center justify-center rounded-lg border border-border border-dashed bg-background">
               <div className="text-center">
                 <FileText className="mx-auto size-16 text-muted-foreground/30" />
                 <p className="mt-3 text-muted-foreground text-sm">
-                  Contract Preview
+                  Предпросмотр договора
                 </p>
                 <p className="mt-0.5 text-muted-foreground/60 text-xs">
-                  Typst template will be rendered here
+                  Здесь будет отображён шаблон Typst
                 </p>
               </div>
             </div>
@@ -131,10 +131,10 @@ function RouteComponent() {
         {/* Fields Sidebar */}
         <div className="w-80 shrink-0 overflow-auto border-border border-l bg-background p-4">
           <h2 className="mb-2 font-medium text-foreground text-sm">
-            Required Information
+            Необходимая информация
           </h2>
           <p className="mb-4 text-muted-foreground text-xs">
-            These fields will need to be filled when using this template.
+            Эти поля необходимо заполнить при использовании шаблона.
           </p>
 
           <div className="space-y-2">
@@ -158,7 +158,7 @@ function RouteComponent() {
                     )}
                     {field.defaultValue !== undefined && (
                       <span className="text-muted-foreground text-xs">
-                        Default: {String(field.defaultValue)}
+                        По умолчанию: {String(field.defaultValue)}
                       </span>
                     )}
                   </div>
@@ -169,7 +169,7 @@ function RouteComponent() {
 
           <Button asChild className="mt-4 w-full" size="lg">
             <Link params={{ templateId }} to="/templates/$templateId/builder">
-              Use This Template
+              Использовать шаблон
             </Link>
           </Button>
         </div>

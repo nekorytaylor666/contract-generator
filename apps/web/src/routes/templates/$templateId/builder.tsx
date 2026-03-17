@@ -367,7 +367,7 @@ function RouteComponent() {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="text-muted-foreground">Loading template...</div>
+        <div className="text-muted-foreground">Загрузка шаблона...</div>
       </div>
     );
   }
@@ -376,13 +376,13 @@ function RouteComponent() {
     return (
       <div className="flex h-full flex-col items-center justify-center">
         <p className="font-medium text-foreground text-sm">
-          Template not found
+          Шаблон не найден
         </p>
         <Link
           className="mt-2 text-primary text-sm hover:underline"
           to="/templates"
         >
-          Back to Templates
+          Назад к шаблонам
         </Link>
       </div>
     );
@@ -400,7 +400,7 @@ function RouteComponent() {
           to="/templates/$templateId"
         >
           <ArrowLeft className="size-3.5" />
-          Back to Template
+          Назад к шаблону
         </Link>
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -408,7 +408,7 @@ function RouteComponent() {
               {template.title}
             </h1>
             <p className="mt-1 max-w-2xl text-muted-foreground text-xs">
-              Fill in the details below to generate your document
+              Заполните данные ниже для создания документа
             </p>
           </div>
           <Badge className="shrink-0 text-sm" variant="secondary">
@@ -444,10 +444,10 @@ function RouteComponent() {
         {/* Form Sidebar */}
         <div className="w-80 shrink-0 overflow-auto border-border border-l bg-background p-4">
           <h2 className="mb-2 font-medium text-foreground text-sm">
-            Document Details
+            Детали документа
           </h2>
           <p className="mb-4 text-muted-foreground text-xs">
-            Fill in the required information to generate your document.
+            Заполните необходимую информацию для создания документа.
           </p>
 
           <LogoUpload logo={logo} onLogoChange={handleLogoChange} />

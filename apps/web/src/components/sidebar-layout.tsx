@@ -33,7 +33,7 @@ function usePageHeader() {
   }
 
   return {
-    title: "Contract Builder",
+    title: "Конструктор договоров",
   };
 }
 

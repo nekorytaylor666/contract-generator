@@ -34,10 +34,10 @@ const SANS_FONTS = FONTS.filter((f) => f.category === "Sans-Serif");
 const MONO_FONTS = FONTS.filter((f) => f.category === "Monospace");
 
 const PRESETS = [
-  { value: "compact", label: "Compact" },
-  { value: "default", label: "Default" },
-  { value: "comfortable", label: "Comfortable" },
-  { value: "spacious", label: "Spacious" },
+  { value: "compact", label: "Компактный" },
+  { value: "default", label: "По умолчанию" },
+  { value: "comfortable", label: "Комфортный" },
+  { value: "spacious", label: "Просторный" },
 ] as const;
 
 interface DocumentStyleSettingsProps {
@@ -62,7 +62,7 @@ export function DocumentStyleSettings({
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectLabel>Serif</SelectLabel>
+              <SelectLabel>С засечками</SelectLabel>
               {SERIF_FONTS.map((font) => (
                 <SelectItem key={font.value} value={font.value}>
                   <span style={{ fontFamily: font.value }}>{font.label}</span>
@@ -71,7 +71,7 @@ export function DocumentStyleSettings({
             </SelectGroup>
             <SelectSeparator />
             <SelectGroup>
-              <SelectLabel>Sans-Serif</SelectLabel>
+              <SelectLabel>Без засечек</SelectLabel>
               {SANS_FONTS.map((font) => (
                 <SelectItem key={font.value} value={font.value}>
                   <span style={{ fontFamily: font.value }}>{font.label}</span>
@@ -80,7 +80,7 @@ export function DocumentStyleSettings({
             </SelectGroup>
             <SelectSeparator />
             <SelectGroup>
-              <SelectLabel>Monospace</SelectLabel>
+              <SelectLabel>Моноширинный</SelectLabel>
               {MONO_FONTS.map((font) => (
                 <SelectItem key={font.value} value={font.value}>
                   <span style={{ fontFamily: font.value }}>{font.label}</span>

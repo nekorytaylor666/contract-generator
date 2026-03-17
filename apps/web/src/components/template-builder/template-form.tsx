@@ -52,7 +52,7 @@ function buildZodSchema(variables: TemplateVariable[]) {
               if (v.required) {
                 ctx.addIssue({
                   code: z.ZodIssueCode.custom,
-                  message: `${v.label} is required`,
+                  message: `${v.label} обязательно для заполнения`,
                 });
                 return z.NEVER;
               }
@@ -62,7 +62,7 @@ function buildZodSchema(variables: TemplateVariable[]) {
             if (Number.isNaN(parsed)) {
               ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: `${v.label} must be a valid number`,
+                message: `${v.label} должно быть числом`,
               });
               return z.NEVER;
             }
@@ -75,12 +75,12 @@ function buildZodSchema(variables: TemplateVariable[]) {
         break;
       case "date":
         field = v.required
-          ? z.date({ error: `${v.label} is required` })
+          ? z.date({ error: `${v.label} обязательно для заполнения` })
           : z.date().optional();
         break;
       default:
         field = v.required
-          ? z.string().min(1, `${v.label} is required`)
+          ? z.string().min(1, `${v.label} обязательно для заполнения`)
           : z.string();
         break;
     }
@@ -138,8 +138,8 @@ export function TemplateForm({
             type="submit"
           >
             {isSubmitting || state.isSubmitting
-              ? "Generating..."
-              : "Generate PDF"}
+              ? "Генерация..."
+              : "Сгенерировать PDF"}
           </Button>
         )}
       </form.Subscribe>

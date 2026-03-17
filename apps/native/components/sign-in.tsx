@@ -22,7 +22,7 @@ function SignIn() {
       },
       {
         onError(error) {
-          setError(error.error?.message || "Failed to sign in");
+          setError(error.error?.message || "Не удалось войти");
           setIsLoading(false);
         },
         onSuccess() {
@@ -39,7 +39,7 @@ function SignIn() {
 
   return (
     <Surface className="rounded-lg p-4" variant="secondary">
-      <Text className="mb-4 font-medium text-foreground">Sign In</Text>
+      <Text className="mb-4 font-medium text-foreground">Войти</Text>
 
       <ErrorView className="mb-3" isInvalid={!!error}>
         {error}
@@ -47,7 +47,7 @@ function SignIn() {
 
       <View className="gap-3">
         <TextField>
-          <TextField.Label>Email</TextField.Label>
+          <TextField.Label>Электронная почта</TextField.Label>
           <TextField.Input
             autoCapitalize="none"
             keyboardType="email-address"
@@ -58,7 +58,7 @@ function SignIn() {
         </TextField>
 
         <TextField>
-          <TextField.Label>Password</TextField.Label>
+          <TextField.Label>Пароль</TextField.Label>
           <TextField.Input
             onChangeText={setPassword}
             placeholder="••••••••"
@@ -71,7 +71,7 @@ function SignIn() {
           {isLoading ? (
             <Spinner color="default" size="sm" />
           ) : (
-            <Button.Label>Sign In</Button.Label>
+            <Button.Label>Войти</Button.Label>
           )}
         </Button>
       </View>

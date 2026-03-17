@@ -28,16 +28,16 @@ function formatRelativeTime(date: Date): string {
   const diffDay = Math.floor(diffHr / 24);
 
   if (diffMin < 1) {
-    return "just now";
+    return "только что";
   }
   if (diffMin < 60) {
-    return `${diffMin}m ago`;
+    return `${diffMin} мин. назад`;
   }
   if (diffHr < 24) {
-    return `${diffHr}h ago`;
+    return `${diffHr} ч. назад`;
   }
   if (diffDay < 7) {
-    return `${diffDay}d ago`;
+    return `${diffDay} дн. назад`;
   }
   return date.toLocaleDateString();
 }
@@ -108,7 +108,7 @@ export function VersionHistory({
   if (isLoading) {
     return (
       <div className="py-4 text-center text-muted-foreground text-xs">
-        Loading history...
+        Загрузка истории...
       </div>
     );
   }
@@ -121,7 +121,7 @@ export function VersionHistory({
     <div className="border-border border-t pt-4">
       <div className="mb-3 flex items-center gap-1.5">
         <History className="size-3.5 text-muted-foreground" />
-        <h3 className="font-medium text-foreground text-xs">Version History</h3>
+        <h3 className="font-medium text-foreground text-xs">История версий</h3>
       </div>
       <div className="flex flex-col gap-1">
         {versions.map((ver) => {
@@ -156,11 +156,11 @@ export function VersionHistory({
                     v{ver.version}
                     {isCurrent && (
                       <span className="ml-1 text-muted-foreground">
-                        (current)
+                        (текущая)
                       </span>
                     )}
                     {isPreviewing && !isCurrent && (
-                      <span className="ml-1 text-primary/70">(previewing)</span>
+                      <span className="ml-1 text-primary/70">(просмотр)</span>
                     )}
                   </span>
                   <p className="text-[10px] text-muted-foreground">
@@ -183,7 +183,7 @@ export function VersionHistory({
                   variant="ghost"
                 >
                   <RotateCcw className="mr-1 size-3" />
-                  <span className="text-xs">Revert</span>
+                  <span className="text-xs">Откатить</span>
                 </Button>
               )}
             </button>
