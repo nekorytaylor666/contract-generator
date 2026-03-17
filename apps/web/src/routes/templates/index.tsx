@@ -22,6 +22,11 @@ export interface TemplateVariable {
   required: boolean;
   defaultValue?: string | number | boolean;
   options?: string[];
+  dependsOn?: {
+    field: string;
+    value?: string | string[];
+    operator?: "eq" | "neq" | "in";
+  };
 }
 
 // Mock categories - will be fetched from backend later
