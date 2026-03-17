@@ -5,6 +5,30 @@ import { Button } from "@/components/ui/button";
 import type { TemplateVariable } from "@/routes/templates";
 import { VariableField } from "./variable-field";
 
+function isVariableVisible(
+  variable: TemplateVariable,
+  values: Record<string, unknown>
+): boolean {
+  if (!variable.dependsOn) {
+    return true;
+  }
+  const { field, value, operator = "eq" } = variable.dependsOn;
+  const currentValue = values[field];
+
+  if (value === undefined) {
+    return !!currentValue && currentValue !== "";
+  }
+
+  const valuesArray = Array.isArray(value) ? value : [value];
+
+  switch (operator) {
+    case "neq":
+      return !valuesArray.includes(String(currentValue));
+    default:
+      return valuesArray.includes(String(currentValue));
+  }
+}
+
 interface TemplateFormProps {
   variables: TemplateVariable[];
   onSubmit: (values: Record<string, unknown>) => void;
@@ -123,11 +147,13 @@ export function TemplateForm({
         form.handleSubmit();
       }}
     >
-      {variables.map((variable) => (
-        <form.Field key={variable.name} name={variable.name}>
-          {(field) => <VariableField field={field} variable={variable} />}
-        </form.Field>
-      ))}
+      {variables
+        .filter((variable) => isVariableVisible(variable, values))
+        .map((variable) => (
+          <form.Field key={variable.name} name={variable.name}>
+            {(field) => <VariableField field={field} variable={variable} />}
+          </form.Field>
+        ))}
 
       <form.Subscribe>
         {(state) => (
