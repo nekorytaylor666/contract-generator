@@ -57,7 +57,6 @@ function RouteComponent() {
   const navigate = useNavigate();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const [svgPages, setSvgPages] = useState<string[] | null>(null);
   const [logo, setLogo] = useState<string | null>(null);
   const [documentStyle, setDocumentStyle] = useState<DocumentStyle>({
     font: "New Computer Modern",
@@ -123,15 +122,17 @@ function RouteComponent() {
     setFormKey((k) => k + 1);
   }, [existingDocument, template]);
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
+  const svgPagesRef = useRef<string[] | null>(null);
   const previewMutation = useMutation(
     trpc.templates.preview.mutationOptions({
       onSuccess: (data) => {
-        setSvgPages(data.pages);
+        svgPagesRef.current = data.pages;
       },
     })
   );
+
+  // Keep previous SVG pages visible while new generation is in progress
+  const svgPages = previewMutation.data?.pages ?? svgPagesRef.current;
 
   const compileMutation = useMutation(
     trpc.templates.compile.mutationOptions({
@@ -223,23 +224,14 @@ function RouteComponent() {
 
   const handleValuesChange = useCallback(
     (values: Record<string, unknown>) => {
-      // Always track latest values immediately so Save always has current data
       latestValuesRef.current = values;
       const changed = getChangedVariables(values);
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-      debounceRef.current = setTimeout(() => {
-        previewWithValues(values, { changedVariables: changed });
-      }, 500);
+      previewWithValues(values, { changedVariables: changed });
     },
     [previewWithValues, getChangedVariables]
   );
 
   const handleFormSubmit = (values: Record<string, unknown>) => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
     previewWithValues(values);
   };
 
@@ -375,9 +367,7 @@ function RouteComponent() {
   if (error || !template) {
     return (
       <div className="flex h-full flex-col items-center justify-center">
-        <p className="font-medium text-foreground text-sm">
-          Шаблон не найден
-        </p>
+        <p className="font-medium text-foreground text-sm">Шаблон не найден</p>
         <Link
           className="mt-2 text-primary text-sm hover:underline"
           to="/templates"

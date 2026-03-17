@@ -1,5 +1,5 @@
-import { useForm, useStore } from "@tanstack/react-form";
-import { useEffect } from "react";
+import { useForm } from "@tanstack/react-form";
+import { useRef, useSyncExternalStore } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import type { TemplateVariable } from "@/routes/templates";
@@ -115,6 +115,39 @@ function buildZodSchema(variables: TemplateVariable[]) {
   return z.object(shape);
 }
 
+/**
+ * Wrapper for fields with conditional visibility.
+ * Subscribes ONLY to the dependency field value, not all form values.
+ */
+function ConditionalField({
+  variable,
+  form,
+  renderField,
+}: {
+  variable: TemplateVariable;
+  // biome-ignore lint/suspicious/noExplicitAny: TanStack Form generic inference
+  form: any;
+  renderField: () => React.ReactNode;
+}) {
+  const depField = variable.dependsOn?.field;
+
+  const subscribe = useRef((cb: () => void) => form.store.subscribe(cb)).current;
+  const getSnapshot = useRef(() => {
+    return depField ? form.state.values[depField] : undefined;
+  }).current;
+
+  const depValue = useSyncExternalStore(subscribe, getSnapshot);
+
+  if (
+    depField &&
+    !isVariableVisible(variable, { [depField]: depValue })
+  ) {
+    return null;
+  }
+
+  return renderField();
+}
+
 export function TemplateForm({
   variables,
   onSubmit,
@@ -122,6 +155,9 @@ export function TemplateForm({
   isSubmitting,
   initialValues,
 }: TemplateFormProps) {
+  const onValuesChangeRef = useRef(onValuesChange);
+  onValuesChangeRef.current = onValuesChange;
+
   const form = useForm({
     defaultValues: initialValues ?? buildDefaultValues(variables),
     onSubmit: ({ value }) => {
@@ -130,13 +166,13 @@ export function TemplateForm({
     validators: {
       onSubmit: buildZodSchema(variables),
     },
+    listeners: {
+      onChangeDebounceMs: 3000,
+      onChange: ({ formApi }) => {
+        onValuesChangeRef.current?.(formApi.state.values);
+      },
+    },
   });
-
-  const values = useStore(form.store, (s) => s.values);
-
-  useEffect(() => {
-    onValuesChange?.(values);
-  }, [values, onValuesChange]);
 
   return (
     <form
@@ -147,13 +183,24 @@ export function TemplateForm({
         form.handleSubmit();
       }}
     >
-      {variables
-        .filter((variable) => isVariableVisible(variable, values))
-        .map((variable) => (
+      {variables.map((variable) =>
+        variable.dependsOn ? (
+          <ConditionalField
+            key={variable.name}
+            form={form}
+            variable={variable}
+            renderField={() => (
+              <form.Field name={variable.name}>
+                {(field) => <VariableField field={field} variable={variable} />}
+              </form.Field>
+            )}
+          />
+        ) : (
           <form.Field key={variable.name} name={variable.name}>
             {(field) => <VariableField field={field} variable={variable} />}
           </form.Field>
-        ))}
+        )
+      )}
 
       <form.Subscribe>
         {(state) => (
