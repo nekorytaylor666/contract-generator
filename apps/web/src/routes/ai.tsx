@@ -40,7 +40,7 @@ function RouteComponent() {
       <div className="space-y-4 overflow-y-auto pb-4">
         {messages.length === 0 ? (
           <div className="mt-8 text-center text-muted-foreground">
-            Ask me anything to get started!
+            Задайте любой вопрос, чтобы начать!
           </div>
         ) : (
           messages.map((message) => (
@@ -53,7 +53,7 @@ function RouteComponent() {
               key={message.id}
             >
               <p className="mb-1 font-semibold text-sm">
-                {message.role === "user" ? "You" : "AI Assistant"}
+                {message.role === "user" ? "Вы" : "ИИ Помощник"}
               </p>
               {message.parts?.map((part, index) => {
                 if (part.type === "text") {
@@ -86,7 +86,7 @@ function RouteComponent() {
           className="flex-1"
           name="prompt"
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Type your message..."
+          placeholder="Введите сообщение..."
           value={input}
         />
         <Button size="icon" type="submit">

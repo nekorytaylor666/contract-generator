@@ -35,7 +35,7 @@ function signUpHandler({
     },
     {
       onError(error) {
-        setError(error.error?.message || "Failed to sign up");
+        setError(error.error?.message || "Не удалось зарегистрироваться");
         setIsLoading(false);
       },
       onSuccess() {
@@ -73,7 +73,7 @@ export function SignUp() {
 
   return (
     <Surface className="rounded-lg p-4" variant="secondary">
-      <Text className="mb-4 font-medium text-foreground">Create Account</Text>
+      <Text className="mb-4 font-medium text-foreground">Создать аккаунт</Text>
 
       <ErrorView className="mb-3" isInvalid={!!error}>
         {error}
@@ -81,16 +81,16 @@ export function SignUp() {
 
       <View className="gap-3">
         <TextField>
-          <TextField.Label>Name</TextField.Label>
+          <TextField.Label>Имя</TextField.Label>
           <TextField.Input
             onChangeText={setName}
-            placeholder="John Doe"
+            placeholder="Иван Иванов"
             value={name}
           />
         </TextField>
 
         <TextField>
-          <TextField.Label>Email</TextField.Label>
+          <TextField.Label>Электронная почта</TextField.Label>
           <TextField.Input
             autoCapitalize="none"
             keyboardType="email-address"
@@ -101,7 +101,7 @@ export function SignUp() {
         </TextField>
 
         <TextField>
-          <TextField.Label>Password</TextField.Label>
+          <TextField.Label>Пароль</TextField.Label>
           <TextField.Input
             onChangeText={setPassword}
             placeholder="••••••••"
@@ -114,7 +114,7 @@ export function SignUp() {
           {isLoading ? (
             <Spinner color="default" size="sm" />
           ) : (
-            <Button.Label>Create Account</Button.Label>
+            <Button.Label>Создать аккаунт</Button.Label>
           )}
         </Button>
       </View>

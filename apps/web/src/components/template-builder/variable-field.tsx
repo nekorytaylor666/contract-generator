@@ -59,7 +59,7 @@ export function VariableField({ variable, field }: VariableFieldProps) {
             name={field.name}
             onBlur={field.handleBlur}
             onChange={(e) => field.handleChange(e.target.value)}
-            placeholder={`Enter ${variable.label.toLowerCase()}`}
+            placeholder={`Введите ${variable.label.toLowerCase()}`}
             type="text"
             value={(field.state.value as string) ?? ""}
           />
@@ -76,7 +76,7 @@ export function VariableField({ variable, field }: VariableFieldProps) {
               const val = e.target.value;
               field.handleChange(val === "" ? "" : Number(val));
             }}
-            placeholder={`Enter ${variable.label.toLowerCase()}`}
+            placeholder={`Введите ${variable.label.toLowerCase()}`}
             type="number"
             value={
               field.state.value !== undefined ? String(field.state.value) : ""
@@ -91,7 +91,7 @@ export function VariableField({ variable, field }: VariableFieldProps) {
             id={field.name}
             name={field.name}
             onChange={(date) => field.handleChange(date)}
-            placeholder={`Select ${variable.label.toLowerCase()}`}
+            placeholder={`Выберите ${variable.label.toLowerCase()}`}
             value={field.state.value as Date | undefined}
           />
         );
@@ -126,7 +126,7 @@ export function VariableField({ variable, field }: VariableFieldProps) {
               id={field.name}
             >
               <SelectValue
-                placeholder={`Select ${variable.label.toLowerCase()}`}
+                placeholder={`Выберите ${variable.label.toLowerCase()}`}
               />
             </SelectTrigger>
             <SelectContent>

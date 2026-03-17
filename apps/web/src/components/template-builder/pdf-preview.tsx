@@ -29,9 +29,9 @@ export function PdfPreview({
       >
         <div className="text-center">
           <FileText className="mx-auto size-16 text-muted-foreground/30" />
-          <p className="mt-3 text-muted-foreground text-sm">PDF Preview</p>
+          <p className="mt-3 text-muted-foreground text-sm">Предпросмотр PDF</p>
           <p className="mt-0.5 text-muted-foreground/60 text-xs">
-            Start filling in the form to see a live preview
+            Начните заполнять форму для предпросмотра
           </p>
         </div>
       </motion.div>
@@ -42,7 +42,7 @@ export function PdfPreview({
     <div className="flex h-full flex-col gap-3">
       <div className="flex items-center justify-between">
         <h2 className="font-medium text-foreground text-sm">
-          {isLoading && !svgPages ? "Generating..." : "Preview"}
+          {isLoading && !svgPages ? "Генерация..." : "Предпросмотр"}
         </h2>
         <AnimatePresence>
           {svgPages && (
@@ -61,7 +61,7 @@ export function PdfPreview({
                   variant="outline"
                 >
                   <Save className="mr-1.5 size-3.5" />
-                  {isSaving ? "Saving..." : "Save"}
+                  {isSaving ? "Сохранение..." : "Сохранить"}
                 </Button>
               )}
               <Button
@@ -71,7 +71,7 @@ export function PdfPreview({
                 variant="outline"
               >
                 <Download className="mr-1.5 size-3.5" />
-                {isDownloading ? "Downloading..." : "Download PDF"}
+                {isDownloading ? "Скачивание..." : "Скачать PDF"}
               </Button>
             </motion.div>
           )}
@@ -91,7 +91,7 @@ export function PdfPreview({
               <div className="flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 shadow-sm backdrop-blur-sm">
                 <div className="size-3.5 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-primary" />
                 <span className="text-muted-foreground text-xs">
-                  Updating...
+                  Обновление...
                 </span>
               </div>
             </motion.div>
