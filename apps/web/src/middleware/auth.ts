@@ -4,14 +4,18 @@ import { authClient } from "@/lib/auth-client";
 
 export const authMiddleware = createMiddleware().server(
   async ({ next, request }) => {
-    const session = await authClient.getSession({
-      fetchOptions: {
-        headers: request.headers,
-        throw: true,
-      },
-    });
+    let session = null;
+    try {
+      session = await authClient.getSession({
+        fetchOptions: {
+          headers: request.headers,
+        },
+      });
+    } catch {
+      // Network error or server unreachable — treat as unauthenticated
+    }
     return next({
       context: { session },
     });
-  }
+  },
 );
