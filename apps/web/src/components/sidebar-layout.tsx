@@ -56,13 +56,13 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
 
   return (
     <CommandSearchProvider>
-      <SidebarProvider>
+      <SidebarProvider className="!h-svh !overflow-hidden">
         <AppSidebar />
         <SidebarInset>
           <header className="flex h-14 shrink-0 items-center gap-4 border-b px-4">
             <h1 className="font-semibold text-base text-foreground">{title}</h1>
           </header>
-          <main className="flex-1 overflow-auto">{children}</main>
+          <main className="min-h-0 flex-1 overflow-auto">{children}</main>
         </SidebarInset>
       </SidebarProvider>
       <CommandSearchDialog />

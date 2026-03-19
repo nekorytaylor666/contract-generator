@@ -358,7 +358,7 @@ function RouteComponent() {
   const variables = template.variables as TemplateVariable[];
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Header */}
       <div className="border-border border-b bg-background p-4">
         <Link
@@ -396,7 +396,7 @@ function RouteComponent() {
       <div className="flex flex-1 overflow-hidden">
         {/* Preview Section */}
         <div className="flex-1 overflow-auto bg-muted/30 p-4">
-          <div className="mx-auto h-full max-w-3xl">
+          <div className="mx-auto h-full max-w-5xl">
             <PdfPreview
               isDownloading={compileMutation.isPending}
               isLoading={previewMutation.isPending}
