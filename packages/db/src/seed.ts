@@ -1886,6 +1886,1587 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 )
 `,
   },
+  {
+    id: "tpl_service_agreement_kz",
+    title: "Договор оказания услуг (Казахстан)",
+    description:
+      "Договор возмездного оказания услуг для Казахстана. Поддерживает выбор типа сторон (юр. лицо, ИП, физ. лицо), различные режимы оказания услуг, варианты оплаты и гарантии качества.",
+    price: 4999,
+    currentVersion: 1,
+    isPublished: true,
+    variables: [
+      // === General ===
+      {
+        name: "city",
+        type: "text",
+        required: true,
+        label: "Город",
+        defaultValue: "Алматы",
+      },
+      {
+        name: "contractDate",
+        type: "date",
+        required: true,
+        label: "Дата договора",
+      },
+      // === Client (Заказчик) ===
+      {
+        name: "clientType",
+        type: "select",
+        required: true,
+        label: "Тип заказчика",
+        options: ["Юридическое лицо", "ИП", "Физическое лицо"],
+      },
+      {
+        name: "clientCompanyName",
+        type: "text",
+        required: false,
+        label: "Наименование компании заказчика",
+        dependsOn: { field: "clientType", value: "Юридическое лицо" },
+      },
+      {
+        name: "clientPosition",
+        type: "text",
+        required: false,
+        label: "Должность представителя заказчика",
+        dependsOn: {
+          field: "clientType",
+          value: ["Юридическое лицо", "ИП"],
+          operator: "in",
+        },
+      },
+      {
+        name: "clientFIO",
+        type: "text",
+        required: true,
+        label: "ФИО заказчика",
+      },
+      {
+        name: "clientAuthDocument",
+        type: "text",
+        required: false,
+        label: "Документ-основание заказчика",
+        defaultValue: "Устав",
+        dependsOn: {
+          field: "clientType",
+          value: ["Юридическое лицо", "ИП"],
+          operator: "in",
+        },
+      },
+      {
+        name: "clientBIN",
+        type: "text",
+        required: false,
+        label: "БИН заказчика",
+        dependsOn: { field: "clientType", value: "Юридическое лицо" },
+      },
+      {
+        name: "clientIIN",
+        type: "text",
+        required: false,
+        label: "ИИН заказчика",
+        dependsOn: {
+          field: "clientType",
+          value: ["ИП", "Физическое лицо"],
+          operator: "in",
+        },
+      },
+      // === Contractor (Исполнитель) ===
+      {
+        name: "contractorType",
+        type: "select",
+        required: true,
+        label: "Тип исполнителя",
+        options: ["Юридическое лицо", "ИП", "Физическое лицо"],
+      },
+      {
+        name: "contractorCompanyName",
+        type: "text",
+        required: false,
+        label: "Наименование компании исполнителя",
+        dependsOn: { field: "contractorType", value: "Юридическое лицо" },
+      },
+      {
+        name: "contractorPosition",
+        type: "text",
+        required: false,
+        label: "Должность представителя исполнителя",
+        dependsOn: {
+          field: "contractorType",
+          value: ["Юридическое лицо", "ИП"],
+          operator: "in",
+        },
+      },
+      {
+        name: "contractorFIO",
+        type: "text",
+        required: true,
+        label: "ФИО исполнителя",
+      },
+      {
+        name: "contractorAuthDocument",
+        type: "text",
+        required: false,
+        label: "Документ-основание исполнителя",
+        defaultValue: "Устав",
+        dependsOn: {
+          field: "contractorType",
+          value: ["Юридическое лицо", "ИП"],
+          operator: "in",
+        },
+      },
+      {
+        name: "contractorBIN",
+        type: "text",
+        required: false,
+        label: "БИН исполнителя",
+        dependsOn: { field: "contractorType", value: "Юридическое лицо" },
+      },
+      {
+        name: "contractorIIN",
+        type: "text",
+        required: false,
+        label: "ИИН исполнителя",
+        dependsOn: {
+          field: "contractorType",
+          value: ["ИП", "Физическое лицо"],
+          operator: "in",
+        },
+      },
+      // === 1. Subject of Agreement ===
+      {
+        name: "serviceDescription",
+        type: "text",
+        required: true,
+        label: "Описание услуг",
+      },
+      {
+        name: "executionMode",
+        type: "select",
+        required: true,
+        label: "Режим оказания услуг",
+        options: [
+          "Лично",
+          "Лично с возможностью привлечения",
+          "С правом привлечения третьих лиц",
+        ],
+      },
+      {
+        name: "servicePlace",
+        type: "text",
+        required: true,
+        label: "Место оказания услуг",
+      },
+      {
+        name: "serviceType",
+        type: "select",
+        required: true,
+        label: "Тип услуг",
+        options: ["Разовые услуги", "По графику", "По заявкам"],
+      },
+      {
+        name: "serviceStartDate",
+        type: "date",
+        required: false,
+        label: "Дата начала оказания услуг",
+        dependsOn: { field: "serviceType", value: "Разовые услуги" },
+      },
+      {
+        name: "serviceEndDate",
+        type: "date",
+        required: false,
+        label: "Дата окончания оказания услуг",
+        dependsOn: { field: "serviceType", value: "Разовые услуги" },
+      },
+      {
+        name: "scheduleAppendix",
+        type: "text",
+        required: false,
+        label: "Номер приложения с графиком",
+        defaultValue: "2",
+        dependsOn: { field: "serviceType", value: "По графику" },
+      },
+      {
+        name: "applicationConfirmDays",
+        type: "number",
+        required: false,
+        label: "Срок подтверждения заявки (дни)",
+        defaultValue: 3,
+        dependsOn: { field: "serviceType", value: "По заявкам" },
+      },
+      {
+        name: "earlyDelivery",
+        type: "select",
+        required: true,
+        label: "Досрочное оказание услуг",
+        options: ["С согласия Заказчика", "Разрешено", "Запрещено"],
+      },
+      // === 2. Cost and Payment ===
+      {
+        name: "serviceAmount",
+        type: "text",
+        required: true,
+        label: "Стоимость услуг",
+      },
+      {
+        name: "isVatPayer",
+        type: "boolean",
+        required: true,
+        label: "Исполнитель является плательщиком НДС",
+        defaultValue: false,
+      },
+      {
+        name: "materialsSource",
+        type: "select",
+        required: true,
+        label: "Источник материалов",
+        options: ["Исполнителя", "Заказчика", "Смешанный", "Не применимо"],
+      },
+      {
+        name: "additionalExpenses",
+        type: "select",
+        required: true,
+        label: "Дополнительные расходы",
+        options: ["Включены в стоимость", "Оплачиваются отдельно"],
+      },
+      {
+        name: "paymentType",
+        type: "select",
+        required: true,
+        label: "Тип оплаты",
+        options: [
+          "Постоплата",
+          "Предоплата",
+          "Частичная предоплата",
+          "Поэтапная оплата",
+        ],
+      },
+      {
+        name: "prepaymentDays",
+        type: "number",
+        required: false,
+        label: "Срок предоплаты (банковских дней)",
+        defaultValue: 5,
+        dependsOn: { field: "paymentType", value: "Предоплата" },
+      },
+      {
+        name: "advancePercent",
+        type: "number",
+        required: false,
+        label: "Размер аванса (%)",
+        defaultValue: 50,
+        dependsOn: { field: "paymentType", value: "Частичная предоплата" },
+      },
+      // === 4. Obligations ===
+      {
+        name: "defectRemedy",
+        type: "select",
+        required: true,
+        label: "Устранение недостатков",
+        options: ["Заказчик устраняет", "Исполнитель устраняет"],
+      },
+      // === 5. Liability ===
+      {
+        name: "penaltyRate",
+        type: "text",
+        required: true,
+        label: "Неустойка за просрочку (% в день)",
+        defaultValue: "0,1",
+      },
+      {
+        name: "materialRiskBearer",
+        type: "select",
+        required: true,
+        label: "Риск повреждения материалов",
+        options: ["Исполнитель", "Заказчик", "Смешанный"],
+      },
+      // === 6. Termination ===
+      {
+        name: "terminationNoticeDays",
+        type: "number",
+        required: true,
+        label: "Срок уведомления о расторжении (дни)",
+        defaultValue: 30,
+      },
+      // === 7. Term ===
+      {
+        name: "contractStartDate",
+        type: "date",
+        required: true,
+        label: "Дата начала действия договора",
+      },
+      {
+        name: "contractEndDate",
+        type: "date",
+        required: true,
+        label: "Дата окончания действия договора",
+      },
+      // === 8. Additional conditions ===
+      {
+        name: "disputeResolutionDays",
+        type: "number",
+        required: true,
+        label: "Срок досудебного урегулирования (дни)",
+        defaultValue: 15,
+      },
+      {
+        name: "disputeJurisdiction",
+        type: "select",
+        required: true,
+        label: "Подсудность споров",
+        options: [
+          "По месту нахождения Заказчика",
+          "По месту нахождения Исполнителя",
+        ],
+      },
+    ],
+    typstContent: `#set document(title: "Договор возмездного оказания услуг")
+#set page(margin: 2cm)
+#set text(font: "New Computer Modern", size: 11pt)
+
+#align(center)[
+  #text(size: 16pt, weight: "bold")[ДОГОВОР ВОЗМЕЗДНОГО ОКАЗАНИЯ УСЛУГ]
+]
+
+#v(0.5em)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[г. {{city}}],
+  align(right)[{{contractDate}}]
+)
+
+#v(1em)
+
+// === ПРЕАМБУЛА: ЗАКАЗЧИК ===
+#if "{{clientType}}" == "Юридическое лицо" [
+  {{clientCompanyName}}, в лице {{clientPosition}} {{clientFIO}}, действующего на основании {{clientAuthDocument}}, БИН {{clientBIN}}, именуемое в дальнейшем «Заказчик» с одной стороны,
+] else if "{{clientType}}" == "ИП" [
+  ИП {{clientFIO}}, в лице {{clientFIO}}, действующий на основании {{clientAuthDocument}}, ИИН {{clientIIN}}, именуемый в дальнейшем «Заказчик» с одной стороны,
+] else [
+  {{clientFIO}}, ИИН {{clientIIN}}, именуемый в дальнейшем «Заказчик» с одной стороны,
+]
+
+и
+
+// === ПРЕАМБУЛА: ИСПОЛНИТЕЛЬ ===
+#if "{{contractorType}}" == "Юридическое лицо" [
+  {{contractorCompanyName}}, в лице {{contractorPosition}} {{contractorFIO}}, действующего на основании {{contractorAuthDocument}}, БИН {{contractorBIN}}, именуемое в дальнейшем «Исполнитель» с другой стороны,
+] else if "{{contractorType}}" == "ИП" [
+  ИП {{contractorFIO}}, в лице {{contractorFIO}}, действующий на основании {{contractorAuthDocument}}, ИИН {{contractorIIN}}, именуемый в дальнейшем «Исполнитель» с другой стороны,
+] else [
+  {{contractorFIO}}, ИИН {{contractorIIN}}, именуемый в дальнейшем «Исполнитель» с другой стороны,
+]
+
+Заказчик и Исполнитель определены все вместе как «Стороны» и индивидуально как «Сторона», заключили настоящий Договор возмездного оказания услуг (далее — Договор) о нижеследующем:
+
+#v(0.5em)
+
+// ============================================================
+// 1. ПРЕДМЕТ ДОГОВОРА
+// ============================================================
+== 1. Предмет договора
+
+1.1. Исполнитель обязуется по заданию Заказчика оказать следующие услуги (далее — Услуги):
+
+#block(inset: (left: 1em))[
+  {{serviceDescription}}
+]
+
+а Заказчик обязуется принять и оплатить эти Услуги в порядке и на условиях, предусмотренных настоящим Договором.
+
+1.2. Содержание, объём и требования к качеству Услуг определяются в Спецификации (Приложение №1 к настоящему Договору), являющейся его неотъемлемой частью.
+
+// === 1.3. Режим оказания услуг ===
+#if "{{executionMode}}" == "Лично" [
+  1.3. Исполнитель обязан оказать Услуги лично, если иное не будет согласовано Сторонами в письменной форме.
+] else if "{{executionMode}}" == "Лично с возможностью привлечения" [
+  1.3. Исполнитель обязан оказать Услуги лично, если иное не будет согласовано Сторонами в письменной форме.
+] else [
+  1.3. Исполнитель вправе привлекать соисполнителей (субподрядчиков) для оказания Услуг по настоящему Договору, оставаясь ответственным перед Заказчиком за результат и качество оказания Услуг в полном объёме.
+]
+
+1.4. Место оказания Услуг: {{servicePlace}}.
+
+// === 1.5. Тип услуг ===
+#if "{{serviceType}}" == "Разовые услуги" [
+  1.5. Услуга оказывается однократно. Срок оказания Услуг: с {{serviceStartDate}} по {{serviceEndDate}}.
+] else if "{{serviceType}}" == "По графику" [
+  1.5. Периодичность, объём и сроки оказания Услуг определяются в Графике оказания услуг (Приложение № {{scheduleAppendix}} к настоящему Договору), являющемся его неотъемлемой частью.
+] else [
+  1.5. Услуги оказываются на основании Заявок Заказчика. Исполнитель обязан подтвердить принятие Заявки в течение {{applicationConfirmDays}} рабочих дней с момента её получения. Содержание, объём и сроки оказания Услуг определяются в соответствии с согласованными Заявками.
+]
+
+// === 1.6. Досрочное оказание услуг ===
+#if "{{earlyDelivery}}" == "С согласия Заказчика" [
+  1.6. Исполнитель вправе оказать Услуги досрочно при условии предварительного письменного согласия Заказчика.
+] else if "{{earlyDelivery}}" == "Разрешено" [
+  1.6. Исполнитель вправе оказать Услуги досрочно без дополнительного согласования с Заказчиком.
+] else [
+  1.6. Оказание Услуг досрочно не допускается.
+]
+
+#v(0.5em)
+
+// ============================================================
+// 2. СТОИМОСТЬ И ПОРЯДОК РАСЧЁТОВ
+// ============================================================
+== 2. Стоимость и порядок расчётов
+
+2.1. Стоимость Услуг по настоящему Договору составляет {{serviceAmount}} тенге.
+
+#if {{isVatPayer}} [
+  В том числе НДС в соответствии с действующим законодательством Республики Казахстан.
+] else [
+  НДС не облагается в связи с применением Исполнителем специального налогового режима.
+]
+
+// === 2.2. Материалы ===
+#if "{{materialsSource}}" == "Исполнителя" [
+  2.2. В стоимость Услуг включена стоимость необходимых материалов для оказания Услуги, приобретаемых Исполнителем.
+] else if "{{materialsSource}}" == "Заказчика" [
+  2.2. Необходимые для оказания Услуг материалы предоставляются Заказчиком. Стоимость материалов в цену Услуг не включена.
+] else if "{{materialsSource}}" == "Смешанный" [
+  2.2. В стоимость Услуг включена стоимость необходимых материалов, предоставляемых Исполнителем. Материалы, предоставляемые Заказчиком, в стоимость Услуг не включены и передаются по отдельному акту.
+] else [
+  2.2. Оказание Услуг по настоящему Договору не требует использования материалов.
+]
+
+// === 2.3. Дополнительные расходы ===
+#if "{{additionalExpenses}}" == "Включены в стоимость" [
+  2.3. Все дополнительные расходы Исполнителя, связанные с оказанием Услуг (транспортные, командировочные и иные), включены в стоимость Услуг.
+] else [
+  2.3. Дополнительные расходы Исполнителя, связанные с оказанием Услуг (транспортные, командировочные и иные), оплачиваются Заказчиком отдельно на основании документального подтверждения и предварительного согласования.
+]
+
+// === 2.4. Порядок оплаты ===
+#if "{{paymentType}}" == "Постоплата" [
+  2.4. Оплата Услуг производится в течение 10 (десяти) банковских дней после подписания обеими Сторонами Акта оказанных услуг.
+] else if "{{paymentType}}" == "Предоплата" [
+  2.4. Оплата Услуг производится в размере 100% (ста процентов) от стоимости Услуг в течение {{prepaymentDays}} банковских дней с даты подписания настоящего Договора.
+] else if "{{paymentType}}" == "Частичная предоплата" [
+  2.4. Заказчик уплачивает аванс в размере {{advancePercent}}% от стоимости Услуг в течение 5 (пяти) банковских дней с даты подписания Договора. Оставшаяся часть оплачивается в течение 10 (десяти) банковских дней после подписания обеими Сторонами Акта оказанных услуг.
+] else [
+  2.4. Оплата Услуг производится поэтапно в соответствии с этапами и суммами, указанными в Спецификации (Приложение №1 к настоящему Договору), на основании подписанных Сторонами Актов оказанных услуг по каждому этапу.
+]
+
+2.5. Оплата производится путём безналичного перечисления денежных средств на расчётный счёт Исполнителя, указанный в настоящем Договоре.
+
+2.6. Датой оплаты считается дата зачисления денежных средств на расчётный счёт Исполнителя.
+
+#v(0.5em)
+
+// ============================================================
+// 3. ГАРАНТИЯ КАЧЕСТВА
+// ============================================================
+== 3. Гарантия качества
+
+3.1. Исполнитель гарантирует, что Услуги будут оказаны в полном объёме, качественно и в сроки, предусмотренные настоящим Договором.
+
+3.2. Услуги должны соответствовать требованиям, указанным в Спецификации (Приложение №1), а также применимым стандартам и нормативным актам Республики Казахстан.
+
+3.3. Результат оказания Услуг подтверждается Актом оказанных услуг, подписываемым обеими Сторонами.
+
+3.4. Заказчик обязан рассмотреть Акт оказанных услуг и направить Исполнителю подписанный Акт либо мотивированный отказ от его подписания в течение 5 (пяти) рабочих дней с даты его получения.
+
+3.5. В случае если Заказчик не подписал Акт и не направил мотивированный отказ в установленный срок, Услуги считаются принятыми без замечаний.
+
+#v(0.5em)
+
+// ============================================================
+// 4. ОБЯЗАТЕЛЬСТВА СТОРОН
+// ============================================================
+== 4. Обязательства сторон
+
+*4.1. Исполнитель обязуется:*
+
+4.1.1. оказать Услуги надлежащего качества в полном объёме и в сроки, предусмотренные настоящим Договором;
+
+4.1.2. незамедлительно информировать Заказчика о возникновении обстоятельств, препятствующих надлежащему оказанию Услуг;
+
+4.1.3. по требованию Заказчика предоставлять информацию о ходе оказания Услуг;
+
+4.1.4. обеспечить конфиденциальность информации, полученной от Заказчика в связи с исполнением Договора;
+
+4.1.5. по завершении оказания Услуг передать Заказчику Акт оказанных услуг для подписания.
+
+#v(0.3em)
+
+*4.2. Заказчик обязуется:*
+
+4.2.1. предоставить Исполнителю всю необходимую информацию, документы и материалы для надлежащего оказания Услуг;
+
+4.2.2. оплатить Услуги в порядке и сроки, установленные настоящим Договором;
+
+4.2.3. принять оказанные Услуги и подписать Акт оказанных услуг либо направить мотивированный отказ в установленный срок;
+
+4.2.4. содействовать Исполнителю в оказании Услуг в мере, необходимой для их надлежащего выполнения.
+
+#v(0.3em)
+
+// === 4.3. Устранение недостатков ===
+*4.3. Порядок устранения недостатков:*
+
+#if "{{defectRemedy}}" == "Заказчик устраняет" [
+  В случае обнаружения недостатков оказанных Услуг Заказчик вправе по своему выбору устранить недостатки собственными силами или с привлечением третьих лиц и потребовать от Исполнителя возмещения понесённых расходов на устранение таких недостатков.
+] else [
+  В случае обнаружения недостатков оказанных Услуг Исполнитель обязуется безвозмездно устранить выявленные недостатки в течение 5 (пяти) рабочих дней с момента получения мотивированной претензии Заказчика.
+]
+
+#v(0.5em)
+
+// ============================================================
+// 5. ОТВЕТСТВЕННОСТЬ СТОРОН
+// ============================================================
+== 5. Ответственность сторон
+
+5.1. За неисполнение или ненадлежащее исполнение обязательств по настоящему Договору Стороны несут ответственность в соответствии с законодательством Республики Казахстан и условиями настоящего Договора.
+
+5.2. За нарушение сроков оказания Услуг Исполнитель уплачивает Заказчику неустойку (пеню) в размере {{penaltyRate}}% от стоимости несвоевременно оказанных Услуг за каждый день просрочки.
+
+5.3. За нарушение сроков оплаты Заказчик уплачивает Исполнителю неустойку (пеню) в размере {{penaltyRate}}% от суммы просроченного платежа за каждый день просрочки.
+
+5.4. Уплата неустойки (пени) не освобождает Стороны от исполнения обязательств по настоящему Договору в полном объёме.
+
+// === 5.5. Риск повреждения материалов ===
+#if "{{materialRiskBearer}}" == "Исполнитель" [
+  5.5. Риск случайной гибели или повреждения материалов, оборудования и иного имущества, используемого для оказания Услуг, несёт Исполнитель с момента их получения и до момента передачи результата Услуг Заказчику.
+] else if "{{materialRiskBearer}}" == "Заказчик" [
+  5.5. Риск случайной гибели или повреждения материалов, оборудования и иного имущества, переданного Заказчиком для оказания Услуг, несёт Заказчик, за исключением случаев умышленных действий или грубой неосторожности Исполнителя.
+] else [
+  5.5. Риск случайной гибели или повреждения материалов, предоставленных Заказчиком, несёт Заказчик. Риск случайной гибели или повреждения материалов, приобретённых Исполнителем, несёт Исполнитель. В случае гибели или повреждения материалов по вине одной из Сторон виновная Сторона возмещает другой Стороне понесённые убытки.
+]
+
+5.6. Стороны освобождаются от ответственности за неисполнение или ненадлежащее исполнение обязательств по настоящему Договору, если это явилось следствием обстоятельств непреодолимой силы (форс-мажор).
+
+#v(0.5em)
+
+// ============================================================
+// 6. РАСТОРЖЕНИЕ И ИЗМЕНЕНИЕ ДОГОВОРА
+// ============================================================
+== 6. Расторжение и изменение Договора
+
+6.1. Настоящий Договор может быть расторгнут по взаимному письменному соглашению Сторон.
+
+6.2. Каждая из Сторон вправе в одностороннем порядке отказаться от исполнения настоящего Договора, уведомив другую Сторону в письменной форме не менее чем за {{terminationNoticeDays}} календарных дней до предполагаемой даты расторжения.
+
+6.3. Заказчик вправе отказаться от исполнения Договора при условии оплаты Исполнителю фактически понесённых расходов.
+
+6.4. Исполнитель вправе отказаться от исполнения Договора лишь при условии полного возмещения Заказчику убытков.
+
+6.5. Все изменения и дополнения к настоящему Договору действительны при условии, если они совершены в письменной форме и подписаны обеими Сторонами.
+
+#v(0.5em)
+
+// ============================================================
+// 7. СРОК ДЕЙСТВИЯ ДОГОВОРА
+// ============================================================
+== 7. Срок действия Договора
+
+7.1. Настоящий Договор вступает в силу с даты его подписания обеими Сторонами и действует до полного исполнения Сторонами своих обязательств.
+
+7.2. Срок оказания Услуг: с {{contractStartDate}} по {{contractEndDate}}.
+
+7.3. Истечение срока действия Договора не освобождает Стороны от ответственности за нарушение обязательств, допущенных в период действия Договора.
+
+#v(0.5em)
+
+// ============================================================
+// 8. ДОПОЛНИТЕЛЬНЫЕ УСЛОВИЯ
+// ============================================================
+== 8. Дополнительные условия
+
+8.1. Все споры и разногласия, возникающие между Сторонами по настоящему Договору или в связи с ним, разрешаются путём переговоров. Срок досудебного урегулирования составляет {{disputeResolutionDays}} календарных дней с момента направления претензии.
+
+8.2. В случае невозможности разрешения споров путём переговоров они подлежат рассмотрению в суде
+#if "{{disputeJurisdiction}}" == "По месту нахождения Заказчика" [
+  по месту нахождения Заказчика
+] else [
+  по месту нахождения Исполнителя
+]
+в соответствии с законодательством Республики Казахстан.
+
+8.3. Стороны обязуются соблюдать конфиденциальность условий настоящего Договора и не раскрывать их третьим лицам без предварительного письменного согласия другой Стороны, за исключением случаев, предусмотренных законодательством.
+
+8.4. Настоящий Договор составлен в 2 (двух) экземплярах на русском языке, по одному для каждой из Сторон, каждый из которых имеет одинаковую юридическую силу.
+
+8.5. Приложения к настоящему Договору являются его неотъемлемой частью.
+
+#v(0.5em)
+
+// ============================================================
+// РЕКВИЗИТЫ И ПОДПИСИ СТОРОН
+// ============================================================
+== Реквизиты и подписи сторон
+
+#v(1em)
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 2em,
+  [
+    *«ЗАКАЗЧИК»*
+    #v(0.5em)
+    #if "{{clientType}}" == "Юридическое лицо" [
+      {{clientCompanyName}}\\
+      БИН: {{clientBIN}}\\
+    ] else if "{{clientType}}" == "ИП" [
+      ИП {{clientFIO}}\\
+      ИИН: {{clientIIN}}\\
+    ] else [
+      {{clientFIO}}\\
+      ИИН: {{clientIIN}}\\
+    ]
+    #v(1.5em)
+    #line(length: 80%)
+    Подпись / ФИО
+  ],
+  [
+    *«ИСПОЛНИТЕЛЬ»*
+    #v(0.5em)
+    #if "{{contractorType}}" == "Юридическое лицо" [
+      {{contractorCompanyName}}\\
+      БИН: {{contractorBIN}}\\
+    ] else if "{{contractorType}}" == "ИП" [
+      ИП {{contractorFIO}}\\
+      ИИН: {{contractorIIN}}\\
+    ] else [
+      {{contractorFIO}}\\
+      ИИН: {{contractorIIN}}\\
+    ]
+    #v(1.5em)
+    #line(length: 80%)
+    Подпись / ФИО
+  ]
+)
+`,
+  },
+  {
+    id: "tpl_supply_contract_kz",
+    title: "Договор поставки (Казахстан)",
+    description:
+      "Договор поставки товаров между юридическими лицами и ИП в Казахстане. Поддерживает разовую и долгосрочную поставку, различные условия оплаты, доставки, упаковки и маркировки.",
+    price: 5999,
+    currentVersion: 1,
+    isPublished: true,
+    variables: [
+      // === General ===
+      {
+        name: "city",
+        type: "text",
+        required: true,
+        label: "Город",
+        defaultValue: "Алматы",
+      },
+      {
+        name: "contractDate",
+        type: "date",
+        required: true,
+        label: "Дата договора",
+      },
+      // === Buyer ===
+      {
+        name: "buyerType",
+        type: "select",
+        required: true,
+        label: "Тип покупателя",
+        options: ["Юридическое лицо", "ИП"],
+      },
+      {
+        name: "buyerCompanyName",
+        type: "text",
+        required: false,
+        label: "Наименование компании покупателя",
+        dependsOn: { field: "buyerType", value: "Юридическое лицо" },
+      },
+      {
+        name: "buyerIPName",
+        type: "text",
+        required: false,
+        label: "Наименование ИП покупателя",
+        dependsOn: { field: "buyerType", value: "ИП" },
+      },
+      {
+        name: "buyerPosition",
+        type: "text",
+        required: false,
+        label: "Должность представителя покупателя",
+        dependsOn: { field: "buyerType", value: "Юридическое лицо" },
+      },
+      {
+        name: "buyerFIO",
+        type: "text",
+        required: true,
+        label: "ФИО представителя покупателя",
+      },
+      {
+        name: "buyerAuthDocument",
+        type: "text",
+        required: true,
+        label: "Уполномочивающий документ покупателя",
+        defaultValue: "Устав",
+      },
+      {
+        name: "buyerBIN",
+        type: "text",
+        required: false,
+        label: "БИН покупателя",
+        dependsOn: { field: "buyerType", value: "Юридическое лицо" },
+      },
+      {
+        name: "buyerIIN",
+        type: "text",
+        required: false,
+        label: "ИИН покупателя",
+        dependsOn: { field: "buyerType", value: "ИП" },
+      },
+      // === Supplier ===
+      {
+        name: "supplierType",
+        type: "select",
+        required: true,
+        label: "Тип поставщика",
+        options: ["Юридическое лицо", "ИП"],
+      },
+      {
+        name: "supplierCompanyName",
+        type: "text",
+        required: false,
+        label: "Наименование компании поставщика",
+        dependsOn: { field: "supplierType", value: "Юридическое лицо" },
+      },
+      {
+        name: "supplierIPName",
+        type: "text",
+        required: false,
+        label: "Наименование ИП поставщика",
+        dependsOn: { field: "supplierType", value: "ИП" },
+      },
+      {
+        name: "supplierPosition",
+        type: "text",
+        required: false,
+        label: "Должность представителя поставщика",
+        dependsOn: { field: "supplierType", value: "Юридическое лицо" },
+      },
+      {
+        name: "supplierFIO",
+        type: "text",
+        required: true,
+        label: "ФИО представителя поставщика",
+      },
+      {
+        name: "supplierAuthDocument",
+        type: "text",
+        required: true,
+        label: "Уполномочивающий документ поставщика",
+        defaultValue: "Устав",
+      },
+      {
+        name: "supplierBIN",
+        type: "text",
+        required: false,
+        label: "БИН поставщика",
+        dependsOn: { field: "supplierType", value: "Юридическое лицо" },
+      },
+      {
+        name: "supplierIIN",
+        type: "text",
+        required: false,
+        label: "ИИН поставщика",
+        dependsOn: { field: "supplierType", value: "ИП" },
+      },
+      // === 1. Subject ===
+      {
+        name: "goodsName",
+        type: "text",
+        required: true,
+        label: "Наименование товара",
+      },
+      {
+        name: "deliveryType",
+        type: "select",
+        required: true,
+        label: "Тип поставки",
+        options: [
+          "Разовая",
+          "Долгосрочная по графику",
+          "Долгосрочная по заявкам",
+        ],
+      },
+      {
+        name: "appendixNumber",
+        type: "text",
+        required: false,
+        label: "Номер приложения со спецификацией",
+        defaultValue: "1",
+        dependsOn: { field: "deliveryType", value: "Разовая" },
+      },
+      {
+        name: "requestAdvanceDays",
+        type: "number",
+        required: false,
+        label: "Дней для подачи заявки заранее",
+        defaultValue: 10,
+        dependsOn: { field: "deliveryType", value: "Долгосрочная по заявкам" },
+      },
+      {
+        name: "confirmationDays",
+        type: "number",
+        required: false,
+        label: "Дней для подтверждения заявки",
+        defaultValue: 3,
+        dependsOn: { field: "deliveryType", value: "Долгосрочная по заявкам" },
+      },
+      {
+        name: "requestMethod",
+        type: "text",
+        required: false,
+        label: "Способ направления заявок",
+        defaultValue: "электронная почта",
+        dependsOn: { field: "deliveryType", value: "Долгосрочная по заявкам" },
+      },
+      {
+        name: "changeCancellationDays",
+        type: "number",
+        required: false,
+        label: "Дней для изменения/отмены заявки",
+        defaultValue: 5,
+        dependsOn: { field: "deliveryType", value: "Долгосрочная по заявкам" },
+      },
+      {
+        name: "acknowledgmentDays",
+        type: "number",
+        required: false,
+        label: "Дней для подтверждения получения заявки",
+        defaultValue: 2,
+        dependsOn: { field: "deliveryType", value: "Долгосрочная по заявкам" },
+      },
+      // === 2. Payment ===
+      {
+        name: "priceChangePolicy",
+        type: "select",
+        required: true,
+        label: "Политика изменения цен",
+        options: ["Не допускается", "По соглашению", "Одностороннее"],
+      },
+      {
+        name: "priceNoticeCalendarDays",
+        type: "number",
+        required: false,
+        label: "Дней уведомления об изменении цены",
+        defaultValue: 30,
+        dependsOn: { field: "priceChangePolicy", value: "Одностороннее" },
+      },
+      {
+        name: "paymentType",
+        type: "select",
+        required: true,
+        label: "Тип оплаты",
+        options: ["Постоплата", "Предоплата"],
+      },
+      {
+        name: "postpaymentBankDays",
+        type: "number",
+        required: false,
+        label: "Банковских дней для постоплаты",
+        defaultValue: 5,
+        dependsOn: { field: "paymentType", value: "Постоплата" },
+      },
+      {
+        name: "prepaymentPercent1",
+        type: "number",
+        required: false,
+        label: "Первый платёж (%)",
+        defaultValue: 50,
+        dependsOn: { field: "paymentType", value: "Предоплата" },
+      },
+      {
+        name: "prepaymentBankDays1",
+        type: "number",
+        required: false,
+        label: "Банковских дней для первого платежа",
+        defaultValue: 3,
+        dependsOn: { field: "paymentType", value: "Предоплата" },
+      },
+      {
+        name: "prepaymentPercent2",
+        type: "number",
+        required: false,
+        label: "Второй платёж (%)",
+        defaultValue: 50,
+        dependsOn: { field: "paymentType", value: "Предоплата" },
+      },
+      {
+        name: "prepaymentBankDays2",
+        type: "number",
+        required: false,
+        label: "Банковских дней для второго платежа",
+        defaultValue: 5,
+        dependsOn: { field: "paymentType", value: "Предоплата" },
+      },
+      // === 3. Delivery Terms ===
+      {
+        name: "deliveryMoment",
+        type: "text",
+        required: true,
+        label: "Момент исполнения обязанности по поставке",
+        defaultValue: "момент передачи Товара Покупателю",
+      },
+      {
+        name: "deliveryDeadline",
+        type: "text",
+        required: true,
+        label: "Срок поставки",
+      },
+      {
+        name: "acceptanceDeadline",
+        type: "text",
+        required: true,
+        label: "Срок приёмки товара покупателем",
+        defaultValue: "3 рабочих дня",
+      },
+      {
+        name: "deliveryPlace",
+        type: "text",
+        required: true,
+        label: "Место поставки",
+      },
+      {
+        name: "deliveryDocuments",
+        type: "text",
+        required: true,
+        label: "Сопроводительные документы",
+        defaultValue:
+          "товарная накладная, счёт-фактура, сертификат качества",
+      },
+      {
+        name: "acceptanceClaimDays",
+        type: "number",
+        required: true,
+        label: "Дней для предъявления претензий по качеству",
+        defaultValue: 14,
+      },
+      {
+        name: "transportChoice",
+        type: "select",
+        required: true,
+        label: "Выбор транспорта",
+        options: ["Определяется сторонами", "Определяет Поставщик"],
+      },
+      {
+        name: "transportType",
+        type: "text",
+        required: false,
+        label: "Вид транспорта",
+        dependsOn: {
+          field: "transportChoice",
+          value: "Определяется сторонами",
+        },
+      },
+      {
+        name: "deliveryExpenses",
+        type: "select",
+        required: true,
+        label: "Расходы по доставке несёт",
+        options: ["Поставщик", "Покупатель"],
+      },
+      {
+        name: "packagingType",
+        type: "select",
+        required: true,
+        label: "Упаковка",
+        options: ["По нормативу", "По спецификации", "Без упаковки"],
+      },
+      {
+        name: "packagingCost",
+        type: "select",
+        required: true,
+        label: "Стоимость упаковки",
+        options: [
+          "Включена в стоимость",
+          "Оплачивается отдельно",
+          "Возвратная тара",
+        ],
+      },
+      {
+        name: "returnTaraDays",
+        type: "number",
+        required: false,
+        label: "Дней для возврата тары",
+        defaultValue: 30,
+        dependsOn: { field: "packagingCost", value: "Возвратная тара" },
+      },
+      {
+        name: "returnTaraPenalty",
+        type: "text",
+        required: false,
+        label: "Штраф за невозврат тары",
+        defaultValue: "стоимость тары",
+        dependsOn: { field: "packagingCost", value: "Возвратная тара" },
+      },
+      {
+        name: "markingType",
+        type: "select",
+        required: true,
+        label: "Маркировка",
+        options: [
+          "По законодательству РК",
+          "По спецификации/ТУ",
+          "По инструкции Покупателя",
+          "Не требуется",
+        ],
+      },
+      {
+        name: "markingInstructionDays",
+        type: "number",
+        required: false,
+        label: "Дней для предоставления инструкций по маркировке",
+        defaultValue: 5,
+        dependsOn: {
+          field: "markingType",
+          value: "По инструкции Покупателя",
+        },
+      },
+      // === 4. Warranty ===
+      {
+        name: "warrantyProvided",
+        type: "boolean",
+        required: true,
+        label: "Гарантия предоставляется",
+        defaultValue: true,
+      },
+      {
+        name: "warrantyPeriod",
+        type: "text",
+        required: false,
+        label: "Гарантийный срок",
+        defaultValue: "12 месяцев",
+        dependsOn: { field: "warrantyProvided", value: true },
+      },
+      {
+        name: "warrantyReplacementDays",
+        type: "number",
+        required: false,
+        label: "Дней для замены по гарантии",
+        defaultValue: 14,
+        dependsOn: { field: "warrantyProvided", value: true },
+      },
+      // === 5. Liability ===
+      {
+        name: "supplierPenaltyRate",
+        type: "text",
+        required: true,
+        label: "Неустойка поставщика (% за календарную неделю)",
+        defaultValue: "0.5",
+      },
+      {
+        name: "supplierPenaltyMax",
+        type: "text",
+        required: true,
+        label: "Макс. неустойка поставщика",
+        defaultValue: "10% от стоимости непоставленного Товара",
+      },
+      {
+        name: "buyerPenaltyRate",
+        type: "text",
+        required: true,
+        label: "Неустойка покупателя (% за календарный день)",
+        defaultValue: "0.1",
+      },
+      {
+        name: "buyerPenaltyMax",
+        type: "text",
+        required: true,
+        label: "Макс. неустойка покупателя",
+        defaultValue: "10% от суммы просроченного платежа",
+      },
+      // === 6. Termination ===
+      {
+        name: "terminationNoticePeriod",
+        type: "text",
+        required: true,
+        label: "Срок уведомления о расторжении",
+        defaultValue: "30 календарных дней",
+      },
+      // === 7. Confidentiality ===
+      {
+        name: "confidentialityYears",
+        type: "number",
+        required: true,
+        label: "Срок конфиденциальности (лет)",
+        defaultValue: 3,
+      },
+      // === 8. Force Majeure ===
+      {
+        name: "forceMajeureDuration",
+        type: "text",
+        required: true,
+        label: "Длительность форс-мажора для расторжения",
+        defaultValue: "6 месяцев",
+      },
+      {
+        name: "forceMajeureNotifyDays",
+        type: "number",
+        required: true,
+        label: "Дней для уведомления о форс-мажоре",
+        defaultValue: 5,
+      },
+      // === 9. Term ===
+      {
+        name: "contractEndDate",
+        type: "date",
+        required: true,
+        label: "Дата окончания договора",
+      },
+      {
+        name: "autoRenewalEnabled",
+        type: "boolean",
+        required: true,
+        label: "Автоматическая пролонгация",
+        defaultValue: true,
+      },
+      // === Requisites: Buyer ===
+      {
+        name: "buyerAddress",
+        type: "text",
+        required: true,
+        label: "Адрес покупателя",
+      },
+      {
+        name: "buyerPhone",
+        type: "text",
+        required: true,
+        label: "Телефон покупателя",
+      },
+      {
+        name: "buyerIIK",
+        type: "text",
+        required: true,
+        label: "ИИК покупателя",
+      },
+      {
+        name: "buyerBankName",
+        type: "text",
+        required: true,
+        label: "Банк покупателя",
+      },
+      {
+        name: "buyerBIK",
+        type: "text",
+        required: true,
+        label: "БИК покупателя",
+      },
+      {
+        name: "buyerKBe",
+        type: "text",
+        required: true,
+        label: "КБе покупателя",
+      },
+      // === Requisites: Supplier ===
+      {
+        name: "supplierAddress",
+        type: "text",
+        required: true,
+        label: "Адрес поставщика",
+      },
+      {
+        name: "supplierPhone",
+        type: "text",
+        required: true,
+        label: "Телефон поставщика",
+      },
+      {
+        name: "supplierIIK",
+        type: "text",
+        required: true,
+        label: "ИИК поставщика",
+      },
+      {
+        name: "supplierBankName",
+        type: "text",
+        required: true,
+        label: "Банк поставщика",
+      },
+      {
+        name: "supplierBIK",
+        type: "text",
+        required: true,
+        label: "БИК поставщика",
+      },
+      {
+        name: "supplierKBe",
+        type: "text",
+        required: true,
+        label: "КБе поставщика",
+      },
+    ],
+    typstContent: `#set document(title: "Договор поставки")
+#set page(margin: 2cm)
+#set text(font: "New Computer Modern", size: 11pt)
+
+#align(center)[
+  #text(size: 16pt, weight: "bold")[ДОГОВОР ПОСТАВКИ]
+]
+
+#v(0.5em)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[г. {{city}}],
+  align(right)[{{contractDate}}]
+)
+
+#v(1em)
+
+// === ПРЕАМБУЛА: ПОКУПАТЕЛЬ ===
+#if "{{buyerType}}" == "Юридическое лицо" [
+  {{buyerCompanyName}}, в лице {{buyerPosition}} {{buyerFIO}}, действующего на основании {{buyerAuthDocument}}, БИН {{buyerBIN}}, именуемое в дальнейшем «Покупатель» с одной стороны,
+] else [
+  Индивидуальный предприниматель {{buyerIPName}}, в лице {{buyerFIO}}, действующий на основании {{buyerAuthDocument}}, ИИН {{buyerIIN}}, именуемый в дальнейшем «Покупатель» с одной стороны,
+]
+
+и
+
+// === ПРЕАМБУЛА: ПОСТАВЩИК ===
+#if "{{supplierType}}" == "Юридическое лицо" [
+  {{supplierCompanyName}}, в лице {{supplierPosition}} {{supplierFIO}}, действующего на основании {{supplierAuthDocument}}, БИН {{supplierBIN}}, именуемое в дальнейшем «Поставщик» с другой стороны,
+] else [
+  Индивидуальный предприниматель {{supplierIPName}}, в лице {{supplierFIO}}, действующий на основании {{supplierAuthDocument}}, ИИН {{supplierIIN}}, именуемый в дальнейшем «Поставщик» с другой стороны,
+]
+
+Покупатель и Поставщик определены все вместе как «Стороны» и индивидуально как «Сторона», заключили настоящий Договор поставки (далее — Договор) о нижеследующем:
+
+#v(0.5em)
+
+// ============================================================
+// 1. ПРЕДМЕТ ДОГОВОРА
+// ============================================================
+== 1. Предмет договора
+
+1.1. Поставщик обязуется передать в собственность Покупателя {{goodsName}} далее по тексту – «Товар», а Покупатель обязуется оплатить и принять Товар согласно условиям настоящего Договора.
+
+#if "{{deliveryType}}" == "Разовая" [
+  1.2. Подробная спецификация товаров, включая наименование, количество, ассортимент, комплектность, единицу измерения и цену за единицу, указываются в Приложении №{{appendixNumber}}, которое является неотъемлемой частью настоящего Договора.
+] else if "{{deliveryType}}" == "Долгосрочная по графику" [
+  1.2. Поставка Товара осуществляется партиями в соответствии с графиком поставки, являющимся Приложением к настоящему Договору.
+
+  1.3. График поставки определяет наименование, количество, ассортимент, комплектность, единицу измерения, цену за единицу и сроки поставки каждой партии Товара.
+
+  1.4. Изменение графика поставки допускается по письменному соглашению Сторон.
+] else [
+  1.2. Поставка Товара осуществляется отдельными партиями на основании заявок Покупателя.
+
+  1.3. Заявка должна содержать: наименование, количество, ассортимент, комплектность, единицу измерения, цену за единицу и желаемый срок поставки.
+
+  1.4. Покупатель направляет заявку Поставщику не позднее чем за {{requestAdvanceDays}} календарных дней до желаемой даты поставки.
+
+  1.5. Поставщик обязан подтвердить или отклонить заявку в течение {{confirmationDays}} рабочих дней с момента её получения.
+
+  1.6. Заявки направляются посредством: {{requestMethod}}.
+
+  1.7. Покупатель вправе изменить или отменить заявку не позднее чем за {{changeCancellationDays}} рабочих дней до согласованной даты поставки.
+
+  1.8. Поставщик обязан направить подтверждение получения заявки в течение {{acknowledgmentDays}} рабочих дней с момента её получения.
+]
+
+#v(0.5em)
+
+// ============================================================
+// 2. ПОРЯДОК РАСЧЁТОВ
+// ============================================================
+== 2. Порядок расчётов
+
+2.1. Цена Товара включает стоимость Товара, НДС (при наличии), транспортные расходы (если не оговорено иное), расходы на упаковку и таможенные платежи (при необходимости).
+
+// === Политика изменения цен ===
+#if "{{priceChangePolicy}}" == "Не допускается" [
+  2.2. Одностороннее изменение цены Товара не допускается.
+] else if "{{priceChangePolicy}}" == "По соглашению" [
+  2.2. Изменение цены Товара допускается исключительно по взаимному письменному соглашению Сторон.
+] else [
+  2.2. Поставщик вправе в одностороннем порядке изменить цену Товара, уведомив Покупателя не менее чем за {{priceNoticeCalendarDays}} календарных дней до вступления новой цены в силу. В случае несогласия Покупателя с новой ценой Покупатель вправе расторгнуть Договор в порядке, предусмотренном настоящим Договором.
+]
+
+// === Тип оплаты ===
+#if "{{paymentType}}" == "Постоплата" [
+  2.3. Оплата Товара осуществляется Покупателем в течение {{postpaymentBankDays}} банковских дней с даты подписания товарной накладной (акта приёма-передачи).
+] else [
+  2.3. Оплата Товара осуществляется Покупателем в следующем порядке:
+  - первый платёж в размере {{prepaymentPercent1}}% от стоимости Товара — в течение {{prepaymentBankDays1}} банковских дней с даты подписания настоящего Договора;
+  - второй платёж в размере {{prepaymentPercent2}}% от стоимости Товара — в течение {{prepaymentBankDays2}} банковских дней с даты получения Товара и подписания товарной накладной.
+]
+
+// === Сумма оплаты в зависимости от типа поставки ===
+#if "{{deliveryType}}" == "Разовая" [
+  2.4. Общая сумма оплаты определяется в соответствии с Приложением к настоящему Договору.
+] else if "{{deliveryType}}" == "Долгосрочная по графику" [
+  2.4. Сумма оплаты каждой партии определяется в соответствии с графиком поставки.
+] else [
+  2.4. Сумма оплаты каждой партии определяется в соответствии с согласованной заявкой.
+]
+
+2.5. Оплата производится путём безналичного перечисления денежных средств на расчётный счёт Поставщика, указанный в настоящем Договоре.
+
+2.6. Датой оплаты считается дата зачисления денежных средств на расчётный счёт Поставщика.
+
+#v(0.5em)
+
+// ============================================================
+// 3. УСЛОВИЯ ПЕРЕДАЧИ ТОВАРА
+// ============================================================
+== 3. Условия передачи товара
+
+3.1. Обязанность Поставщика по поставке Товара считается исполненной в {{deliveryMoment}}.
+
+3.2. Срок поставки Товара: {{deliveryDeadline}}.
+
+3.3. Покупатель обязан принять Товар в течение {{acceptanceDeadline}} с момента его поступления в место поставки.
+
+3.4. Место поставки: {{deliveryPlace}}.
+
+3.5. Товар сопровождается следующими документами: {{deliveryDocuments}}.
+
+3.6. Претензии по качеству Товара могут быть предъявлены Покупателем в течение {{acceptanceClaimDays}} календарных дней с момента приёмки Товара.
+
+// === Транспорт ===
+#if "{{transportChoice}}" == "Определяется сторонами" [
+  3.7. Доставка Товара осуществляется транспортом: {{transportType}}.
+] else [
+  3.7. Вид транспорта и условия доставки определяются Поставщиком самостоятельно.
+]
+
+// === Расходы по доставке ===
+#if "{{deliveryExpenses}}" == "Поставщик" [
+  3.8. Расходы по доставке Товара несёт Поставщик.
+] else [
+  3.8. Расходы по доставке Товара несёт Покупатель.
+]
+
+// === Упаковка ===
+#if "{{packagingType}}" == "По нормативу" [
+  3.9. Упаковка Товара должна соответствовать требованиям нормативно-правовых актов и технических стандартов, обеспечивая сохранность Товара при транспортировке и хранении.
+] else if "{{packagingType}}" == "По спецификации" [
+  3.9. Упаковка Товара осуществляется в соответствии со спецификацией, согласованной Сторонами.
+] else [
+  3.9. Товар поставляется без упаковки.
+]
+
+// === Стоимость упаковки ===
+#if "{{packagingCost}}" == "Включена в стоимость" [
+  3.10. Стоимость упаковки включена в цену Товара.
+] else if "{{packagingCost}}" == "Оплачивается отдельно" [
+  3.10. Стоимость упаковки оплачивается Покупателем отдельно.
+] else [
+  3.10. Тара является возвратной. Покупатель обязан возвратить тару Поставщику в течение {{returnTaraDays}} календарных дней с даты получения Товара. В случае невозврата тары Покупатель уплачивает Поставщику штраф в размере {{returnTaraPenalty}}.
+]
+
+// === Маркировка ===
+#if "{{markingType}}" == "По законодательству РК" [
+  3.11. Маркировка Товара осуществляется в соответствии с требованиями законодательства Республики Казахстан.
+] else if "{{markingType}}" == "По спецификации/ТУ" [
+  3.11. Маркировка Товара осуществляется в соответствии со спецификацией и/или техническими условиями.
+] else if "{{markingType}}" == "По инструкции Покупателя" [
+  3.11. Маркировка Товара осуществляется в соответствии с инструкцией Покупателя. Покупатель обязан предоставить инструкцию по маркировке не позднее чем за {{markingInstructionDays}} рабочих дней до даты отгрузки Товара.
+] else [
+  3.11. Специальная маркировка Товара не требуется.
+]
+
+#v(0.5em)
+
+// ============================================================
+// 4. МОМЕНТ ПЕРЕХОДА ПРАВА СОБСТВЕННОСТИ И ГАРАНТИЯ
+// ============================================================
+== 4. Момент перехода права собственности и гарантия
+
+4.1. Право собственности на Товар переходит от Поставщика к Покупателю в момент передачи Товара Покупателю и подписания товарной накладной (акта приёма-передачи).
+
+4.2. Риск случайной гибели или повреждения Товара переходит к Покупателю одновременно с переходом права собственности.
+
+#if {{warrantyProvided}} [
+  4.3. Поставщик предоставляет гарантию на Товар сроком {{warrantyPeriod}} с даты передачи Товара Покупателю.
+
+  4.4. В случае обнаружения дефектов Товара в течение гарантийного срока Поставщик обязан за свой счёт произвести замену дефектного Товара в течение {{warrantyReplacementDays}} календарных дней с момента получения письменной претензии Покупателя.
+
+  4.5. Гарантия не распространяется на дефекты, возникшие вследствие нарушения Покупателем правил хранения, транспортировки или эксплуатации Товара.
+]
+
+#v(0.5em)
+
+// ============================================================
+// 5. ОТВЕТСТВЕННОСТЬ СТОРОН
+// ============================================================
+== 5. Ответственность сторон
+
+5.1. За неисполнение или ненадлежащее исполнение обязательств по настоящему Договору Стороны несут ответственность в соответствии с законодательством Республики Казахстан и условиями настоящего Договора.
+
+5.2. В случае нарушения Поставщиком сроков поставки Товара Покупатель вправе потребовать уплаты неустойки в размере {{supplierPenaltyRate}}% от стоимости непоставленного в срок Товара за каждую календарную неделю просрочки, но не более {{supplierPenaltyMax}}.
+
+5.3. В случае нарушения Покупателем сроков оплаты Товара Поставщик вправе потребовать уплаты неустойки в размере {{buyerPenaltyRate}}% от суммы просроченного платежа за каждый календарный день просрочки, но не более {{buyerPenaltyMax}}.
+
+5.4. Уплата неустойки не освобождает Стороны от исполнения обязательств по настоящему Договору.
+
+5.5. Сторона, не исполнившая или ненадлежащим образом исполнившая свои обязательства, обязана возместить другой Стороне причинённые этим убытки в части, не покрытой неустойкой.
+
+#v(0.5em)
+
+// ============================================================
+// 6. УСЛОВИЯ РАСТОРЖЕНИЯ
+// ============================================================
+== 6. Условия расторжения
+
+6.1. Настоящий Договор может быть расторгнут по взаимному письменному соглашению Сторон.
+
+6.2. Каждая из Сторон вправе расторгнуть настоящий Договор в одностороннем порядке, уведомив другую Сторону не менее чем за {{terminationNoticePeriod}} до предполагаемой даты расторжения.
+
+6.3. Поставщик вправе расторгнуть Договор в одностороннем порядке в случае:
+- систематической (более двух раз) просрочки оплаты Товара Покупателем;
+- отказа Покупателя от приёмки Товара без обоснованных причин.
+
+6.4. Покупатель вправе расторгнуть Договор в одностороннем порядке в случае:
+- систематического (более двух раз) нарушения Поставщиком сроков поставки;
+- поставки Товара ненадлежащего качества и неустранения недостатков в согласованные сроки.
+
+6.5. Расторжение Договора не освобождает Стороны от исполнения обязательств, возникших до даты расторжения.
+
+#v(0.5em)
+
+// ============================================================
+// 7. КОНФИДЕНЦИАЛЬНОСТЬ
+// ============================================================
+== 7. Конфиденциальность
+
+7.1. Стороны обязуются не разглашать конфиденциальную информацию, ставшую им известной в связи с исполнением настоящего Договора, третьим лицам без предварительного письменного согласия другой Стороны.
+
+7.2. К конфиденциальной информации относятся: условия настоящего Договора, коммерческая и финансовая информация, техническая документация и иная информация, обозначенная Сторонами как конфиденциальная.
+
+7.3. Обязательства по конфиденциальности сохраняют силу в течение {{confidentialityYears}} лет после прекращения действия настоящего Договора.
+
+7.4. Обязательства по конфиденциальности не распространяются на информацию, которая:
+- стала общедоступной не по вине получившей Стороны;
+- была известна получившей Стороне до момента раскрытия;
+- получена от третьих лиц на законных основаниях;
+- подлежит раскрытию в соответствии с требованиями законодательства.
+
+#v(0.5em)
+
+// ============================================================
+// 8. ФОРС-МАЖОР
+// ============================================================
+== 8. Форс-мажор
+
+8.1. Стороны освобождаются от ответственности за частичное или полное неисполнение обязательств по настоящему Договору, если оно явилось следствием обстоятельств непреодолимой силы (форс-мажор), возникших после заключения Договора.
+
+8.2. К обстоятельствам непреодолимой силы относятся: стихийные бедствия, пожары, наводнения, землетрясения, эпидемии, военные действия, забастовки, акты государственных органов и иные обстоятельства, которые Стороны не могли предвидеть и предотвратить разумными мерами.
+
+8.3. Сторона, для которой создалась невозможность исполнения обязательств, обязана уведомить другую Сторону в письменной форме в течение {{forceMajeureNotifyDays}} календарных дней с момента наступления таких обстоятельств.
+
+8.4. В случае если обстоятельства непреодолимой силы продолжаются более {{forceMajeureDuration}}, каждая из Сторон вправе расторгнуть настоящий Договор, уведомив другую Сторону в письменной форме.
+
+8.5. Наступление обстоятельств непреодолимой силы подтверждается заключением уполномоченного органа (торгово-промышленная палата или иной компетентный орган).
+
+#v(0.5em)
+
+// ============================================================
+// 9. СРОК ДЕЙСТВИЯ ДОГОВОРА
+// ============================================================
+== 9. Срок действия договора
+
+9.1. Настоящий Договор вступает в силу с даты его подписания обеими Сторонами и действует до {{contractEndDate}}.
+
+#if {{autoRenewalEnabled}} [
+  9.2. Если ни одна из Сторон не заявит о прекращении Договора не позднее чем за 30 календарных дней до окончания срока его действия, Договор считается продлённым на каждый последующий аналогичный период на тех же условиях.
+] else [
+  9.2. Настоящий Договор не подлежит автоматической пролонгации. По истечении срока действия Договор прекращает своё действие.
+]
+
+9.3. Прекращение действия Договора не освобождает Стороны от исполнения обязательств, возникших в период его действия.
+
+#v(0.5em)
+
+// ============================================================
+// 10. РАЗРЕШЕНИЕ СПОРОВ
+// ============================================================
+== 10. Разрешение споров
+
+10.1. Все споры и разногласия, возникающие из настоящего Договора или в связи с ним, Стороны будут стремиться разрешить путём переговоров.
+
+10.2. В случае невозможности разрешения споров путём переговоров споры подлежат рассмотрению в судебном порядке в соответствии с законодательством Республики Казахстан по месту нахождения ответчика.
+
+10.3. Претензионный порядок урегулирования споров является обязательным. Срок рассмотрения претензии составляет 15 рабочих дней с момента её получения.
+
+#v(0.5em)
+
+// ============================================================
+// 11. ДОПОЛНИТЕЛЬНЫЕ УСЛОВИЯ
+// ============================================================
+== 11. Дополнительные условия
+
+11.1. Настоящий Договор составляет и выражает все договорные условия и понимание между Сторонами в отношении предмета настоящего Договора.
+
+11.2. Все изменения и дополнения к настоящему Договору действительны при условии, если они совершены в письменной форме и подписаны уполномоченными представителями обеих Сторон.
+
+11.3. Настоящий Договор составлен в 2 (двух) экземплярах на русском языке, по одному экземпляру для каждой из Сторон, каждый из которых имеет одинаковую юридическую силу.
+
+11.4. Приложения к настоящему Договору являются его неотъемлемой частью.
+
+11.5. Во всём, что не предусмотрено настоящим Договором, Стороны руководствуются действующим законодательством Республики Казахстан.
+
+#v(0.5em)
+
+// ============================================================
+// РЕКВИЗИТЫ СТОРОН
+// ============================================================
+== Реквизиты и подписи сторон
+
+#v(1em)
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 2em,
+  [
+    *«ПОКУПАТЕЛЬ»*
+    #v(0.5em)
+    #if "{{buyerType}}" == "Юридическое лицо" [
+      {{buyerCompanyName}}\\
+      БИН: {{buyerBIN}}\\
+    ] else [
+      ИП {{buyerIPName}}\\
+      ИИН: {{buyerIIN}}\\
+    ]
+    Адрес: {{buyerAddress}}\\
+    Тел.: {{buyerPhone}}\\
+    ИИК: {{buyerIIK}}\\
+    Банк: {{buyerBankName}}\\
+    БИК: {{buyerBIK}}\\
+    КБе: {{buyerKBe}}\\
+    #v(1.5em)
+    #line(length: 80%)
+    {{buyerFIO}}
+  ],
+  [
+    *«ПОСТАВЩИК»*
+    #v(0.5em)
+    #if "{{supplierType}}" == "Юридическое лицо" [
+      {{supplierCompanyName}}\\
+      БИН: {{supplierBIN}}\\
+    ] else [
+      ИП {{supplierIPName}}\\
+      ИИН: {{supplierIIN}}\\
+    ]
+    Адрес: {{supplierAddress}}\\
+    Тел.: {{supplierPhone}}\\
+    ИИК: {{supplierIIK}}\\
+    Банк: {{supplierBankName}}\\
+    БИК: {{supplierBIK}}\\
+    КБе: {{supplierKBe}}\\
+    #v(1.5em)
+    #line(length: 80%)
+    {{supplierFIO}}
+  ]
+)
+`,
+  },
 ];
 
 async function seed() {
