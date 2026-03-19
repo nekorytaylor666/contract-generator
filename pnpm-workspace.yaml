@@ -13,5 +13,4 @@ catalog:
   "@trpc/tanstack-react-query": ^11.7.2
   "@trpc/client": ^11.7.2
   "@ai-sdk/react": ^3.0.3
-  alchemy: ^0.82.1
   "@better-auth/expo": ^1.4.9

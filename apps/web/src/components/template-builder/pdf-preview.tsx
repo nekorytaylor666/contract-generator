@@ -35,9 +35,7 @@ export function PdfPreview({
   return (
     <div className="flex h-full flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="font-medium text-foreground text-sm">
-          Предпросмотр
-        </h2>
+        <h2 className="font-medium text-foreground text-sm">Предпросмотр</h2>
         <div className="flex items-center gap-2">
           {onSave && (
             <Button
@@ -76,7 +74,7 @@ export function PdfPreview({
         <div className="flex flex-col items-center gap-4 p-4">
           {svgPages.map((svg, i) => (
             <div
-              className="w-full shadow-sm"
+              className="w-full shadow-sm [&>svg]:h-auto [&>svg]:w-full"
               // biome-ignore lint/security/noDangerouslySetInnerHtml: SVG from our own Typst compiler
               dangerouslySetInnerHTML={{ __html: svg }}
               key={`page-${i + 1}`}

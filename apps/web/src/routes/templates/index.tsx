@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Filter, Search } from "lucide-react";
 import { useMemo } from "react";
 import { useCommandSearch } from "@/components/command-search/command-search-context";
@@ -11,8 +11,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { getUser } from "@/functions/get-user";
-import { getUserOrganizations } from "@/functions/get-user-organizations";
+import { requireAuth } from "@/lib/auth-guard";
 import { useTRPC } from "@/utils/trpc";
 
 export interface TemplateVariable {
@@ -50,25 +49,8 @@ export const Route = createFileRoute("/templates/")({
     };
   },
   beforeLoad: async () => {
-    const session = await getUser();
-    return { session };
-  },
-  loader: async ({ context }) => {
-    if (!context.session) {
-      throw redirect({
-        to: "/login",
-      });
-    }
-
-    const { organizations } = await getUserOrganizations();
-
-    if (organizations.length === 0) {
-      throw redirect({
-        to: "/onboarding",
-      });
-    }
-
-    return { organizations };
+    const { session, organizations } = await requireAuth();
+    return { session, organizations };
   },
 });
 

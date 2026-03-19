@@ -208,8 +208,8 @@ export default function SignUpForm({
       </form>
 
       <p className="text-center text-muted-foreground text-xs">
-        Используя Shart, вы соглашаетесь с Условиями использования и
-        Соглашением об обработке данных.
+        Используя Shart, вы соглашаетесь с Условиями использования и Соглашением
+        об обработке данных.
       </p>
     </div>
   );

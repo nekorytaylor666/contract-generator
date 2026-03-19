@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { memo } from "react";
 import type { TemplateVariable } from "@/routes/templates";
 
 interface FieldState {
@@ -44,7 +44,10 @@ function getErrorMessage(error: unknown): string | null {
   return String(error);
 }
 
-export const VariableField = memo(function VariableField({ variable, field }: VariableFieldProps) {
+export const VariableField = memo(function VariableField({
+  variable,
+  field,
+}: VariableFieldProps) {
   const errors = field.state.meta.errors
     .map(getErrorMessage)
     .filter((e): e is string => e !== null);
