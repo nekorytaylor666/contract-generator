@@ -7,8 +7,8 @@ import {
   DocumentStyleSettings,
 } from "@/components/template-builder/document-style-settings";
 import { LogoUpload } from "@/components/template-builder/logo-upload";
-import { PdfPreview } from "@/components/template-builder/pdf-preview";
 import { TemplateForm } from "@/components/template-builder/template-form";
+import { TypstCanvasPreview } from "@/components/template-builder/typst-canvas-preview";
 import { VersionHistory } from "@/components/template-builder/version-history";
 import { Badge } from "@/components/ui/badge";
 import { requireAuth } from "@/lib/auth-guard";
@@ -99,17 +99,17 @@ function RouteComponent() {
     setFormKey((k) => k + 1);
   }, [existingDocument, template]);
 
-  const svgPagesRef = useRef<string[] | null>(null);
+  const vectorDataRef = useRef<string | null>(null);
   const previewMutation = useMutation(
     trpc.templates.preview.mutationOptions({
       onSuccess: (data) => {
-        svgPagesRef.current = data.pages;
+        vectorDataRef.current = data.vectorData;
       },
     })
   );
 
-  // Keep previous SVG pages visible while new generation is in progress
-  const svgPages = previewMutation.data?.pages ?? svgPagesRef.current;
+  // Keep previous vector data visible while new generation is in progress
+  const vectorData = previewMutation.data?.vectorData ?? vectorDataRef.current;
 
   const compileMutation = useMutation(
     trpc.templates.compile.mutationOptions({
@@ -397,13 +397,13 @@ function RouteComponent() {
         {/* Preview Section */}
         <div className="flex-1 overflow-auto bg-muted/30 p-4">
           <div className="mx-auto h-full max-w-5xl">
-            <PdfPreview
+            <TypstCanvasPreview
               isDownloading={compileMutation.isPending}
               isLoading={previewMutation.isPending}
               isSaving={saveMutation.isPending}
               onDownload={handleDownload}
               onSave={handleSave}
-              svgPages={svgPages}
+              vectorData={vectorData}
             />
           </div>
         </div>

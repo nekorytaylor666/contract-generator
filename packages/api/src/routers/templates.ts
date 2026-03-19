@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { db } from "@contract-builder/db";
 import { template } from "@contract-builder/db/schema/template";
+import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
@@ -13,6 +14,7 @@ import { z } from "zod";
 import { publicProcedure, router } from "../index";
 
 const execAsync = promisify(exec);
+const typstCompiler = NodeCompiler.create();
 const DATE_ISO_REGEX = /^\d{4}-\d{2}-\d{2}/;
 const DATA_URL_PREFIX_REGEX = /^data:image\/\w+;base64,/;
 
@@ -224,38 +226,35 @@ async function compileTypst(
   }
 }
 
-async function compileTypstToSvg(
+async function compileTypstToVector(
   typstContent: string,
   options?: CompileOptions
-): Promise<string[]> {
-  const id = randomUUID();
-  const outputPattern = join(tmpdir(), `${id}-{p}.svg`);
-
-  const { inputPath, cleanupFiles: files } = await setupTempDir(
-    id,
-    typstContent,
-    options
-  );
+): Promise<Buffer> {
+  let content = applyStyleOverrides(typstContent, options?.style);
+  const filesToCleanup: string[] = [];
 
   try {
-    await execAsync(`typst compile "${inputPath}" "${outputPattern}"`);
+    if (options?.logoBase64) {
+      const id = randomUUID();
+      const logoPath = join(tmpdir(), `${id}-logo.png`);
+      const base64Data = options.logoBase64.replace(DATA_URL_PREFIX_REGEX, "");
+      await writeFile(logoPath, Buffer.from(base64Data, "base64"));
+      filesToCleanup.push(logoPath);
 
-    const pages: string[] = [];
-    let pageNum = 1;
-    while (true) {
-      const pagePath = join(tmpdir(), `${id}-${pageNum}.svg`);
-      try {
-        const svg = await readFile(pagePath, "utf-8");
-        pages.push(svg);
-        files.push(pagePath);
-        pageNum++;
-      } catch {
-        break;
+      const header = `#set page(header: align(right, image("${logoPath}", height: 1.2cm)))`;
+      const pageSetIdx = content.indexOf("#set page(");
+      if (pageSetIdx !== -1) {
+        const lineEnd = content.indexOf("\n", pageSetIdx);
+        content = `${content.slice(0, lineEnd + 1)}${header}\n${content.slice(lineEnd + 1)}`;
+      } else {
+        content = `${header}\n${content}`;
       }
     }
-    return pages;
+
+    typstCompiler.evictCache(10);
+    return typstCompiler.vector({ mainFileContent: content });
   } finally {
-    await cleanupFiles(files);
+    await cleanupFiles(filesToCleanup);
   }
 }
 
@@ -339,11 +338,11 @@ export const templatesRouter = router({
           : replaceVariables(found.typstContent, input.variables);
 
       try {
-        const pages = await compileTypstToSvg(processedContent, {
+        const vectorBuffer = await compileTypstToVector(processedContent, {
           logoBase64: input.logo,
           style: input.style,
         });
-        return { pages };
+        return { vectorData: vectorBuffer.toString("base64") };
       } catch (error) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
