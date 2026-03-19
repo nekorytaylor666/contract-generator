@@ -57,7 +57,9 @@ export function LogoUpload({ logo, onLogoChange }: LogoUploadProps) {
 
   return (
     <div className="mb-4">
-      <p className="mb-1.5 font-medium text-foreground text-xs">Логотип компании</p>
+      <p className="mb-1.5 font-medium text-foreground text-xs">
+        Логотип компании
+      </p>
       <button
         className="flex w-full items-center gap-2 rounded-md border border-border border-dashed p-3 text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
         onClick={() => inputRef.current?.click()}

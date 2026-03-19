@@ -1,10 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  createFileRoute,
-  Link,
-  redirect,
-  useNavigate,
-} from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -16,8 +11,7 @@ import { PdfPreview } from "@/components/template-builder/pdf-preview";
 import { TemplateForm } from "@/components/template-builder/template-form";
 import { VersionHistory } from "@/components/template-builder/version-history";
 import { Badge } from "@/components/ui/badge";
-import { getUser } from "@/functions/get-user";
-import { getUserOrganizations } from "@/functions/get-user-organizations";
+import { requireAuth } from "@/lib/auth-guard";
 import type { TemplateVariable } from "@/routes/templates";
 import { useTRPC } from "@/utils/trpc";
 
@@ -29,25 +23,8 @@ export const Route = createFileRoute("/templates/$templateId/builder")({
     documentId: search.documentId ? String(search.documentId) : undefined,
   }),
   beforeLoad: async () => {
-    const session = await getUser();
-    return { session };
-  },
-  loader: async ({ context }) => {
-    if (!context.session) {
-      throw redirect({
-        to: "/login",
-      });
-    }
-
-    const { organizations } = await getUserOrganizations();
-
-    if (organizations.length === 0) {
-      throw redirect({
-        to: "/onboarding",
-      });
-    }
-
-    return { organizations };
+    const { session, organizations } = await requireAuth();
+    return { session, organizations };
   },
 });
 

@@ -131,17 +131,16 @@ function ConditionalField({
 }) {
   const depField = variable.dependsOn?.field;
 
-  const subscribe = useRef((cb: () => void) => form.store.subscribe(cb)).current;
+  const subscribe = useRef((cb: () => void) =>
+    form.store.subscribe(cb)
+  ).current;
   const getSnapshot = useRef(() => {
     return depField ? form.state.values[depField] : undefined;
   }).current;
 
   const depValue = useSyncExternalStore(subscribe, getSnapshot);
 
-  if (
-    depField &&
-    !isVariableVisible(variable, { [depField]: depValue })
-  ) {
+  if (depField && !isVariableVisible(variable, { [depField]: depValue })) {
     return null;
   }
 
@@ -186,14 +185,14 @@ export function TemplateForm({
       {variables.map((variable) =>
         variable.dependsOn ? (
           <ConditionalField
-            key={variable.name}
             form={form}
-            variable={variable}
+            key={variable.name}
             renderField={() => (
               <form.Field name={variable.name}>
                 {(field) => <VariableField field={field} variable={variable} />}
               </form.Field>
             )}
+            variable={variable}
           />
         ) : (
           <form.Field key={variable.name} name={variable.name}>

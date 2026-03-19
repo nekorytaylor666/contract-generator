@@ -1,36 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getUser } from "@/functions/get-user";
-import { getUserOrganizations } from "@/functions/get-user-organizations";
+import { requireAuth } from "@/lib/auth-guard";
 import { useTRPC } from "@/utils/trpc";
 import type { TemplateVariable } from "../";
 
 export const Route = createFileRoute("/templates/$templateId/")({
   component: RouteComponent,
   beforeLoad: async () => {
-    const session = await getUser();
-    return { session };
-  },
-  loader: async ({ context }) => {
-    if (!context.session) {
-      throw redirect({
-        to: "/login",
-      });
-    }
-
-    const { organizations } = await getUserOrganizations();
-
-    if (organizations.length === 0) {
-      throw redirect({
-        to: "/onboarding",
-      });
-    }
-
-    return { organizations };
+    const { session, organizations } = await requireAuth();
+    return { session, organizations };
   },
 });
 

@@ -35,9 +35,7 @@ export function PdfPreview({
   return (
     <div className="flex h-full flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="font-medium text-foreground text-sm">
-          Предпросмотр
-        </h2>
+        <h2 className="font-medium text-foreground text-sm">Предпросмотр</h2>
         <div className="flex items-center gap-2">
           {onSave && (
             <Button

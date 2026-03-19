@@ -10,29 +10,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getUser } from "@/functions/get-user";
-import { getUserOrganizations } from "@/functions/get-user-organizations";
 import { authClient } from "@/lib/auth-client";
+import { requireSession } from "@/lib/auth-guard";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/onboarding")({
   component: OnboardingComponent,
   beforeLoad: async () => {
-    const session = await getUser();
-    return { session };
-  },
-  loader: async ({ context }) => {
-    if (!context.session) {
+    const { session } = await requireSession();
+
+    if (!session) {
       throw redirect({ to: "/login" });
     }
 
-    const { organizations } = await getUserOrganizations();
+    const { data } = await authClient.organization.list();
+    const organizations = data ?? [];
 
     if (organizations.length > 0) {
       throw redirect({ to: "/dashboard" });
     }
 
-    return { session: context.session };
+    return { session };
   },
 });
 
@@ -162,9 +160,7 @@ function StepContractTypes({
         </div>
 
         <div className="space-y-3 text-center">
-          <p className="font-medium text-sm">
-            Как виды договоров вы ищете?
-          </p>
+          <p className="font-medium text-sm">Как виды договоров вы ищете?</p>
           <div className="flex flex-wrap justify-center gap-2">
             {CONTRACT_TYPES.map((type) => {
               const isSelected = selectedTypes.includes(type);
@@ -307,9 +303,7 @@ function OnboardingComponent() {
     });
 
     if (result.error) {
-      toast.error(
-        result.error.message || "Не удалось создать организацию"
-      );
+      toast.error(result.error.message || "Не удалось создать организацию");
       setIsSubmitting(false);
       return;
     }
