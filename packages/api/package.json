@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@contract-builder/config": "workspace:*",
+    "@myriaddreamin/typst-ts-node-compiler": "0.7.0-rc2",
     "hono": "catalog:",
     "typescript": "catalog:"
   }
