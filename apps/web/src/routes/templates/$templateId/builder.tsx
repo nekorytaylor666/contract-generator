@@ -1,16 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type DocumentStyle,
   DocumentStyleSettings,
 } from "@/components/template-builder/document-style-settings";
+import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
 import { LogoUpload } from "@/components/template-builder/logo-upload";
 import { TemplateForm } from "@/components/template-builder/template-form";
-import { TypstCanvasPreview } from "@/components/template-builder/typst-canvas-preview";
 import { VersionHistory } from "@/components/template-builder/version-history";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { requireAuth } from "@/lib/auth-guard";
 import type { TemplateVariable } from "@/routes/templates";
 import { useTRPC } from "@/utils/trpc";
@@ -48,7 +49,16 @@ function RouteComponent() {
     string,
     unknown
   > | null>(null);
+  const [formValues, setFormValues] = useState<Record<string, unknown>>({});
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [changedVars, setChangedVars] = useState<Set<string>>(new Set());
   const latestValuesRef = useRef<Record<string, unknown> | null>(null);
+  const isInlineUpdateRef = useRef(false);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const formApiRef = useRef<{
+    setFieldValue: (name: string, value: unknown) => void;
+    getValues: () => Record<string, unknown>;
+  } | null>(null);
 
   const {
     data: template,
@@ -87,6 +97,7 @@ function RouteComponent() {
       }
     }
     setInitialValues(vars);
+    setFormValues(vars);
     setCurrentVersion(existingDocument.currentVersion);
     latestValuesRef.current = vars;
     if (existingDocument.logo) {
@@ -99,17 +110,64 @@ function RouteComponent() {
     setFormKey((k) => k + 1);
   }, [existingDocument, template]);
 
-  const vectorDataRef = useRef<string | null>(null);
-  const previewMutation = useMutation(
-    trpc.templates.preview.mutationOptions({
-      onSuccess: (data) => {
-        vectorDataRef.current = data.vectorData;
-      },
-    })
-  );
+  // Initialize formValues from template defaults when no document is loaded
+  useEffect(() => {
+    if (!template || initialValues || existingDocument) {
+      return;
+    }
+    const templateVars = template.variables as TemplateVariable[];
+    const defaults: Record<string, unknown> = {};
+    for (const v of templateVars) {
+      if (v.defaultValue !== undefined) {
+        defaults[v.name] = v.defaultValue;
+      } else {
+        switch (v.type) {
+          case "boolean":
+            defaults[v.name] = false;
+            break;
+          case "date":
+            defaults[v.name] = undefined;
+            break;
+          default:
+            defaults[v.name] = "";
+            break;
+        }
+      }
+    }
+    setFormValues(defaults);
+    latestValuesRef.current = defaults;
+  }, [template, initialValues, existingDocument]);
 
-  // Keep previous vector data visible while new generation is in progress
-  const vectorData = previewMutation.data?.vectorData ?? vectorDataRef.current;
+  const triggerHighlight = useCallback((names: Set<string>) => {
+    if (names.size === 0) {
+      return;
+    }
+    setChangedVars(names);
+    clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = setTimeout(
+      () => setChangedVars(new Set()),
+      4000
+    );
+  }, []);
+
+  const handleInlineChange = useCallback(
+    (name: string, value: unknown) => {
+      isInlineUpdateRef.current = true;
+      setFormValues((prev) => {
+        const next = { ...prev, [name]: value };
+        latestValuesRef.current = next;
+        return next;
+      });
+      // Highlight the changed variable + any conditionals it affects
+      triggerHighlight(new Set([name]));
+      // Push into TanStack Form so sidebar fields update
+      formApiRef.current?.setFieldValue(name, value);
+      requestAnimationFrame(() => {
+        isInlineUpdateRef.current = false;
+      });
+    },
+    [triggerHighlight]
+  );
 
   const compileMutation = useMutation(
     trpc.templates.compile.mutationOptions({
@@ -148,69 +206,26 @@ function RouteComponent() {
     })
   );
 
-  const getChangedVariables = useCallback(
-    (values: Record<string, unknown>): string[] => {
-      const prev = latestValuesRef.current;
-      if (!prev) {
-        return [];
-      }
-      const changed: string[] = [];
-      for (const key of Object.keys(values)) {
-        if (String(values[key]) !== String(prev[key])) {
-          changed.push(key);
-        }
-      }
-      return changed;
-    },
-    []
-  );
-
-  const logoRef = useRef<string | null>(null);
-  logoRef.current = logo;
-  const styleRef = useRef<DocumentStyle>(documentStyle);
-  styleRef.current = documentStyle;
-
-  const previewWithValues = useCallback(
-    (
-      values: Record<string, unknown>,
-      options?: {
-        changedVariables?: string[];
-        logoOverride?: string | null;
-        styleOverride?: DocumentStyle;
-      }
-    ) => {
-      const currentLogo =
-        options?.logoOverride !== undefined
-          ? options.logoOverride
-          : logoRef.current;
-      const currentStyle = options?.styleOverride ?? styleRef.current;
-      previewMutation.mutate({
-        templateId,
-        variables: values,
-        changedVariables: options?.changedVariables,
-        logo: currentLogo ?? undefined,
-        style: {
-          font: currentStyle.font,
-          preset: currentStyle.preset,
-        },
-      });
-      latestValuesRef.current = values;
-    },
-    [templateId, previewMutation.mutate]
-  );
-
   const handleValuesChange = useCallback(
     (values: Record<string, unknown>) => {
+      if (isInlineUpdateRef.current) {
+        return;
+      }
+      const prev = latestValuesRef.current;
+      if (prev) {
+        const changed = new Set<string>();
+        for (const key of Object.keys(values)) {
+          if (String(values[key] ?? "") !== String(prev[key] ?? "")) {
+            changed.add(key);
+          }
+        }
+        triggerHighlight(changed);
+      }
       latestValuesRef.current = values;
-      const changed = getChangedVariables(values);
-      previewWithValues(values, { changedVariables: changed });
+      setFormValues(values);
     },
-    [previewWithValues, getChangedVariables]
+    [triggerHighlight]
   );
-
-  const handleFormSubmit = (values: Record<string, unknown>) => {
-    previewWithValues(values);
-  };
 
   const handleDownload = useCallback(() => {
     if (!latestValuesRef.current) {
@@ -243,25 +258,13 @@ function RouteComponent() {
     });
   }, [templateId, documentId, saveMutation.mutate, logo, documentStyle]);
 
-  const handleLogoChange = useCallback(
-    (newLogo: string | null) => {
-      setLogo(newLogo);
-      previewWithValues(latestValuesRef.current ?? {}, {
-        logoOverride: newLogo,
-      });
-    },
-    [previewWithValues]
-  );
+  const handleLogoChange = useCallback((newLogo: string | null) => {
+    setLogo(newLogo);
+  }, []);
 
-  const handleStyleChange = useCallback(
-    (newStyle: DocumentStyle) => {
-      setDocumentStyle(newStyle);
-      previewWithValues(latestValuesRef.current ?? {}, {
-        styleOverride: newStyle,
-      });
-    },
-    [previewWithValues]
-  );
+  const handleStyleChange = useCallback((newStyle: DocumentStyle) => {
+    setDocumentStyle(newStyle);
+  }, []);
 
   const handlePreviewVersion = useCallback(
     (
@@ -269,23 +272,32 @@ function RouteComponent() {
       versionLogo: string | null,
       versionStyle: { font?: string; preset?: string } | null
     ) => {
-      // Preview only — don't change form state
-      previewMutation.mutate({
-        templateId,
-        variables: rawVariables,
-        logo: versionLogo ?? undefined,
-        style: versionStyle
-          ? {
-              font: versionStyle.font,
-              preset: versionStyle.preset,
-            }
-          : {
-              font: documentStyle.font,
-              preset: documentStyle.preset,
-            },
-      });
+      // Preview version inline — hydrate dates and set form values
+      const templateVars = (template?.variables ?? []) as TemplateVariable[];
+      const dateFields = new Set(
+        templateVars.filter((v) => v.type === "date").map((v) => v.name)
+      );
+      const variables: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(rawVariables)) {
+        if (dateFields.has(key) && typeof value === "string" && value) {
+          variables[key] = new Date(value);
+        } else {
+          variables[key] = value;
+        }
+      }
+      setFormValues(variables);
+      latestValuesRef.current = variables;
+      if (versionLogo !== null) {
+        setLogo(versionLogo);
+      }
+      if (versionStyle) {
+        setDocumentStyle({
+          font: versionStyle.font ?? "New Computer Modern",
+          preset: versionStyle.preset ?? "default",
+        });
+      }
     },
-    [templateId, previewMutation.mutate, documentStyle]
+    [template?.variables]
   );
 
   const handleRevert = useCallback(
@@ -294,7 +306,6 @@ function RouteComponent() {
       revertedLogo: string | null,
       revertedStyle: { font?: string; preset?: string } | null
     ) => {
-      // Hydrate date strings back to Date objects
       const templateVars = (template?.variables ?? []) as TemplateVariable[];
       const dateFields = new Set(
         templateVars.filter((v) => v.type === "date").map((v) => v.name)
@@ -308,6 +319,7 @@ function RouteComponent() {
         }
       }
       setInitialValues(variables);
+      setFormValues(variables);
       latestValuesRef.current = variables;
       if (revertedLogo !== undefined) {
         setLogo(revertedLogo);
@@ -319,18 +331,8 @@ function RouteComponent() {
         });
       }
       setFormKey((k) => k + 1);
-      // Trigger preview with reverted values
-      previewWithValues(variables, {
-        logoOverride: revertedLogo,
-        styleOverride: revertedStyle
-          ? {
-              font: revertedStyle.font ?? "New Computer Modern",
-              preset: revertedStyle.preset ?? "default",
-            }
-          : undefined,
-      });
     },
-    [previewWithValues, template?.variables]
+    [template?.variables]
   );
 
   if (isLoading) {
@@ -390,55 +392,76 @@ function RouteComponent() {
           onStyleChange={handleStyleChange}
           style={documentStyle}
         />
+        <div className="ml-auto">
+          <Button
+            onClick={() => setSidebarOpen((o) => !o)}
+            size="sm"
+            title={sidebarOpen ? "Скрыть панель" : "Показать панель"}
+            variant="ghost"
+          >
+            {sidebarOpen ? (
+              <PanelRightClose className="size-4" />
+            ) : (
+              <PanelRightOpen className="size-4" />
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Preview Section */}
+        {/* Interactive Document Preview */}
         <div className="flex-1 overflow-auto bg-muted/30 p-4">
           <div className="mx-auto h-full max-w-5xl">
-            <TypstCanvasPreview
+            <InteractiveDocumentPreview
+              changedVars={changedVars}
               isDownloading={compileMutation.isPending}
-              isLoading={previewMutation.isPending}
               isSaving={saveMutation.isPending}
+              logo={logo}
               onDownload={handleDownload}
               onSave={handleSave}
-              vectorData={vectorData}
+              onValueChange={handleInlineChange}
+              style={documentStyle}
+              typstContent={template.typstContent}
+              values={formValues}
+              variables={variables}
             />
           </div>
         </div>
 
-        {/* Form Sidebar */}
-        <div className="w-80 shrink-0 overflow-auto border-border border-l bg-background p-4">
-          <h2 className="mb-2 font-medium text-foreground text-sm">
-            Детали документа
-          </h2>
-          <p className="mb-4 text-muted-foreground text-xs">
-            Заполните необходимую информацию для создания документа.
-          </p>
+        {/* Form Sidebar — collapsible */}
+        {sidebarOpen && (
+          <div className="w-80 shrink-0 overflow-auto border-border border-l bg-background p-4">
+            <h2 className="mb-2 font-medium text-foreground text-sm">
+              Детали документа
+            </h2>
+            <p className="mb-4 text-muted-foreground text-xs">
+              Заполните необходимую информацию для создания документа.
+            </p>
 
-          <LogoUpload logo={logo} onLogoChange={handleLogoChange} />
+            <LogoUpload logo={logo} onLogoChange={handleLogoChange} />
 
-          <TemplateForm
-            initialValues={initialValues ?? undefined}
-            isSubmitting={compileMutation.isPending}
-            key={formKey}
-            onSubmit={handleFormSubmit}
-            onValuesChange={handleValuesChange}
-            variables={variables}
-          />
+            <TemplateForm
+              formApiRef={formApiRef}
+              initialValues={initialValues ?? undefined}
+              isSubmitting={compileMutation.isPending}
+              key={formKey}
+              onValuesChange={handleValuesChange}
+              variables={variables}
+            />
 
-          {documentId && (
-            <div className="mt-4">
-              <VersionHistory
-                currentVersion={currentVersion}
-                documentId={documentId}
-                onPreviewVersion={handlePreviewVersion}
-                onRevert={handleRevert}
-              />
-            </div>
-          )}
-        </div>
+            {documentId && (
+              <div className="mt-4">
+                <VersionHistory
+                  currentVersion={currentVersion}
+                  documentId={documentId}
+                  onPreviewVersion={handlePreviewVersion}
+                  onRevert={handleRevert}
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

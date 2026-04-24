@@ -29,12 +29,18 @@ function isVariableVisible(
   }
 }
 
+interface FormApi {
+  setFieldValue: (name: string, value: unknown) => void;
+  getValues: () => Record<string, unknown>;
+}
+
 interface TemplateFormProps {
   variables: TemplateVariable[];
-  onSubmit: (values: Record<string, unknown>) => void;
+  onSubmit?: (values: Record<string, unknown>) => void;
   onValuesChange?: (values: Record<string, unknown>) => void;
   isSubmitting?: boolean;
   initialValues?: Record<string, unknown>;
+  formApiRef?: React.RefObject<FormApi | null>;
 }
 
 function buildDefaultValues(
@@ -153,6 +159,7 @@ export function TemplateForm({
   onValuesChange,
   isSubmitting,
   initialValues,
+  formApiRef,
 }: TemplateFormProps) {
   const onValuesChangeRef = useRef(onValuesChange);
   onValuesChangeRef.current = onValuesChange;
@@ -160,18 +167,28 @@ export function TemplateForm({
   const form = useForm({
     defaultValues: initialValues ?? buildDefaultValues(variables),
     onSubmit: ({ value }) => {
-      onSubmit(value);
+      onSubmit?.(value);
     },
     validators: {
       onSubmit: buildZodSchema(variables),
     },
     listeners: {
-      onChangeDebounceMs: 3000,
+      onChangeDebounceMs: 300,
       onChange: ({ formApi }) => {
         onValuesChangeRef.current?.(formApi.state.values);
       },
     },
   });
+
+  // Expose form API so parent can push values from inline edits
+  if (formApiRef) {
+    formApiRef.current = {
+      setFieldValue: (name: string, value: unknown) => {
+        form.setFieldValue(name, value);
+      },
+      getValues: () => form.state.values,
+    };
+  }
 
   return (
     <form
@@ -201,20 +218,22 @@ export function TemplateForm({
         )
       )}
 
-      <form.Subscribe>
-        {(state) => (
-          <Button
-            className="mt-2 w-full"
-            disabled={isSubmitting || state.isSubmitting}
-            size="lg"
-            type="submit"
-          >
-            {isSubmitting || state.isSubmitting
-              ? "Генерация..."
-              : "Сгенерировать PDF"}
-          </Button>
-        )}
-      </form.Subscribe>
+      {onSubmit && (
+        <form.Subscribe>
+          {(state) => (
+            <Button
+              className="mt-2 w-full"
+              disabled={isSubmitting || state.isSubmitting}
+              size="lg"
+              type="submit"
+            >
+              {isSubmitting || state.isSubmitting
+                ? "Генерация..."
+                : "Сгенерировать PDF"}
+            </Button>
+          )}
+        </form.Subscribe>
+      )}
     </form>
   );
 }

@@ -956,6 +956,13 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         dependsOn: { field: "landlordType", value: "Юридическое лицо" },
       },
       {
+        name: "landlordIPName",
+        type: "text",
+        required: false,
+        label: "Наименование ИП арендодателя",
+        dependsOn: { field: "landlordType", value: "ИП" },
+      },
+      {
         name: "landlordPosition",
         type: "text",
         required: false,
@@ -973,16 +980,111 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         label: "ФИО арендодателя",
       },
       {
-        name: "landlordAuthDocument",
+        name: "landlordGender",
+        type: "select",
+        required: false,
+        label: "Пол представителя арендодателя",
+        options: ["Мужской", "Женский"],
+      },
+      {
+        name: "landlordAuthDocType",
+        type: "select",
+        required: false,
+        label: "Документ-основание (Арендодатель, юрлицо)",
+        options: ["Устав", "Доверенность", "Иной документ"],
+        dependsOn: { field: "landlordType", value: "Юридическое лицо" },
+      },
+      {
+        name: "landlordProxyNumber",
         type: "text",
         required: false,
-        label: "Документ-основание арендодателя",
-        defaultValue: "Устав",
-        dependsOn: {
-          field: "landlordType",
-          value: ["Юридическое лицо", "ИП"],
-          operator: "in",
-        },
+        label: "№ доверенности (Арендодатель)",
+        dependsOn: { field: "landlordAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "landlordProxyDate",
+        type: "date",
+        required: false,
+        label: "Дата выдачи доверенности (Арендодатель)",
+        dependsOn: { field: "landlordAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "landlordProxyValidUntil",
+        type: "date",
+        required: false,
+        label: "Срок действия доверенности (Арендодатель)",
+        dependsOn: { field: "landlordAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "landlordOtherDocName",
+        type: "text",
+        required: false,
+        label: "Название документа (Арендодатель)",
+        dependsOn: { field: "landlordAuthDocType", value: "Иной документ" },
+      },
+      {
+        name: "landlordOtherDocDate",
+        type: "date",
+        required: false,
+        label: "Дата документа (Арендодатель)",
+        dependsOn: { field: "landlordAuthDocType", value: "Иной документ" },
+      },
+      {
+        name: "landlordAuthDocTypeIP",
+        type: "select",
+        required: false,
+        label: "Документ-основание (Арендодатель, ИП)",
+        options: ["Доверенность", "Талон"],
+        dependsOn: { field: "landlordType", value: "ИП" },
+      },
+      {
+        name: "landlordIPProxyNumber",
+        type: "text",
+        required: false,
+        label: "№ доверенности (Арендодатель, ИП)",
+        dependsOn: { field: "landlordAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "landlordIPProxyDate",
+        type: "date",
+        required: false,
+        label: "Дата выдачи доверенности (Арендодатель, ИП)",
+        dependsOn: { field: "landlordAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "landlordIPProxyValidUntil",
+        type: "date",
+        required: false,
+        label: "Срок действия доверенности (Арендодатель, ИП)",
+        dependsOn: { field: "landlordAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "landlordTalonNumber",
+        type: "text",
+        required: false,
+        label: "№ талона (Арендодатель)",
+        dependsOn: { field: "landlordAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "landlordTalonOrgName",
+        type: "text",
+        required: false,
+        label: "Наименование принимающей организации (Арендодатель)",
+        dependsOn: { field: "landlordAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "landlordTalonDate",
+        type: "date",
+        required: false,
+        label: "Дата талона (Арендодатель)",
+        dependsOn: { field: "landlordAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "landlordTalonRegNumber",
+        type: "text",
+        required: false,
+        label: "Входящий рег. номер уведомления (Арендодатель)",
+        dependsOn: { field: "landlordAuthDocTypeIP", value: "Талон" },
       },
       {
         name: "landlordBIN",
@@ -1018,6 +1120,13 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         dependsOn: { field: "tenantType", value: "Юридическое лицо" },
       },
       {
+        name: "tenantIPName",
+        type: "text",
+        required: false,
+        label: "Наименование ИП арендатора",
+        dependsOn: { field: "tenantType", value: "ИП" },
+      },
+      {
         name: "tenantPosition",
         type: "text",
         required: false,
@@ -1035,16 +1144,111 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         label: "ФИО арендатора",
       },
       {
-        name: "tenantAuthDocument",
+        name: "tenantGender",
+        type: "select",
+        required: false,
+        label: "Пол представителя арендатора",
+        options: ["Мужской", "Женский"],
+      },
+      {
+        name: "tenantAuthDocType",
+        type: "select",
+        required: false,
+        label: "Документ-основание (Арендатор, юрлицо)",
+        options: ["Устав", "Доверенность", "Иной документ"],
+        dependsOn: { field: "tenantType", value: "Юридическое лицо" },
+      },
+      {
+        name: "tenantProxyNumber",
         type: "text",
         required: false,
-        label: "Документ-основание арендатора",
-        defaultValue: "Устав",
-        dependsOn: {
-          field: "tenantType",
-          value: ["Юридическое лицо", "ИП"],
-          operator: "in",
-        },
+        label: "№ доверенности (Арендатор)",
+        dependsOn: { field: "tenantAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "tenantProxyDate",
+        type: "date",
+        required: false,
+        label: "Дата выдачи доверенности (Арендатор)",
+        dependsOn: { field: "tenantAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "tenantProxyValidUntil",
+        type: "date",
+        required: false,
+        label: "Срок действия доверенности (Арендатор)",
+        dependsOn: { field: "tenantAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "tenantOtherDocName",
+        type: "text",
+        required: false,
+        label: "Название документа (Арендатор)",
+        dependsOn: { field: "tenantAuthDocType", value: "Иной документ" },
+      },
+      {
+        name: "tenantOtherDocDate",
+        type: "date",
+        required: false,
+        label: "Дата документа (Арендатор)",
+        dependsOn: { field: "tenantAuthDocType", value: "Иной документ" },
+      },
+      {
+        name: "tenantAuthDocTypeIP",
+        type: "select",
+        required: false,
+        label: "Документ-основание (Арендатор, ИП)",
+        options: ["Доверенность", "Талон"],
+        dependsOn: { field: "tenantType", value: "ИП" },
+      },
+      {
+        name: "tenantIPProxyNumber",
+        type: "text",
+        required: false,
+        label: "№ доверенности (Арендатор, ИП)",
+        dependsOn: { field: "tenantAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "tenantIPProxyDate",
+        type: "date",
+        required: false,
+        label: "Дата выдачи доверенности (Арендатор, ИП)",
+        dependsOn: { field: "tenantAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "tenantIPProxyValidUntil",
+        type: "date",
+        required: false,
+        label: "Срок действия доверенности (Арендатор, ИП)",
+        dependsOn: { field: "tenantAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "tenantTalonNumber",
+        type: "text",
+        required: false,
+        label: "№ талона (Арендатор)",
+        dependsOn: { field: "tenantAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "tenantTalonOrgName",
+        type: "text",
+        required: false,
+        label: "Наименование принимающей организации (Арендатор)",
+        dependsOn: { field: "tenantAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "tenantTalonDate",
+        type: "date",
+        required: false,
+        label: "Дата талона (Арендатор)",
+        dependsOn: { field: "tenantAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "tenantTalonRegNumber",
+        type: "text",
+        required: false,
+        label: "Входящий рег. номер уведомления (Арендатор)",
+        dependsOn: { field: "tenantAuthDocTypeIP", value: "Талон" },
       },
       {
         name: "tenantBIN",
@@ -1405,6 +1609,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         required: true,
         label: "Срок уведомления о расторжении (дни)",
         defaultValue: 30,
+        wordForms: ["календарный день", "календарных дня", "календарных дней"],
       },
       {
         name: "returnPeriodDays",
@@ -1412,6 +1617,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         required: true,
         label: "Срок возврата объекта (дни)",
         defaultValue: 5,
+        wordForms: ["календарный день", "календарных дня", "календарных дней"],
       },
       {
         name: "prolongation",
@@ -1430,6 +1636,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         required: false,
         label: "Уведомление о прекращении при автопролонгации (дни)",
         defaultValue: 30,
+        wordForms: ["день", "дня", "дней"],
         dependsOn: {
           field: "prolongation",
           value: "Автоматическая без ограничений",
@@ -1449,6 +1656,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         required: true,
         label: "Срок передачи объекта (дни)",
         defaultValue: 5,
+        wordForms: ["календарный день", "календарных дня", "календарных дней"],
       },
       {
         name: "hiddenDefectDays",
@@ -1456,6 +1664,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         required: true,
         label: "Срок уведомления о скрытых недостатках (дни)",
         defaultValue: 5,
+        wordForms: ["рабочий день", "рабочих дня", "рабочих дней"],
       },
       // === Force Majeure ===
       {
@@ -1464,6 +1673,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         required: true,
         label: "Уведомление о форс-мажоре (дни)",
         defaultValue: 3,
+        wordForms: ["календарный день", "календарных дня", "календарных дней"],
       },
       {
         name: "forceMajeureDurationMonths",
@@ -1478,11 +1688,31 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         required: true,
         label: "Уведомление о расторжении при форс-мажоре (дни)",
         defaultValue: 30,
+        wordForms: ["рабочий день", "рабочих дня", "рабочих дней"],
+      },
+      // === Особые условия ===
+      {
+        name: "specialConditionsOption",
+        type: "select",
+        required: false,
+        label: "Особые условия",
+        options: ["Заполнить особые условия", "Без особых условий"],
+      },
+      {
+        name: "specialConditionsText",
+        type: "textarea",
+        required: false,
+        label: "Текст особых условий",
+        dependsOn: {
+          field: "specialConditionsOption",
+          value: "Заполнить особые условия",
+        },
       },
     ],
     typstContent: `#set document(title: "Договор аренды")
 #set page(margin: 2cm)
 #set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
 
 #align(center)[
   #text(size: 16pt, weight: "bold")[ДОГОВОР АРЕНДЫ]
@@ -1500,22 +1730,22 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 
 // === ПРЕАМБУЛА: АРЕНДОДАТЕЛЬ ===
 #if "{{landlordType}}" == "Юридическое лицо" [
-  {{landlordCompanyName}}, в лице {{landlordPosition}} {{landlordFIO}}, действующего на основании {{landlordAuthDocument}}, БИН {{landlordBIN}}, именуемое в дальнейшем «Арендодатель» с одной стороны,
+  {{landlordCompanyName}}, в лице {{landlordPosition}} {{landlordFIO}}, #if "{{landlordGender}}" == "Женский" [действующей] else [действующего] на основании #if "{{landlordAuthDocType}}" == "Доверенность" [Доверенности №{{landlordProxyNumber}} от {{landlordProxyDate}} сроком до {{landlordProxyValidUntil}}] else if "{{landlordAuthDocType}}" == "Иной документ" [{{landlordOtherDocName}} от {{landlordOtherDocDate}}] else [Устава], БИН {{landlordBIN}}, именуемое в дальнейшем «Арендодатель» с одной стороны,
 ] else if "{{landlordType}}" == "ИП" [
-  Индивидуальный предприниматель {{landlordFIO}}, действующий на основании {{landlordAuthDocument}}, ИИН {{landlordIIN}}, именуемый в дальнейшем «Арендодатель» с одной стороны,
+  ИП {{landlordIPName}}, в лице {{landlordPosition}} {{landlordFIO}}, #if "{{landlordGender}}" == "Женский" [действующей] else [действующего] на основании #if "{{landlordAuthDocTypeIP}}" == "Талон" [Талона №{{landlordTalonNumber}}, «{{landlordTalonOrgName}}», {{landlordTalonDate}}, входящий регистрационный номер уведомления {{landlordTalonRegNumber}}] else [Доверенности №{{landlordIPProxyNumber}} от {{landlordIPProxyDate}} сроком до {{landlordIPProxyValidUntil}}], ИИН {{landlordIIN}}, #if "{{landlordGender}}" == "Женский" [именуемая] else [именуемый] в дальнейшем «Арендодатель» с одной стороны,
 ] else [
-  {{landlordFIO}}, ИИН {{landlordIIN}}, именуемый в дальнейшем «Арендодатель» с одной стороны,
+  {{landlordFIO}}, ИИН {{landlordIIN}}, #if "{{landlordGender}}" == "Женский" [именуемая] else [именуемый] в дальнейшем «Арендодатель» с одной стороны,
 ]
 
 и
 
 // === ПРЕАМБУЛА: АРЕНДАТОР ===
 #if "{{tenantType}}" == "Юридическое лицо" [
-  {{tenantCompanyName}}, в лице {{tenantPosition}} {{tenantFIO}}, действующего на основании {{tenantAuthDocument}}, БИН {{tenantBIN}}, именуемое в дальнейшем «Арендатор» с другой стороны,
+  {{tenantCompanyName}}, в лице {{tenantPosition}} {{tenantFIO}}, #if "{{tenantGender}}" == "Женский" [действующей] else [действующего] на основании #if "{{tenantAuthDocType}}" == "Доверенность" [Доверенности №{{tenantProxyNumber}} от {{tenantProxyDate}} сроком до {{tenantProxyValidUntil}}] else if "{{tenantAuthDocType}}" == "Иной документ" [{{tenantOtherDocName}} от {{tenantOtherDocDate}}] else [Устава], БИН {{tenantBIN}}, именуемое в дальнейшем «Арендатор» с другой стороны,
 ] else if "{{tenantType}}" == "ИП" [
-  Индивидуальный предприниматель {{tenantFIO}}, действующий на основании {{tenantAuthDocument}}, ИИН {{tenantIIN}}, именуемый в дальнейшем «Арендатор» с другой стороны,
+  ИП {{tenantIPName}}, в лице {{tenantPosition}} {{tenantFIO}}, #if "{{tenantGender}}" == "Женский" [действующей] else [действующего] на основании #if "{{tenantAuthDocTypeIP}}" == "Талон" [Талона №{{tenantTalonNumber}}, «{{tenantTalonOrgName}}», {{tenantTalonDate}}, входящий регистрационный номер уведомления {{tenantTalonRegNumber}}] else [Доверенности №{{tenantIPProxyNumber}} от {{tenantIPProxyDate}} сроком до {{tenantIPProxyValidUntil}}], ИИН {{tenantIIN}}, #if "{{tenantGender}}" == "Женский" [именуемая] else [именуемый] в дальнейшем «Арендатор» с другой стороны,
 ] else [
-  {{tenantFIO}}, ИИН {{tenantIIN}}, именуемый в дальнейшем «Арендатор» с другой стороны,
+  {{tenantFIO}}, ИИН {{tenantIIN}}, #if "{{tenantGender}}" == "Женский" [именуемая] else [именуемый] в дальнейшем «Арендатор» с другой стороны,
 ]
 
 Арендодатель и Арендатор определены все вместе как «Стороны» и индивидуально как «Сторона», заключили настоящий Договор аренды (далее — Договор) о нижеследующем:
@@ -1678,7 +1908,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 // ============================================================
 == 3. Порядок передачи, приёмки и возврата Объекта аренды
 
-3.1. Передача Объекта аренды осуществляется в течение {{transferDays}} календарных дней с даты подписания настоящего Договора, если иные сроки не установлены Сторонами.
+3.1. Передача Объекта аренды осуществляется в течение {{transferDays}} {{transferDaysWord}} с даты подписания настоящего Договора, если иные сроки не установлены Сторонами.
 
 3.2. Передача оформляется Актом приёма-передачи Объекта аренды (Приложение к настоящему Договору), подписываемым обеими Сторонами.
 
@@ -1690,9 +1920,9 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 
 3.4. Стороны вправе приложить к Договору: фотофиксацию состояния Объекта аренды; опись имущества и принадлежностей; показания приборов учёта.
 
-3.5. В случае выявления скрытых недостатков Арендатор обязан уведомить Арендодателя в течение {{hiddenDefectDays}} рабочих дней с момента обнаружения.
+3.5. В случае выявления скрытых недостатков Арендатор обязан уведомить Арендодателя в течение {{hiddenDefectDays}} {{hiddenDefectDaysWord}} с момента обнаружения.
 
-3.6. По окончании срока действия Договора либо его досрочном прекращении Арендатор обязан возвратить Объект аренды в течение {{returnPeriodDays}} календарных дней с даты прекращения Договора.
+3.6. По окончании срока действия Договора либо его досрочном прекращении Арендатор обязан возвратить Объект аренды в течение {{returnPeriodDays}} {{returnPeriodDaysWord}} с даты прекращения Договора.
 
 3.7. Возврат оформляется Актом возврата Объекта аренды, подписываемым обеими Сторонами.
 
@@ -1790,9 +2020,9 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 
 6.3. Договор аренды может быть расторгнут по иным основаниям, прямо предусмотренным Гражданским кодексом Республики Казахстан и иными законодательными актами.
 
-6.4. Сторона, инициирующая расторжение, обязана уведомить другую Сторону за срок не менее {{noticePeriodDays}} календарных дней.
+6.4. Сторона, инициирующая расторжение, обязана уведомить другую Сторону за срок не менее {{noticePeriodDays}} {{noticePeriodDaysWord}}.
 
-6.5. Арендатор обязан в срок не позднее {{returnPeriodDays}} дней с даты прекращения Договора возвратить Объект аренды по акту приёма-передачи.
+6.5. Арендатор обязан в срок не позднее {{returnPeriodDays}} {{returnPeriodDaysWord}} с даты прекращения Договора возвратить Объект аренды по акту приёма-передачи.
 
 6.6. Обязательства Сторон по уплате начисленных арендных платежей, неустоек, возмещению убытков и расходов, возникших до даты расторжения, сохраняют силу до их полного исполнения.
 
@@ -1800,7 +2030,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 #if "{{prolongation}}" == "Однократная" [
   6.7. Срок действия Договора может быть продлён (пролонгирован) один раз на срок, равный первоначальному сроку аренды, при условии письменного согласия обеих Сторон.
 ] else if "{{prolongation}}" == "Автоматическая без ограничений" [
-  6.7. Договор подлежит автоматической пролонгации на каждый последующий аналогичный срок, если ни одна из Сторон не заявит о прекращении его действия за {{prolongationNoticeDays}} дней до окончания очередного срока.
+  6.7. Договор подлежит автоматической пролонгации на каждый последующий аналогичный срок, если ни одна из Сторон не заявит о прекращении его действия за {{prolongationNoticeDays}} {{prolongationNoticeDaysWord}} до окончания очередного срока.
 ] else [
   6.7. Пролонгация срока действия настоящего Договора не допускается. По окончании установленного срока Договор прекращает своё действие.
 ]
@@ -1823,7 +2053,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 
 7.2. Стороны освобождаются от частичного или полного исполнения обязательств по настоящему Договору, если невозможность их исполнения явилась следствием обстоятельств непреодолимой силы, возникших после заключения настоящего Договора в результате событий чрезвычайного характера, которые Стороны не могли ни предвидеть, ни предотвратить разумными мерами.
 
-7.3. Сторона, для которой создалась невозможность исполнения обязательств (форс-мажор) по настоящему Договору, должна письменно в течение {{forceMajeureNotifyDays}} календарных дней известить об этом другую Сторону и представить доказательства наступления подобных обстоятельств.
+7.3. Сторона, для которой создалась невозможность исполнения обязательств (форс-мажор) по настоящему Договору, должна письменно в течение {{forceMajeureNotifyDays}} {{forceMajeureNotifyDaysWord}} известить об этом другую Сторону и представить доказательства наступления подобных обстоятельств.
 
 7.4. В случае возникновения обстоятельств непреодолимой силы срок выполнения обязательств по настоящему Договору отодвигается соразмерно времени, в течение которого действуют эти обстоятельства и их последствия. В случае, если форс-мажор продолжается более {{forceMajeureDurationMonths}} календарных месяцев после его наступления, любая из Сторон вправе прервать действие настоящего Договора, письменно уведомив об этом другую Сторону не позднее чем за {{forceMajeureTermNoticeDays}} рабочих дней, при этом Арендодатель обязуется незамедлительно возвратить Арендатору в полном объёме сумму неиспользованной части арендной платы.
 
@@ -1840,9 +2070,29 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 #v(0.5em)
 
 // ============================================================
-// 8. ЮРИДИЧЕСКИЕ АДРЕСА И ПОДПИСИ СТОРОН
+// 8. ОСОБЫЕ УСЛОВИЯ
 // ============================================================
-== 8. Юридические адреса и подписи сторон
+#if "{{specialConditionsOption}}" == "Заполнить особые условия" [
+  == 8. Особые условия
+
+  {{specialConditionsText}}
+
+  #v(0.5em)
+] else if "{{specialConditionsOption}}" != "Без особых условий" [
+  == 8. Особые условия
+
+  #v(0.3em)
+  #line(length: 100%)
+  #v(0.3em)
+  #line(length: 100%)
+
+  #v(0.5em)
+]
+
+// ============================================================
+// 9. ЮРИДИЧЕСКИЕ АДРЕСА И ПОДПИСИ СТОРОН
+// ============================================================
+== 9. Юридические адреса и подписи сторон
 
 #v(1em)
 
@@ -1925,6 +2175,13 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         dependsOn: { field: "clientType", value: "Юридическое лицо" },
       },
       {
+        name: "clientIPName",
+        type: "text",
+        required: false,
+        label: "Наименование ИП заказчика",
+        dependsOn: { field: "clientType", value: "ИП" },
+      },
+      {
         name: "clientPosition",
         type: "text",
         required: false,
@@ -1942,16 +2199,111 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         label: "ФИО заказчика",
       },
       {
-        name: "clientAuthDocument",
+        name: "clientGender",
+        type: "select",
+        required: false,
+        label: "Пол представителя заказчика",
+        options: ["Мужской", "Женский"],
+      },
+      {
+        name: "clientAuthDocType",
+        type: "select",
+        required: false,
+        label: "Документ-основание (Заказчик, юрлицо)",
+        options: ["Устав", "Доверенность", "Иной документ"],
+        dependsOn: { field: "clientType", value: "Юридическое лицо" },
+      },
+      {
+        name: "clientProxyNumber",
         type: "text",
         required: false,
-        label: "Документ-основание заказчика",
-        defaultValue: "Устав",
-        dependsOn: {
-          field: "clientType",
-          value: ["Юридическое лицо", "ИП"],
-          operator: "in",
-        },
+        label: "№ доверенности (Заказчик)",
+        dependsOn: { field: "clientAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "clientProxyDate",
+        type: "date",
+        required: false,
+        label: "Дата выдачи доверенности (Заказчик)",
+        dependsOn: { field: "clientAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "clientProxyValidUntil",
+        type: "date",
+        required: false,
+        label: "Срок действия доверенности (Заказчик)",
+        dependsOn: { field: "clientAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "clientOtherDocName",
+        type: "text",
+        required: false,
+        label: "Название документа (Заказчик)",
+        dependsOn: { field: "clientAuthDocType", value: "Иной документ" },
+      },
+      {
+        name: "clientOtherDocDate",
+        type: "date",
+        required: false,
+        label: "Дата документа (Заказчик)",
+        dependsOn: { field: "clientAuthDocType", value: "Иной документ" },
+      },
+      {
+        name: "clientAuthDocTypeIP",
+        type: "select",
+        required: false,
+        label: "Документ-основание (Заказчик, ИП)",
+        options: ["Доверенность", "Талон"],
+        dependsOn: { field: "clientType", value: "ИП" },
+      },
+      {
+        name: "clientIPProxyNumber",
+        type: "text",
+        required: false,
+        label: "№ доверенности (Заказчик, ИП)",
+        dependsOn: { field: "clientAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "clientIPProxyDate",
+        type: "date",
+        required: false,
+        label: "Дата выдачи доверенности (Заказчик, ИП)",
+        dependsOn: { field: "clientAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "clientIPProxyValidUntil",
+        type: "date",
+        required: false,
+        label: "Срок действия доверенности (Заказчик, ИП)",
+        dependsOn: { field: "clientAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "clientTalonNumber",
+        type: "text",
+        required: false,
+        label: "№ талона (Заказчик)",
+        dependsOn: { field: "clientAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "clientTalonOrgName",
+        type: "text",
+        required: false,
+        label: "Наименование принимающей организации (Заказчик)",
+        dependsOn: { field: "clientAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "clientTalonDate",
+        type: "date",
+        required: false,
+        label: "Дата талона (Заказчик)",
+        dependsOn: { field: "clientAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "clientTalonRegNumber",
+        type: "text",
+        required: false,
+        label: "Входящий рег. номер уведомления (Заказчик)",
+        dependsOn: { field: "clientAuthDocTypeIP", value: "Талон" },
       },
       {
         name: "clientBIN",
@@ -1987,6 +2339,13 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         dependsOn: { field: "contractorType", value: "Юридическое лицо" },
       },
       {
+        name: "contractorIPName",
+        type: "text",
+        required: false,
+        label: "Наименование ИП исполнителя",
+        dependsOn: { field: "contractorType", value: "ИП" },
+      },
+      {
         name: "contractorPosition",
         type: "text",
         required: false,
@@ -2004,16 +2363,111 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         label: "ФИО исполнителя",
       },
       {
-        name: "contractorAuthDocument",
+        name: "contractorGender",
+        type: "select",
+        required: false,
+        label: "Пол представителя исполнителя",
+        options: ["Мужской", "Женский"],
+      },
+      {
+        name: "contractorAuthDocType",
+        type: "select",
+        required: false,
+        label: "Документ-основание (Исполнитель, юрлицо)",
+        options: ["Устав", "Доверенность", "Иной документ"],
+        dependsOn: { field: "contractorType", value: "Юридическое лицо" },
+      },
+      {
+        name: "contractorProxyNumber",
         type: "text",
         required: false,
-        label: "Документ-основание исполнителя",
-        defaultValue: "Устав",
-        dependsOn: {
-          field: "contractorType",
-          value: ["Юридическое лицо", "ИП"],
-          operator: "in",
-        },
+        label: "№ доверенности (Исполнитель)",
+        dependsOn: { field: "contractorAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "contractorProxyDate",
+        type: "date",
+        required: false,
+        label: "Дата выдачи доверенности (Исполнитель)",
+        dependsOn: { field: "contractorAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "contractorProxyValidUntil",
+        type: "date",
+        required: false,
+        label: "Срок действия доверенности (Исполнитель)",
+        dependsOn: { field: "contractorAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "contractorOtherDocName",
+        type: "text",
+        required: false,
+        label: "Название документа (Исполнитель)",
+        dependsOn: { field: "contractorAuthDocType", value: "Иной документ" },
+      },
+      {
+        name: "contractorOtherDocDate",
+        type: "date",
+        required: false,
+        label: "Дата документа (Исполнитель)",
+        dependsOn: { field: "contractorAuthDocType", value: "Иной документ" },
+      },
+      {
+        name: "contractorAuthDocTypeIP",
+        type: "select",
+        required: false,
+        label: "Документ-основание (Исполнитель, ИП)",
+        options: ["Доверенность", "Талон"],
+        dependsOn: { field: "contractorType", value: "ИП" },
+      },
+      {
+        name: "contractorIPProxyNumber",
+        type: "text",
+        required: false,
+        label: "№ доверенности (Исполнитель, ИП)",
+        dependsOn: { field: "contractorAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "contractorIPProxyDate",
+        type: "date",
+        required: false,
+        label: "Дата выдачи доверенности (Исполнитель, ИП)",
+        dependsOn: { field: "contractorAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "contractorIPProxyValidUntil",
+        type: "date",
+        required: false,
+        label: "Срок действия доверенности (Исполнитель, ИП)",
+        dependsOn: { field: "contractorAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "contractorTalonNumber",
+        type: "text",
+        required: false,
+        label: "№ талона (Исполнитель)",
+        dependsOn: { field: "contractorAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "contractorTalonOrgName",
+        type: "text",
+        required: false,
+        label: "Наименование принимающей организации (Исполнитель)",
+        dependsOn: { field: "contractorAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "contractorTalonDate",
+        type: "date",
+        required: false,
+        label: "Дата талона (Исполнитель)",
+        dependsOn: { field: "contractorAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "contractorTalonRegNumber",
+        type: "text",
+        required: false,
+        label: "Входящий рег. номер уведомления (Исполнитель)",
+        dependsOn: { field: "contractorAuthDocTypeIP", value: "Талон" },
       },
       {
         name: "contractorBIN",
@@ -2092,6 +2546,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         required: false,
         label: "Срок подтверждения заявки (дни)",
         defaultValue: 3,
+        wordForms: ["рабочий день", "рабочих дня", "рабочих дней"],
         dependsOn: { field: "serviceType", value: "По заявкам" },
       },
       {
@@ -2187,6 +2642,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         required: true,
         label: "Срок уведомления о расторжении (дни)",
         defaultValue: 30,
+        wordForms: ["календарный день", "календарных дня", "календарных дней"],
       },
       // === 7. Term ===
       {
@@ -2208,6 +2664,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         required: true,
         label: "Срок досудебного урегулирования (дни)",
         defaultValue: 15,
+        wordForms: ["календарный день", "календарных дня", "календарных дней"],
       },
       {
         name: "disputeJurisdiction",
@@ -2219,10 +2676,29 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
           "По месту нахождения Исполнителя",
         ],
       },
+      // === Особые условия ===
+      {
+        name: "specialConditionsOption",
+        type: "select",
+        required: false,
+        label: "Особые условия",
+        options: ["Заполнить особые условия", "Без особых условий"],
+      },
+      {
+        name: "specialConditionsText",
+        type: "textarea",
+        required: false,
+        label: "Текст особых условий",
+        dependsOn: {
+          field: "specialConditionsOption",
+          value: "Заполнить особые условия",
+        },
+      },
     ],
     typstContent: `#set document(title: "Договор возмездного оказания услуг")
 #set page(margin: 2cm)
 #set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
 
 #align(center)[
   #text(size: 16pt, weight: "bold")[ДОГОВОР ВОЗМЕЗДНОГО ОКАЗАНИЯ УСЛУГ]
@@ -2240,22 +2716,22 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 
 // === ПРЕАМБУЛА: ЗАКАЗЧИК ===
 #if "{{clientType}}" == "Юридическое лицо" [
-  {{clientCompanyName}}, в лице {{clientPosition}} {{clientFIO}}, действующего на основании {{clientAuthDocument}}, БИН {{clientBIN}}, именуемое в дальнейшем «Заказчик» с одной стороны,
+  {{clientCompanyName}}, в лице {{clientPosition}} {{clientFIO}}, #if "{{clientGender}}" == "Женский" [действующей] else [действующего] на основании #if "{{clientAuthDocType}}" == "Доверенность" [Доверенности №{{clientProxyNumber}} от {{clientProxyDate}} сроком до {{clientProxyValidUntil}}] else if "{{clientAuthDocType}}" == "Иной документ" [{{clientOtherDocName}} от {{clientOtherDocDate}}] else [Устава], БИН {{clientBIN}}, именуемое в дальнейшем «Заказчик» с одной стороны,
 ] else if "{{clientType}}" == "ИП" [
-  ИП {{clientFIO}}, в лице {{clientFIO}}, действующий на основании {{clientAuthDocument}}, ИИН {{clientIIN}}, именуемый в дальнейшем «Заказчик» с одной стороны,
+  ИП {{clientIPName}}, в лице {{clientPosition}} {{clientFIO}}, #if "{{clientGender}}" == "Женский" [действующей] else [действующего] на основании #if "{{clientAuthDocTypeIP}}" == "Талон" [Талона №{{clientTalonNumber}}, «{{clientTalonOrgName}}», {{clientTalonDate}}, входящий регистрационный номер уведомления {{clientTalonRegNumber}}] else [Доверенности №{{clientIPProxyNumber}} от {{clientIPProxyDate}} сроком до {{clientIPProxyValidUntil}}], ИИН {{clientIIN}}, #if "{{clientGender}}" == "Женский" [именуемая] else [именуемый] в дальнейшем «Заказчик» с одной стороны,
 ] else [
-  {{clientFIO}}, ИИН {{clientIIN}}, именуемый в дальнейшем «Заказчик» с одной стороны,
+  {{clientFIO}}, ИИН {{clientIIN}}, #if "{{clientGender}}" == "Женский" [именуемая] else [именуемый] в дальнейшем «Заказчик» с одной стороны,
 ]
 
 и
 
 // === ПРЕАМБУЛА: ИСПОЛНИТЕЛЬ ===
 #if "{{contractorType}}" == "Юридическое лицо" [
-  {{contractorCompanyName}}, в лице {{contractorPosition}} {{contractorFIO}}, действующего на основании {{contractorAuthDocument}}, БИН {{contractorBIN}}, именуемое в дальнейшем «Исполнитель» с другой стороны,
+  {{contractorCompanyName}}, в лице {{contractorPosition}} {{contractorFIO}}, #if "{{contractorGender}}" == "Женский" [действующей] else [действующего] на основании #if "{{contractorAuthDocType}}" == "Доверенность" [Доверенности №{{contractorProxyNumber}} от {{contractorProxyDate}} сроком до {{contractorProxyValidUntil}}] else if "{{contractorAuthDocType}}" == "Иной документ" [{{contractorOtherDocName}} от {{contractorOtherDocDate}}] else [Устава], БИН {{contractorBIN}}, именуемое в дальнейшем «Исполнитель» с другой стороны,
 ] else if "{{contractorType}}" == "ИП" [
-  ИП {{contractorFIO}}, в лице {{contractorFIO}}, действующий на основании {{contractorAuthDocument}}, ИИН {{contractorIIN}}, именуемый в дальнейшем «Исполнитель» с другой стороны,
+  ИП {{contractorIPName}}, в лице {{contractorPosition}} {{contractorFIO}}, #if "{{contractorGender}}" == "Женский" [действующей] else [действующего] на основании #if "{{contractorAuthDocTypeIP}}" == "Талон" [Талона №{{contractorTalonNumber}}, «{{contractorTalonOrgName}}», {{contractorTalonDate}}, входящий регистрационный номер уведомления {{contractorTalonRegNumber}}] else [Доверенности №{{contractorIPProxyNumber}} от {{contractorIPProxyDate}} сроком до {{contractorIPProxyValidUntil}}], ИИН {{contractorIIN}}, #if "{{contractorGender}}" == "Женский" [именуемая] else [именуемый] в дальнейшем «Исполнитель» с другой стороны,
 ] else [
-  {{contractorFIO}}, ИИН {{contractorIIN}}, именуемый в дальнейшем «Исполнитель» с другой стороны,
+  {{contractorFIO}}, ИИН {{contractorIIN}}, #if "{{contractorGender}}" == "Женский" [именуемая] else [именуемый] в дальнейшем «Исполнитель» с другой стороны,
 ]
 
 Заказчик и Исполнитель определены все вместе как «Стороны» и индивидуально как «Сторона», заключили настоящий Договор возмездного оказания услуг (далее — Договор) о нижеследующем:
@@ -2294,7 +2770,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 ] else if "{{serviceType}}" == "По графику" [
   1.5. Периодичность, объём и сроки оказания Услуг определяются в Графике оказания услуг (Приложение № {{scheduleAppendix}} к настоящему Договору), являющемся его неотъемлемой частью.
 ] else [
-  1.5. Услуги оказываются на основании Заявок Заказчика. Исполнитель обязан подтвердить принятие Заявки в течение {{applicationConfirmDays}} рабочих дней с момента её получения. Содержание, объём и сроки оказания Услуг определяются в соответствии с согласованными Заявками.
+  1.5. Услуги оказываются на основании Заявок Заказчика. Исполнитель обязан подтвердить принятие Заявки в течение {{applicationConfirmDays}} {{applicationConfirmDaysWord}} с момента её получения. Содержание, объём и сроки оказания Услуг определяются в соответствии с согласованными Заявками.
 ]
 
 // === 1.6. Досрочное оказание услуг ===
@@ -2448,7 +2924,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 
 6.1. Настоящий Договор может быть расторгнут по взаимному письменному соглашению Сторон.
 
-6.2. Каждая из Сторон вправе в одностороннем порядке отказаться от исполнения настоящего Договора, уведомив другую Сторону в письменной форме не менее чем за {{terminationNoticeDays}} календарных дней до предполагаемой даты расторжения.
+6.2. Каждая из Сторон вправе в одностороннем порядке отказаться от исполнения настоящего Договора, уведомив другую Сторону в письменной форме не менее чем за {{terminationNoticeDays}} {{terminationNoticeDaysWord}} до предполагаемой даты расторжения.
 
 6.3. Заказчик вправе отказаться от исполнения Договора при условии оплаты Исполнителю фактически понесённых расходов.
 
@@ -2476,7 +2952,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 // ============================================================
 == 8. Дополнительные условия
 
-8.1. Все споры и разногласия, возникающие между Сторонами по настоящему Договору или в связи с ним, разрешаются путём переговоров. Срок досудебного урегулирования составляет {{disputeResolutionDays}} календарных дней с момента направления претензии.
+8.1. Все споры и разногласия, возникающие между Сторонами по настоящему Договору или в связи с ним, разрешаются путём переговоров. Срок досудебного урегулирования составляет {{disputeResolutionDays}} {{disputeResolutionDaysWord}} с момента направления претензии.
 
 8.2. В случае невозможности разрешения споров путём переговоров они подлежат рассмотрению в суде
 #if "{{disputeJurisdiction}}" == "По месту нахождения Заказчика" [
@@ -2493,6 +2969,26 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 8.5. Приложения к настоящему Договору являются его неотъемлемой частью.
 
 #v(0.5em)
+
+// ============================================================
+// ОСОБЫЕ УСЛОВИЯ
+// ============================================================
+#if "{{specialConditionsOption}}" == "Заполнить особые условия" [
+  == Особые условия
+
+  {{specialConditionsText}}
+
+  #v(0.5em)
+] else if "{{specialConditionsOption}}" != "Без особых условий" [
+  == Особые условия
+
+  #v(0.3em)
+  #line(length: 100%)
+  #v(0.3em)
+  #line(length: 100%)
+
+  #v(0.5em)
+]
 
 // ============================================================
 // РЕКВИЗИТЫ И ПОДПИСИ СТОРОН
@@ -2570,7 +3066,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         type: "select",
         required: true,
         label: "Тип покупателя",
-        options: ["Юридическое лицо", "ИП"],
+        options: ["Юридическое лицо", "ИП", "Физическое лицо"],
       },
       {
         name: "buyerCompanyName",
@@ -2600,11 +3096,111 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         label: "ФИО представителя покупателя",
       },
       {
-        name: "buyerAuthDocument",
+        name: "buyerGender",
+        type: "select",
+        required: false,
+        label: "Пол представителя покупателя",
+        options: ["Мужской", "Женский"],
+      },
+      {
+        name: "buyerAuthDocType",
+        type: "select",
+        required: false,
+        label: "Документ-основание (Покупатель, юрлицо)",
+        options: ["Устав", "Доверенность", "Иной документ"],
+        dependsOn: { field: "buyerType", value: "Юридическое лицо" },
+      },
+      {
+        name: "buyerProxyNumber",
         type: "text",
-        required: true,
-        label: "Уполномочивающий документ покупателя",
-        defaultValue: "Устав",
+        required: false,
+        label: "№ доверенности (Покупатель)",
+        dependsOn: { field: "buyerAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "buyerProxyDate",
+        type: "date",
+        required: false,
+        label: "Дата выдачи доверенности (Покупатель)",
+        dependsOn: { field: "buyerAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "buyerProxyValidUntil",
+        type: "date",
+        required: false,
+        label: "Срок действия доверенности (Покупатель)",
+        dependsOn: { field: "buyerAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "buyerOtherDocName",
+        type: "text",
+        required: false,
+        label: "Название документа (Покупатель)",
+        dependsOn: { field: "buyerAuthDocType", value: "Иной документ" },
+      },
+      {
+        name: "buyerOtherDocDate",
+        type: "date",
+        required: false,
+        label: "Дата документа (Покупатель)",
+        dependsOn: { field: "buyerAuthDocType", value: "Иной документ" },
+      },
+      {
+        name: "buyerAuthDocTypeIP",
+        type: "select",
+        required: false,
+        label: "Документ-основание (Покупатель, ИП)",
+        options: ["Доверенность", "Талон"],
+        dependsOn: { field: "buyerType", value: "ИП" },
+      },
+      {
+        name: "buyerIPProxyNumber",
+        type: "text",
+        required: false,
+        label: "№ доверенности (Покупатель, ИП)",
+        dependsOn: { field: "buyerAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "buyerIPProxyDate",
+        type: "date",
+        required: false,
+        label: "Дата выдачи доверенности (Покупатель, ИП)",
+        dependsOn: { field: "buyerAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "buyerIPProxyValidUntil",
+        type: "date",
+        required: false,
+        label: "Срок действия доверенности (Покупатель, ИП)",
+        dependsOn: { field: "buyerAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "buyerTalonNumber",
+        type: "text",
+        required: false,
+        label: "№ талона (Покупатель)",
+        dependsOn: { field: "buyerAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "buyerTalonOrgName",
+        type: "text",
+        required: false,
+        label: "Наименование принимающей организации (Покупатель)",
+        dependsOn: { field: "buyerAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "buyerTalonDate",
+        type: "date",
+        required: false,
+        label: "Дата талона (Покупатель)",
+        dependsOn: { field: "buyerAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "buyerTalonRegNumber",
+        type: "text",
+        required: false,
+        label: "Входящий рег. номер уведомления (Покупатель)",
+        dependsOn: { field: "buyerAuthDocTypeIP", value: "Талон" },
       },
       {
         name: "buyerBIN",
@@ -2618,7 +3214,11 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         type: "text",
         required: false,
         label: "ИИН покупателя",
-        dependsOn: { field: "buyerType", value: "ИП" },
+        dependsOn: {
+          field: "buyerType",
+          value: ["ИП", "Физическое лицо"],
+          operator: "in",
+        },
       },
       // === Supplier ===
       {
@@ -2626,7 +3226,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         type: "select",
         required: true,
         label: "Тип поставщика",
-        options: ["Юридическое лицо", "ИП"],
+        options: ["Юридическое лицо", "ИП", "Физическое лицо"],
       },
       {
         name: "supplierCompanyName",
@@ -2656,11 +3256,111 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         label: "ФИО представителя поставщика",
       },
       {
-        name: "supplierAuthDocument",
+        name: "supplierGender",
+        type: "select",
+        required: false,
+        label: "Пол представителя поставщика",
+        options: ["Мужской", "Женский"],
+      },
+      {
+        name: "supplierAuthDocType",
+        type: "select",
+        required: false,
+        label: "Документ-основание (Поставщик, юрлицо)",
+        options: ["Устав", "Доверенность", "Иной документ"],
+        dependsOn: { field: "supplierType", value: "Юридическое лицо" },
+      },
+      {
+        name: "supplierProxyNumber",
         type: "text",
-        required: true,
-        label: "Уполномочивающий документ поставщика",
-        defaultValue: "Устав",
+        required: false,
+        label: "№ доверенности (Поставщик)",
+        dependsOn: { field: "supplierAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "supplierProxyDate",
+        type: "date",
+        required: false,
+        label: "Дата выдачи доверенности (Поставщик)",
+        dependsOn: { field: "supplierAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "supplierProxyValidUntil",
+        type: "date",
+        required: false,
+        label: "Срок действия доверенности (Поставщик)",
+        dependsOn: { field: "supplierAuthDocType", value: "Доверенность" },
+      },
+      {
+        name: "supplierOtherDocName",
+        type: "text",
+        required: false,
+        label: "Название документа (Поставщик)",
+        dependsOn: { field: "supplierAuthDocType", value: "Иной документ" },
+      },
+      {
+        name: "supplierOtherDocDate",
+        type: "date",
+        required: false,
+        label: "Дата документа (Поставщик)",
+        dependsOn: { field: "supplierAuthDocType", value: "Иной документ" },
+      },
+      {
+        name: "supplierAuthDocTypeIP",
+        type: "select",
+        required: false,
+        label: "Документ-основание (Поставщик, ИП)",
+        options: ["Доверенность", "Талон"],
+        dependsOn: { field: "supplierType", value: "ИП" },
+      },
+      {
+        name: "supplierIPProxyNumber",
+        type: "text",
+        required: false,
+        label: "№ доверенности (Поставщик, ИП)",
+        dependsOn: { field: "supplierAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "supplierIPProxyDate",
+        type: "date",
+        required: false,
+        label: "Дата выдачи доверенности (Поставщик, ИП)",
+        dependsOn: { field: "supplierAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "supplierIPProxyValidUntil",
+        type: "date",
+        required: false,
+        label: "Срок действия доверенности (Поставщик, ИП)",
+        dependsOn: { field: "supplierAuthDocTypeIP", value: "Доверенность" },
+      },
+      {
+        name: "supplierTalonNumber",
+        type: "text",
+        required: false,
+        label: "№ талона (Поставщик)",
+        dependsOn: { field: "supplierAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "supplierTalonOrgName",
+        type: "text",
+        required: false,
+        label: "Наименование принимающей организации (Поставщик)",
+        dependsOn: { field: "supplierAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "supplierTalonDate",
+        type: "date",
+        required: false,
+        label: "Дата талона (Поставщик)",
+        dependsOn: { field: "supplierAuthDocTypeIP", value: "Талон" },
+      },
+      {
+        name: "supplierTalonRegNumber",
+        type: "text",
+        required: false,
+        label: "Входящий рег. номер уведомления (Поставщик)",
+        dependsOn: { field: "supplierAuthDocTypeIP", value: "Талон" },
       },
       {
         name: "supplierBIN",
@@ -2674,7 +3374,11 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         type: "text",
         required: false,
         label: "ИИН поставщика",
-        dependsOn: { field: "supplierType", value: "ИП" },
+        dependsOn: {
+          field: "supplierType",
+          value: ["ИП", "Физическое лицо"],
+          operator: "in",
+        },
       },
       // === 1. Subject ===
       {
@@ -2708,6 +3412,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         required: false,
         label: "Дней для подачи заявки заранее",
         defaultValue: 10,
+        wordForms: ["календарный день", "календарных дня", "календарных дней"],
         dependsOn: { field: "deliveryType", value: "Долгосрочная по заявкам" },
       },
       {
@@ -2716,6 +3421,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         required: false,
         label: "Дней для подтверждения заявки",
         defaultValue: 3,
+        wordForms: ["рабочий день", "рабочих дня", "рабочих дней"],
         dependsOn: { field: "deliveryType", value: "Долгосрочная по заявкам" },
       },
       {
@@ -2732,6 +3438,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         required: false,
         label: "Дней для изменения/отмены заявки",
         defaultValue: 5,
+        wordForms: ["рабочий день", "рабочих дня", "рабочих дней"],
         dependsOn: { field: "deliveryType", value: "Долгосрочная по заявкам" },
       },
       {
@@ -3100,10 +3807,29 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         required: true,
         label: "КБе поставщика",
       },
+      // === Особые условия ===
+      {
+        name: "specialConditionsOption",
+        type: "select",
+        required: false,
+        label: "Особые условия",
+        options: ["Заполнить особые условия", "Без особых условий"],
+      },
+      {
+        name: "specialConditionsText",
+        type: "textarea",
+        required: false,
+        label: "Текст особых условий",
+        dependsOn: {
+          field: "specialConditionsOption",
+          value: "Заполнить особые условия",
+        },
+      },
     ],
     typstContent: `#set document(title: "Договор поставки")
 #set page(margin: 2cm)
 #set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
 
 #align(center)[
   #text(size: 16pt, weight: "bold")[ДОГОВОР ПОСТАВКИ]
@@ -3121,18 +3847,22 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 
 // === ПРЕАМБУЛА: ПОКУПАТЕЛЬ ===
 #if "{{buyerType}}" == "Юридическое лицо" [
-  {{buyerCompanyName}}, в лице {{buyerPosition}} {{buyerFIO}}, действующего на основании {{buyerAuthDocument}}, БИН {{buyerBIN}}, именуемое в дальнейшем «Покупатель» с одной стороны,
+  {{buyerCompanyName}}, в лице {{buyerPosition}} {{buyerFIO}}, #if "{{buyerGender}}" == "Женский" [действующей] else [действующего] на основании #if "{{buyerAuthDocType}}" == "Доверенность" [Доверенности №{{buyerProxyNumber}} от {{buyerProxyDate}} сроком до {{buyerProxyValidUntil}}] else if "{{buyerAuthDocType}}" == "Иной документ" [{{buyerOtherDocName}} от {{buyerOtherDocDate}}] else [Устава], БИН {{buyerBIN}}, именуемое в дальнейшем «Покупатель» с одной стороны,
+] else if "{{buyerType}}" == "ИП" [
+  ИП {{buyerIPName}}, в лице {{buyerPosition}} {{buyerFIO}}, #if "{{buyerGender}}" == "Женский" [действующей] else [действующего] на основании #if "{{buyerAuthDocTypeIP}}" == "Талон" [Талона №{{buyerTalonNumber}}, «{{buyerTalonOrgName}}», {{buyerTalonDate}}, входящий регистрационный номер уведомления {{buyerTalonRegNumber}}] else [Доверенности №{{buyerIPProxyNumber}} от {{buyerIPProxyDate}} сроком до {{buyerIPProxyValidUntil}}], ИИН {{buyerIIN}}, #if "{{buyerGender}}" == "Женский" [именуемая] else [именуемый] в дальнейшем «Покупатель» с одной стороны,
 ] else [
-  Индивидуальный предприниматель {{buyerIPName}}, в лице {{buyerFIO}}, действующий на основании {{buyerAuthDocument}}, ИИН {{buyerIIN}}, именуемый в дальнейшем «Покупатель» с одной стороны,
+  {{buyerFIO}}, ИИН {{buyerIIN}}, #if "{{buyerGender}}" == "Женский" [именуемая] else [именуемый] в дальнейшем «Покупатель» с одной стороны,
 ]
 
 и
 
 // === ПРЕАМБУЛА: ПОСТАВЩИК ===
 #if "{{supplierType}}" == "Юридическое лицо" [
-  {{supplierCompanyName}}, в лице {{supplierPosition}} {{supplierFIO}}, действующего на основании {{supplierAuthDocument}}, БИН {{supplierBIN}}, именуемое в дальнейшем «Поставщик» с другой стороны,
+  {{supplierCompanyName}}, в лице {{supplierPosition}} {{supplierFIO}}, #if "{{supplierGender}}" == "Женский" [действующей] else [действующего] на основании #if "{{supplierAuthDocType}}" == "Доверенность" [Доверенности №{{supplierProxyNumber}} от {{supplierProxyDate}} сроком до {{supplierProxyValidUntil}}] else if "{{supplierAuthDocType}}" == "Иной документ" [{{supplierOtherDocName}} от {{supplierOtherDocDate}}] else [Устава], БИН {{supplierBIN}}, именуемое в дальнейшем «Поставщик» с другой стороны,
+] else if "{{supplierType}}" == "ИП" [
+  ИП {{supplierIPName}}, в лице {{supplierPosition}} {{supplierFIO}}, #if "{{supplierGender}}" == "Женский" [действующей] else [действующего] на основании #if "{{supplierAuthDocTypeIP}}" == "Талон" [Талона №{{supplierTalonNumber}}, «{{supplierTalonOrgName}}», {{supplierTalonDate}}, входящий регистрационный номер уведомления {{supplierTalonRegNumber}}] else [Доверенности №{{supplierIPProxyNumber}} от {{supplierIPProxyDate}} сроком до {{supplierIPProxyValidUntil}}], ИИН {{supplierIIN}}, #if "{{supplierGender}}" == "Женский" [именуемая] else [именуемый] в дальнейшем «Поставщик» с другой стороны,
 ] else [
-  Индивидуальный предприниматель {{supplierIPName}}, в лице {{supplierFIO}}, действующий на основании {{supplierAuthDocument}}, ИИН {{supplierIIN}}, именуемый в дальнейшем «Поставщик» с другой стороны,
+  {{supplierFIO}}, ИИН {{supplierIIN}}, #if "{{supplierGender}}" == "Женский" [именуемая] else [именуемый] в дальнейшем «Поставщик» с другой стороны,
 ]
 
 Покупатель и Поставщик определены все вместе как «Стороны» и индивидуально как «Сторона», заключили настоящий Договор поставки (далее — Договор) о нижеследующем:
@@ -3159,13 +3889,13 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 
   1.3. Заявка должна содержать: наименование, количество, ассортимент, комплектность, единицу измерения, цену за единицу и желаемый срок поставки.
 
-  1.4. Покупатель направляет заявку Поставщику не позднее чем за {{requestAdvanceDays}} календарных дней до желаемой даты поставки.
+  1.4. Покупатель направляет заявку Поставщику не позднее чем за {{requestAdvanceDays}} {{requestAdvanceDaysWord}} до желаемой даты поставки.
 
-  1.5. Поставщик обязан подтвердить или отклонить заявку в течение {{confirmationDays}} рабочих дней с момента её получения.
+  1.5. Поставщик обязан подтвердить или отклонить заявку в течение {{confirmationDays}} {{confirmationDaysWord}} с момента её получения.
 
   1.6. Заявки направляются посредством: {{requestMethod}}.
 
-  1.7. Покупатель вправе изменить или отменить заявку не позднее чем за {{changeCancellationDays}} рабочих дней до согласованной даты поставки.
+  1.7. Покупатель вправе изменить или отменить заявку не позднее чем за {{changeCancellationDays}} {{changeCancellationDaysWord}} до согласованной даты поставки.
 
   1.8. Поставщик обязан направить подтверждение получения заявки в течение {{acknowledgmentDays}} рабочих дней с момента её получения.
 ]
@@ -3415,6 +4145,26 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
 #v(0.5em)
 
 // ============================================================
+// 12. ОСОБЫЕ УСЛОВИЯ
+// ============================================================
+#if "{{specialConditionsOption}}" == "Заполнить особые условия" [
+  == 12. Особые условия
+
+  {{specialConditionsText}}
+
+  #v(0.5em)
+] else if "{{specialConditionsOption}}" != "Без особых условий" [
+  == 12. Особые условия
+
+  #v(0.3em)
+  #line(length: 100%)
+  #v(0.3em)
+  #line(length: 100%)
+
+  #v(0.5em)
+]
+
+// ============================================================
 // РЕКВИЗИТЫ СТОРОН
 // ============================================================
 == Реквизиты и подписи сторон
@@ -3430,8 +4180,11 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
     #if "{{buyerType}}" == "Юридическое лицо" [
       {{buyerCompanyName}}\\
       БИН: {{buyerBIN}}\\
+    ] else if "{{buyerType}}" == "ИП" [
+      ИП {{buyerFIO}}\\
+      ИИН: {{buyerIIN}}\\
     ] else [
-      ИП {{buyerIPName}}\\
+      {{buyerFIO}}\\
       ИИН: {{buyerIIN}}\\
     ]
     Адрес: {{buyerAddress}}\\
@@ -3450,8 +4203,11 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
     #if "{{supplierType}}" == "Юридическое лицо" [
       {{supplierCompanyName}}\\
       БИН: {{supplierBIN}}\\
+    ] else if "{{supplierType}}" == "ИП" [
+      ИП {{supplierFIO}}\\
+      ИИН: {{supplierIIN}}\\
     ] else [
-      ИП {{supplierIPName}}\\
+      {{supplierFIO}}\\
       ИИН: {{supplierIIN}}\\
     ]
     Адрес: {{supplierAddress}}\\

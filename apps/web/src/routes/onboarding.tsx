@@ -153,7 +153,7 @@ function StepContractTypes({
         <div className="text-center">
           <h1 className="font-bold text-3xl">Подберем договоры</h1>
           <p className="mt-4 text-muted-foreground">
-            В Shart представлено более 1000+ договоров,
+            В Zhebe представлено более 1000+ договоров,
             <br />
             помогите нам подобрать подходящие для вас!
           </p>
@@ -227,7 +227,7 @@ function StepDisclaimer({
             ответственность
           </h1>
           <p className="mt-4 text-muted-foreground">
-            Shart упрощает сбор договора и экономит ваше
+            Zhebe упрощает сбор договора и экономит ваше
             <br />
             время. Помните: проверка и юридическая
             <br />
@@ -308,7 +308,7 @@ function OnboardingComponent() {
       return;
     }
 
-    toast.success("Добро пожаловать в Shart!");
+    toast.success("Добро пожаловать в Zhebe!");
     navigate({ to: "/dashboard" });
   };
 

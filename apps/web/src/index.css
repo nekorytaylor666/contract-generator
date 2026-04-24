@@ -131,3 +131,17 @@
     @apply font-sans;
   }
 }
+
+@keyframes highlight-fade {
+  0%,
+  50% {
+    background-color: oklch(0.93 0.11 95);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-highlight-fade {
+  animation: highlight-fade 4s ease-out;
+}

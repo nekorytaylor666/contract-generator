@@ -57,7 +57,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="flex-row items-center justify-between px-4 py-3">
-        <span className="font-semibold text-lg tracking-tight">SHART</span>
+        <span className="font-semibold text-lg tracking-tight">ZHEBE</span>
         <SidebarTrigger />
       </SidebarHeader>
       <SidebarContent>
