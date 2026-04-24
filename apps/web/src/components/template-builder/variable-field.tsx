@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import type { TemplateVariable } from "@/routes/templates";
 
 interface FieldState {
@@ -65,6 +66,20 @@ export const VariableField = memo(function VariableField({
             onChange={(e) => field.handleChange(e.target.value)}
             placeholder={`Введите ${variable.label.toLowerCase()}`}
             type="text"
+            value={(field.state.value as string) ?? ""}
+          />
+        );
+
+      case "textarea":
+        return (
+          <Textarea
+            aria-invalid={hasError}
+            id={field.name}
+            name={field.name}
+            onBlur={field.handleBlur}
+            onChange={(e) => field.handleChange(e.target.value)}
+            placeholder={`Введите ${variable.label.toLowerCase()}`}
+            rows={4}
             value={(field.state.value as string) ?? ""}
           />
         );

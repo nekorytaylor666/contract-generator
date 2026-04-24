@@ -16,7 +16,7 @@ import { useTRPC } from "@/utils/trpc";
 
 export interface TemplateVariable {
   name: string;
-  type: "text" | "date" | "number" | "boolean" | "select";
+  type: "text" | "textarea" | "date" | "number" | "boolean" | "select";
   label: string;
   required: boolean;
   defaultValue?: string | number | boolean;
@@ -26,6 +26,7 @@ export interface TemplateVariable {
     value?: string | string[];
     operator?: "eq" | "neq" | "in";
   };
+  wordForms?: [string, string, string];
 }
 
 // Mock categories - will be fetched from backend later

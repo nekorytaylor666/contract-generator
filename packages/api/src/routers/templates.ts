@@ -12,6 +12,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { publicProcedure, router } from "../index";
+import { pluralize } from "../utils/pluralize";
 
 const execAsync = promisify(exec);
 const typstCompiler = NodeCompiler.create();
@@ -35,14 +36,46 @@ function replaceVariables(
   typstContent: string,
   variables: Record<string, unknown>
 ): string {
-  return typstContent.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
-    return formatValue(variables[varName]) ?? match;
-  });
+  return typstContent.replace(
+    /\{\{(\w+)\}\}/g,
+    (match, varName, offset: number) => {
+      const formatted = formatValue(variables[varName]);
+      if (formatted !== null) {
+        return formatted;
+      }
+
+      // Don't style placeholders inside quoted strings (used in #if conditions)
+      const charBefore = offset > 0 ? typstContent[offset - 1] : "";
+      const charAfter = typstContent[offset + match.length] ?? "";
+      if (charBefore === '"' && charAfter === '"') {
+        return match;
+      }
+
+      return `#underline(offset: 2pt, stroke: 0.5pt + rgb("#9CA3AF"))[#text(fill: rgb("#9CA3AF"), size: 0.9em)[${varName}]]`;
+    }
+  );
 }
 
 interface TemplateVariable {
   name: string;
-  type: "text" | "date" | "number" | "boolean" | "select";
+  type: "text" | "textarea" | "date" | "number" | "boolean" | "select";
+  wordForms?: [string, string, string];
+}
+
+function computeDerivedVariables(
+  variables: Record<string, unknown>,
+  templateVars: TemplateVariable[]
+): Record<string, unknown> {
+  const result = { ...variables };
+  for (const v of templateVars) {
+    if (v.wordForms && typeof result[v.name] === "number") {
+      result[`${v.name}Word`] = pluralize(
+        result[v.name] as number,
+        v.wordForms
+      );
+    }
+  }
+  return result;
 }
 
 function replaceVariablesWithHighlight(
@@ -59,18 +92,24 @@ function replaceVariablesWithHighlight(
     /\{\{(\w+)\}\}/g,
     (match, varName, offset: number) => {
       const formatted = formatValue(variables[varName]);
-      if (formatted === null) {
-        return match;
-      }
-
-      if (!changedVars.has(varName) || booleanVars.has(varName)) {
-        return formatted;
-      }
 
       // Skip if inside a quoted string (used in #if conditions)
       const charBefore = offset > 0 ? typstContent[offset - 1] : "";
       const charAfter = typstContent[offset + match.length] ?? "";
-      if (charBefore === '"' && charAfter === '"') {
+      const insideQuotes = charBefore === '"' && charAfter === '"';
+
+      if (formatted === null) {
+        if (insideQuotes) {
+          return match;
+        }
+        return `#underline(offset: 2pt, stroke: 0.5pt + rgb("#9CA3AF"))[#text(fill: rgb("#9CA3AF"), size: 0.9em)[${varName}]]`;
+      }
+
+      if (
+        !changedVars.has(varName) ||
+        booleanVars.has(varName) ||
+        insideQuotes
+      ) {
         return formatted;
       }
 
@@ -148,7 +187,7 @@ function applyStyleOverrides(
     `#set page(margin: ${preset.margin})`
   );
 
-  const parRule = `#set par(leading: ${preset.leading}, spacing: ${preset.spacing})`;
+  const parRule = `#set par(leading: ${preset.leading}, spacing: ${preset.spacing}, justify: true)`;
   if (result.includes("#set par(")) {
     result = result.replace(SET_PAR_REGEX, parRule);
   } else {
@@ -326,16 +365,17 @@ export const templatesRouter = router({
 
       const changedSet = new Set(input.changedVariables ?? []);
       const templateVars = (found.variables ?? []) as TemplateVariable[];
+      const vars = computeDerivedVariables(input.variables, templateVars);
 
       const processedContent =
         changedSet.size > 0
           ? replaceVariablesWithHighlight(
               found.typstContent,
-              input.variables,
+              vars,
               changedSet,
               templateVars
             )
-          : replaceVariables(found.typstContent, input.variables);
+          : replaceVariables(found.typstContent, vars);
 
       try {
         const vectorBuffer = await compileTypstToVector(processedContent, {
@@ -382,10 +422,9 @@ export const templatesRouter = router({
         });
       }
 
-      const processedContent = replaceVariables(
-        found.typstContent,
-        input.variables
-      );
+      const templateVars = (found.variables ?? []) as TemplateVariable[];
+      const vars = computeDerivedVariables(input.variables, templateVars);
+      const processedContent = replaceVariables(found.typstContent, vars);
 
       try {
         const pdf = await compileTypst(processedContent, {
