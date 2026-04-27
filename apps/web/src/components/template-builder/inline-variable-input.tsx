@@ -21,6 +21,7 @@ interface InlineVariableInputProps {
   onChange: (name: string, value: unknown) => void;
   isHighlighted?: boolean;
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
+  hasScrolledRef?: React.RefObject<boolean>;
 }
 
 function TextInput({
@@ -126,13 +127,22 @@ export function InlineVariableInput({
   onChange,
   isHighlighted,
   scrollContainerRef,
+  hasScrolledRef,
 }: InlineVariableInputProps) {
   const [open, setOpen] = useState(false);
   const highlightRef = useRef<HTMLButtonElement>(null);
   const isEmpty = displayValue === null || displayValue === "";
 
   useEffect(() => {
-    if (isHighlighted && highlightRef.current && scrollContainerRef?.current) {
+    if (
+      isHighlighted &&
+      highlightRef.current &&
+      scrollContainerRef?.current &&
+      !hasScrolledRef?.current
+    ) {
+      if (hasScrolledRef) {
+        hasScrolledRef.current = true;
+      }
       const el = highlightRef.current;
       const container = scrollContainerRef.current;
       const elRect = el.getBoundingClientRect();
@@ -142,7 +152,7 @@ export function InlineVariableInput({
         offsetTop - container.clientHeight / 2 + elRect.height / 2;
       container.scrollTo({ top: targetScroll, behavior: "smooth" });
     }
-  }, [isHighlighted, scrollContainerRef]);
+  }, [isHighlighted, scrollContainerRef, hasScrolledRef]);
 
   // Don't render inline inputs for booleans — they control conditionals, not display text
   if (variable.type === "boolean") {

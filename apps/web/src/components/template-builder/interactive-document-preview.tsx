@@ -62,16 +62,19 @@ function scrollIntoContainer(el: HTMLElement, container: HTMLElement | null) {
 function HighlightedBlock({
   children,
   scrollContainerRef,
+  hasScrolledRef,
 }: {
   children: React.ReactNode;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  hasScrolledRef: React.RefObject<boolean>;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
-    if (ref.current) {
+    if (ref.current && !hasScrolledRef.current) {
+      hasScrolledRef.current = true;
       scrollIntoContainer(ref.current, scrollContainerRef.current);
     }
-  }, [scrollContainerRef]);
+  }, [scrollContainerRef, hasScrolledRef]);
   return (
     <span className="animate-highlight-fade rounded-sm" ref={ref}>
       {children}
@@ -86,6 +89,7 @@ interface RenderContext {
   logo: string | null;
   changedVars: Set<string>;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  hasScrolledRef: React.RefObject<boolean>;
 }
 
 function renderChildren(
@@ -235,6 +239,7 @@ function renderInlineNode(
       return (
         <InlineVariableInput
           displayValue={display}
+          hasScrolledRef={ctx.hasScrolledRef}
           isHighlighted={highlighted}
           key={key}
           onChange={ctx.onValueChange}
@@ -334,6 +339,7 @@ function renderNode(
         if (shouldHighlight) {
           return (
             <HighlightedBlock
+              hasScrolledRef={ctx.hasScrolledRef}
               key={key}
               scrollContainerRef={ctx.scrollContainerRef}
             >
@@ -403,6 +409,13 @@ export function InteractiveDocumentPreview({
 
   const preset = STYLE_PRESETS[style.preset] ?? STYLE_PRESETS.default;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const hasScrolledRef = useRef(false);
+
+  // Reset scroll flag when changedVars changes so the first element scrolls
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally re-run when changedVars identity changes
+  useEffect(() => {
+    hasScrolledRef.current = false;
+  }, [changedVars]);
 
   const ctx: RenderContext = {
     variableMap,
@@ -411,6 +424,7 @@ export function InteractiveDocumentPreview({
     logo,
     changedVars,
     scrollContainerRef,
+    hasScrolledRef,
   };
 
   if (!typstContent) {
