@@ -12,7 +12,9 @@ export async function requireAuth() {
   const organizations = data ?? [];
 
   if (organizations.length === 0) {
-    throw redirect({ to: "/onboarding" });
+    // /continue-signup — умный хаб: сам решит показать пароль/орг-данные
+    // или пустить в /onboarding, если регистрация фактически завершена.
+    throw redirect({ to: "/continue-signup" });
   }
 
   return { session, organizations };
@@ -20,5 +22,16 @@ export async function requireAuth() {
 
 export async function requireSession() {
   const { data: session } = await authClient.getSession();
+  return { session };
+}
+
+export async function requireAdmin() {
+  const { data: session } = await authClient.getSession();
+  if (!session) {
+    throw redirect({ to: "/login" });
+  }
+  if (!(session.user as { isAdmin?: boolean }).isAdmin) {
+    throw redirect({ to: "/" });
+  }
   return { session };
 }

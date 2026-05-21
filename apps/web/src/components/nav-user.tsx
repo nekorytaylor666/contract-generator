@@ -1,6 +1,6 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { Building2, Check, LogOut, Plus, User } from "lucide-react";
-import { useState } from "react";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { Building2, Check, LogOut, Plus, Shield, User } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,8 @@ import { authClient } from "@/lib/auth-client";
 export function NavUser() {
   const { isMobile } = useSidebar();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAdminContext = location.pathname.startsWith("/admin");
   const { data: session, isPending: isSessionPending } =
     authClient.useSession();
   const { data: organizations, isPending: isLoadingOrgs } =
@@ -47,6 +49,20 @@ export function NavUser() {
   const [orgName, setOrgName] = useState("");
 
   const isPending = isSessionPending || isLoadingOrgs || isLoadingActiveOrg;
+
+  // better-auth doesn't auto-set activeOrganizationId on sign-in.
+  // If the user has orgs but none active, activate the first one.
+  useEffect(() => {
+    if (
+      !(isLoadingOrgs || isLoadingActiveOrg || activeOrg) &&
+      organizations &&
+      organizations.length > 0
+    ) {
+      authClient.organization.setActive({
+        organizationId: organizations[0].id,
+      });
+    }
+  }, [activeOrg, organizations, isLoadingOrgs, isLoadingActiveOrg]);
 
   const handleCreateOrganization = async () => {
     if (!orgName.trim()) {
@@ -67,6 +83,9 @@ export function NavUser() {
     await authClient.organization.setActive({
       organizationId,
     });
+    if (isAdminContext) {
+      navigate({ to: "/templates" });
+    }
   };
 
   if (isPending) {
@@ -111,7 +130,7 @@ export function NavUser() {
     authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
-          navigate({ to: "/" });
+          window.location.href = "/";
         },
       },
     });
@@ -184,7 +203,7 @@ export function NavUser() {
                       <Building2 className="size-3.5" />
                     </div>
                     <span className="flex-1 truncate">{org.name}</span>
-                    {activeOrg?.id === org.id && (
+                    {!isAdminContext && activeOrg?.id === org.id && (
                       <Check className="size-4 text-primary" />
                     )}
                   </DropdownMenuItem>
@@ -208,6 +227,24 @@ export function NavUser() {
               </DropdownMenuGroup>
 
               <DropdownMenuSeparator />
+              {(session.user as { isAdmin?: boolean }).isAdmin && (
+                <>
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild>
+                      <Link
+                        to={isAdminContext ? "/templates" : "/admin/templates"}
+                      >
+                        <Shield className="mr-2 size-4" />
+                        <span className="flex-1">Админка</span>
+                        {isAdminContext && (
+                          <Check className="size-4 text-primary" />
+                        )}
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuGroup>
                 <DropdownMenuItem onClick={handleSignOut} variant="destructive">
                   <LogOut className="mr-2 size-4" />

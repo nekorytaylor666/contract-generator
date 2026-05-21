@@ -1,12 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, FileText } from "lucide-react";
+import { useMemo } from "react";
+
+import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAuth } from "@/lib/auth-guard";
 import { useTRPC } from "@/utils/trpc";
 import type { TemplateVariable } from "../";
+
+// Same style preset the admin uses for in-app previews.
+const PREVIEW_STYLE = { font: "", preset: "default" } as const;
+const noopValueChange = () => undefined;
 
 export const Route = createFileRoute("/templates/$templateId/")({
   component: RouteComponent,
@@ -25,6 +32,43 @@ function RouteComponent() {
     isLoading,
     error,
   } = useQuery(trpc.templates.getById.queryOptions({ id: templateId }));
+
+  // Stable variables array per template load.
+  const variables = useMemo<TemplateVariable[]>(
+    () => (template?.variables ?? []) as TemplateVariable[],
+    [template]
+  );
+
+  // Fill structural fields (select/boolean/number/date) with defaults so
+  // conditional branches render; leave text/textarea empty so the gray
+  // placeholder labels are visible. Mirrors the admin preview behavior.
+  const previewValues = useMemo<Record<string, unknown>>(() => {
+    const sample: Record<string, unknown> = {};
+    for (const v of variables) {
+      if (v.defaultValue !== undefined) {
+        sample[v.name] = v.defaultValue;
+        continue;
+      }
+      switch (v.type) {
+        case "boolean":
+          sample[v.name] = false;
+          break;
+        case "number":
+          sample[v.name] = 1;
+          break;
+        case "date":
+          sample[v.name] = new Date().toISOString().split("T")[0];
+          break;
+        case "select":
+          sample[v.name] = v.options?.[0] ?? "";
+          break;
+        default:
+          // text/textarea — leave undefined so placeholder shows
+          break;
+      }
+    }
+    return sample;
+  }, [variables]);
 
   const formatPrice = (priceInCents: number) => {
     return (priceInCents / 100).toFixed(2);
@@ -54,8 +98,6 @@ function RouteComponent() {
       </div>
     );
   }
-
-  const variables = template.variables as TemplateVariable[];
 
   return (
     <div className="flex h-full flex-col">
@@ -96,16 +138,26 @@ function RouteComponent() {
             <h2 className="mb-3 font-medium text-foreground text-sm">
               Предпросмотр договора
             </h2>
-            <div className="flex aspect-[8.5/11] items-center justify-center rounded-lg border border-border border-dashed bg-background">
-              <div className="text-center">
-                <FileText className="mx-auto size-16 text-muted-foreground/30" />
-                <p className="mt-3 text-muted-foreground text-sm">
-                  Предпросмотр договора
-                </p>
-                <p className="mt-0.5 text-muted-foreground/60 text-xs">
-                  Здесь будет отображён шаблон Typst
-                </p>
-              </div>
+            <div className="h-[80vh] overflow-hidden rounded-lg border border-border bg-background">
+              {template.typstContent ? (
+                <InteractiveDocumentPreview
+                  logo={null}
+                  onValueChange={noopValueChange}
+                  style={PREVIEW_STYLE}
+                  typstContent={template.typstContent}
+                  values={previewValues}
+                  variables={variables}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-center">
+                  <div>
+                    <FileText className="mx-auto size-16 text-muted-foreground/30" />
+                    <p className="mt-3 text-muted-foreground text-sm">
+                      У шаблона нет Typst-контента
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

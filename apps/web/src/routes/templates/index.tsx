@@ -1,17 +1,32 @@
+import {
+  CATEGORY_LABELS,
+  CATEGORY_VALUES,
+  type TemplateCategory,
+} from "@contract-builder/api/constants/template-options";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Filter, Search } from "lucide-react";
-import { useMemo } from "react";
-import { useCommandSearch } from "@/components/command-search/command-search-context";
-import { TemplateCard } from "@/components/template-card";
-import { TemplateCategorySection } from "@/components/template-category-section";
 import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "@/components/ui/input-group";
+  Bookmark,
+  Briefcase,
+  Check,
+  ChevronDown,
+  Code2,
+  DollarSign,
+  Building2 as House,
+  type LucideIcon,
+  Search,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { TemplateCard } from "@/components/template-card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { requireAuth } from "@/lib/auth-guard";
+import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
 
 export interface TemplateVariable {
@@ -29,24 +44,41 @@ export interface TemplateVariable {
   wordForms?: [string, string, string];
 }
 
-// Mock categories - will be fetched from backend later
-const TEMPLATE_CATEGORIES = [
-  { id: "contracts-deals", name: "Договора и сделки" },
-  { id: "employment", name: "Трудовые договора" },
-  { id: "civil", name: "Гражданские договора" },
-] as const;
+// Filters without wired options yet — placeholders until the user provides
+// their dictionaries (industry, contract type, payment terms, validity,
+// participants).
+const PLACEHOLDER_FILTERS = [
+  "Отрасль",
+  "Тип договора",
+  "Условия оплаты",
+  "Срок действия",
+  "Участники",
+];
 
-// Mock category assignments - will come from backend later
-function getCategoryForTemplate(templateIndex: number): string {
-  const categories = TEMPLATE_CATEGORIES.map((c) => c.id);
-  return categories[templateIndex % categories.length];
+const CARD_CATEGORIES: { label: string; icon: LucideIcon }[] = [
+  { label: "Недвижимость", icon: House },
+  { label: "Разработка", icon: Code2 },
+  { label: "Строительство", icon: Briefcase },
+  { label: "Финансы", icon: DollarSign },
+];
+
+function isTemplateCategory(value: unknown): value is TemplateCategory {
+  return (
+    typeof value === "string" &&
+    (CATEGORY_VALUES as readonly string[]).includes(value)
+  );
 }
 
 export const Route = createFileRoute("/templates/")({
   component: RouteComponent,
-  validateSearch: (search: Record<string, unknown>): { q?: string } => {
+  validateSearch: (
+    search: Record<string, unknown>
+  ): { q?: string; category?: TemplateCategory } => {
     return {
       q: search.q ? String(search.q) : undefined,
+      category: isTemplateCategory(search.category)
+        ? search.category
+        : undefined,
     };
   },
   beforeLoad: async () => {
@@ -57,136 +89,199 @@ export const Route = createFileRoute("/templates/")({
 
 function RouteComponent() {
   const navigate = useNavigate();
-  const { q } = Route.useSearch();
+  const { q, category } = Route.useSearch();
   const searchQuery = q ?? "";
-  const { open: openCommandSearch } = useCommandSearch();
 
   const handleSearchChange = (value: string) => {
     navigate({
       to: "/templates",
-      search: { q: value || undefined },
+      search: { q: value || undefined, category },
+      replace: true,
+    });
+  };
+
+  const handleCategoryChange = (next: TemplateCategory | undefined) => {
+    navigate({
+      to: "/templates",
+      search: { q: searchQuery || undefined, category: next },
       replace: true,
     });
   };
 
   const trpc = useTRPC();
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+
+  // Debounce search input -> server query.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQuery(searchQuery), 250);
+    return () => clearTimeout(id);
+  }, [searchQuery]);
+
+  const queryInput =
+    debouncedQuery || category
+      ? { q: debouncedQuery || undefined, category }
+      : undefined;
+
   const { data: templates = [], isLoading } = useQuery(
-    trpc.templates.list.queryOptions()
+    trpc.templates.list.queryOptions(queryInput)
   );
 
-  const filteredTemplates = useMemo(() => {
-    return templates.filter((template) => {
-      const matchesSearch =
-        template.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (template.description
-          ?.toLowerCase()
-          .includes(searchQuery.toLowerCase()) ??
-          false);
+  return (
+    <div className="flex h-full flex-col overflow-auto">
+      <div className="flex flex-col gap-4 p-6">
+        {/* Page heading */}
+        <h1 className="font-semibold text-2xl text-foreground leading-7">
+          Шаблоны
+        </h1>
 
-      return matchesSearch;
-    });
-  }, [searchQuery, templates]);
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            className="h-12 w-full rounded-full border border-[#e5e5e5] bg-background pr-4 pl-11 text-sm outline-none placeholder:text-muted-foreground focus:border-foreground/30"
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder="Название договора или категория"
+            value={searchQuery}
+          />
+        </div>
 
-  // Group templates by category
-  const groupedTemplates = useMemo(() => {
-    const groups: Record<
-      string,
-      Array<(typeof filteredTemplates)[number] & { categoryId: string }>
-    > = {};
+        {/* Filters + saved + sort */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Категория — реальный фильтр */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className={cn(
+                  "inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-foreground text-sm outline-none hover:border-foreground/30 data-open:border-foreground/30",
+                  category ? "border-foreground/40" : "border-[#ececec]"
+                )}
+              >
+                {category ? CATEGORY_LABELS[category] : "Категория"}
+                <ChevronDown className="size-3.5 text-muted-foreground" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[300px]">
+                {CATEGORY_VALUES.map((value) => {
+                  const selected = category === value;
+                  return (
+                    <DropdownMenuItem
+                      className={cn("justify-between", selected && "bg-muted")}
+                      key={value}
+                      onSelect={() =>
+                        handleCategoryChange(selected ? undefined : value)
+                      }
+                    >
+                      <span>{CATEGORY_LABELS[value]}</span>
+                      {selected && <Check className="size-4 text-foreground" />}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-    for (const category of TEMPLATE_CATEGORIES) {
-      groups[category.id] = [];
-    }
+            {/* Остальные фильтры — заглушки, пока без бэкенд-словарей */}
+            {PLACEHOLDER_FILTERS.map((label) => (
+              <DropdownMenu key={label}>
+                <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#ececec] px-3 text-foreground text-sm outline-none hover:border-foreground/30 data-open:border-foreground/30">
+                  {label}
+                  <ChevronDown className="size-3.5 text-muted-foreground" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[300px]">
+                  <div className="px-2 py-1.5 text-muted-foreground text-xs">
+                    Скоро
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              className="inline-flex h-8 items-center gap-2 rounded-lg border border-[#e5e5e5] px-3 text-foreground text-sm outline-none hover:border-foreground/30"
+              type="button"
+            >
+              <Bookmark className="size-4" />
+              Сохранённые
+            </button>
+            {(category || searchQuery) && (
+              <button
+                className="text-muted-foreground text-xs hover:text-foreground"
+                onClick={() =>
+                  navigate({ to: "/templates", search: {}, replace: true })
+                }
+                type="button"
+              >
+                Сбросить
+              </button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#e5e5e5] py-2 pr-2 pl-3 text-foreground text-sm outline-none hover:border-foreground/30">
+                Сортировка
+                <ChevronDown className="size-4 text-muted-foreground" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <div className="px-2 py-1.5 text-muted-foreground text-xs">
+                  Скоро
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
 
-    for (const [index, template] of filteredTemplates.entries()) {
-      const categoryId = getCategoryForTemplate(index);
-      groups[categoryId].push({ ...template, categoryId });
-    }
+        {/* Grid */}
+        {renderGrid({ isLoading, templates })}
+      </div>
+    </div>
+  );
+}
 
-    return groups;
-  }, [filteredTemplates]);
-
+function renderGrid({
+  isLoading,
+  templates,
+}: {
+  isLoading: boolean;
+  templates: Array<{
+    id: string;
+    title: string;
+    description?: string | null;
+    createdAt?: Date | string;
+  }>;
+}) {
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-muted-foreground">Загрузка шаблонов...</div>
+      <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">
+        Загрузка шаблонов...
+      </div>
+    );
+  }
+
+  if (templates.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <p className="font-medium text-foreground text-sm">
+          Шаблоны не найдены
+        </p>
+        <p className="mt-1 text-muted-foreground text-xs">
+          Попробуйте изменить поисковый запрос
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full flex-col overflow-auto">
-      {/* Search Bar */}
-      <div className="sticky top-0 z-10 bg-background px-6 py-4">
-        <InputGroup className="h-10">
-          <InputGroupAddon align="inline-start">
-            <Search className="size-4" />
-          </InputGroupAddon>
-          <InputGroupInput
-            onChange={(e) => handleSearchChange(e.target.value)}
-            onFocus={openCommandSearch}
-            placeholder="Поиск шаблонов... (⌘K)"
-            readOnly
-            value={searchQuery}
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {templates.map((template, index) => {
+        const category = CARD_CATEGORIES[index % CARD_CATEGORIES.length];
+        return (
+          <TemplateCard
+            categoryIcon={category.icon}
+            categoryLabel={category.label}
+            createdAt={template.createdAt}
+            description={template.description}
+            id={template.id}
+            key={template.id}
+            title={template.title}
           />
-          <InputGroupAddon align="inline-end">
-            <InputGroupButton
-              onClick={openCommandSearch}
-              size="sm"
-              variant="ghost"
-            >
-              <Filter className="size-3.5" />
-              Фильтр
-            </InputGroupButton>
-          </InputGroupAddon>
-        </InputGroup>
-      </div>
-
-      {/* Content */}
-      <div className="flex flex-col gap-8 p-6">
-        {TEMPLATE_CATEGORIES.map((category) => {
-          const categoryTemplates = groupedTemplates[category.id];
-          if (categoryTemplates.length === 0 && searchQuery) {
-            return null;
-          }
-
-          return (
-            <TemplateCategorySection
-              key={category.id}
-              title={category.name}
-              viewAllHref="#"
-            >
-              {categoryTemplates.length > 0 ? (
-                categoryTemplates.map((template) => (
-                  <TemplateCard
-                    createdAt={template.createdAt}
-                    description={template.description}
-                    id={template.id}
-                    key={template.id}
-                    title={template.title}
-                  />
-                ))
-              ) : (
-                <div className="col-span-full py-8 text-center text-muted-foreground text-sm">
-                  Нет шаблонов в этой категории
-                </div>
-              )}
-            </TemplateCategorySection>
-          );
-        })}
-
-        {/* Empty State */}
-        {filteredTemplates.length === 0 && searchQuery && (
-          <div className="flex flex-1 flex-col items-center justify-center py-12">
-            <p className="font-medium text-foreground text-sm">
-              Шаблоны не найдены
-            </p>
-            <p className="mt-1 text-muted-foreground text-xs">
-              Попробуйте изменить поисковый запрос
-            </p>
-          </div>
-        )}
-      </div>
+        );
+      })}
     </div>
   );
 }

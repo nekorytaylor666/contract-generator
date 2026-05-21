@@ -3544,8 +3544,7 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
         type: "text",
         required: true,
         label: "Сопроводительные документы",
-        defaultValue:
-          "товарная накладная, счёт-фактура, сертификат качества",
+        defaultValue: "товарная накладная, счёт-фактура, сертификат качества",
       },
       {
         name: "acceptanceClaimDays",

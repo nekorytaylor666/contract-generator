@@ -9,16 +9,36 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TeamRouteImport } from './routes/team'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DocumentsRouteImport } from './routes/documents'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ContinueSignupRouteImport } from './routes/continue-signup'
 import { Route as AiRouteImport } from './routes/ai'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TemplatesIndexRouteImport } from './routes/templates/index'
+import { Route as AdminTemplatesRouteImport } from './routes/admin/templates'
 import { Route as TemplatesTemplateIdIndexRouteImport } from './routes/templates/$templateId/index'
 import { Route as TemplatesTemplateIdBuilderRouteImport } from './routes/templates/$templateId/builder'
 
+const TeamRoute = TeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -39,6 +59,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContinueSignupRoute = ContinueSignupRouteImport.update({
+  id: '/continue-signup',
+  path: '/continue-signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AiRoute = AiRouteImport.update({
   id: '/ai',
   path: '/ai',
@@ -52,6 +77,11 @@ const IndexRoute = IndexRouteImport.update({
 const TemplatesIndexRoute = TemplatesIndexRouteImport.update({
   id: '/templates/',
   path: '/templates/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
+  id: '/admin/templates',
+  path: '/admin/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TemplatesTemplateIdIndexRoute =
@@ -70,10 +100,15 @@ const TemplatesTemplateIdBuilderRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
+  '/continue-signup': typeof ContinueSignupRoute
   '/dashboard': typeof DashboardRoute
   '/documents': typeof DocumentsRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
+  '/team': typeof TeamRoute
+  '/admin/templates': typeof AdminTemplatesRoute
   '/templates/': typeof TemplatesIndexRoute
   '/templates/$templateId/builder': typeof TemplatesTemplateIdBuilderRoute
   '/templates/$templateId/': typeof TemplatesTemplateIdIndexRoute
@@ -81,10 +116,15 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
+  '/continue-signup': typeof ContinueSignupRoute
   '/dashboard': typeof DashboardRoute
   '/documents': typeof DocumentsRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
+  '/team': typeof TeamRoute
+  '/admin/templates': typeof AdminTemplatesRoute
   '/templates': typeof TemplatesIndexRoute
   '/templates/$templateId/builder': typeof TemplatesTemplateIdBuilderRoute
   '/templates/$templateId': typeof TemplatesTemplateIdIndexRoute
@@ -93,10 +133,15 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
+  '/continue-signup': typeof ContinueSignupRoute
   '/dashboard': typeof DashboardRoute
   '/documents': typeof DocumentsRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
+  '/team': typeof TeamRoute
+  '/admin/templates': typeof AdminTemplatesRoute
   '/templates/': typeof TemplatesIndexRoute
   '/templates/$templateId/builder': typeof TemplatesTemplateIdBuilderRoute
   '/templates/$templateId/': typeof TemplatesTemplateIdIndexRoute
@@ -106,10 +151,15 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ai'
+    | '/continue-signup'
     | '/dashboard'
     | '/documents'
     | '/login'
     | '/onboarding'
+    | '/profile'
+    | '/settings'
+    | '/team'
+    | '/admin/templates'
     | '/templates/'
     | '/templates/$templateId/builder'
     | '/templates/$templateId/'
@@ -117,10 +167,15 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/ai'
+    | '/continue-signup'
     | '/dashboard'
     | '/documents'
     | '/login'
     | '/onboarding'
+    | '/profile'
+    | '/settings'
+    | '/team'
+    | '/admin/templates'
     | '/templates'
     | '/templates/$templateId/builder'
     | '/templates/$templateId'
@@ -128,10 +183,15 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/ai'
+    | '/continue-signup'
     | '/dashboard'
     | '/documents'
     | '/login'
     | '/onboarding'
+    | '/profile'
+    | '/settings'
+    | '/team'
+    | '/admin/templates'
     | '/templates/'
     | '/templates/$templateId/builder'
     | '/templates/$templateId/'
@@ -140,10 +200,15 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiRoute: typeof AiRoute
+  ContinueSignupRoute: typeof ContinueSignupRoute
   DashboardRoute: typeof DashboardRoute
   DocumentsRoute: typeof DocumentsRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
+  ProfileRoute: typeof ProfileRoute
+  SettingsRoute: typeof SettingsRoute
+  TeamRoute: typeof TeamRoute
+  AdminTemplatesRoute: typeof AdminTemplatesRoute
   TemplatesIndexRoute: typeof TemplatesIndexRoute
   TemplatesTemplateIdBuilderRoute: typeof TemplatesTemplateIdBuilderRoute
   TemplatesTemplateIdIndexRoute: typeof TemplatesTemplateIdIndexRoute
@@ -151,6 +216,27 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/team': {
+      id: '/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof TeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/onboarding': {
       id: '/onboarding'
       path: '/onboarding'
@@ -179,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/continue-signup': {
+      id: '/continue-signup'
+      path: '/continue-signup'
+      fullPath: '/continue-signup'
+      preLoaderRoute: typeof ContinueSignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ai': {
       id: '/ai'
       path: '/ai'
@@ -198,6 +291,13 @@ declare module '@tanstack/react-router' {
       path: '/templates'
       fullPath: '/templates/'
       preLoaderRoute: typeof TemplatesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/templates': {
+      id: '/admin/templates'
+      path: '/admin/templates'
+      fullPath: '/admin/templates'
+      preLoaderRoute: typeof AdminTemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/templates/$templateId/': {
@@ -220,10 +320,15 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiRoute: AiRoute,
+  ContinueSignupRoute: ContinueSignupRoute,
   DashboardRoute: DashboardRoute,
   DocumentsRoute: DocumentsRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
+  ProfileRoute: ProfileRoute,
+  SettingsRoute: SettingsRoute,
+  TeamRoute: TeamRoute,
+  AdminTemplatesRoute: AdminTemplatesRoute,
   TemplatesIndexRoute: TemplatesIndexRoute,
   TemplatesTemplateIdBuilderRoute: TemplatesTemplateIdBuilderRoute,
   TemplatesTemplateIdIndexRoute: TemplatesTemplateIdIndexRoute,

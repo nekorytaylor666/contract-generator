@@ -5,22 +5,19 @@ import {
   document,
   documentVersion,
 } from "@contract-builder/db/schema/document";
-import { template } from "@contract-builder/db/schema/template";
+import {
+  template,
+  templateVersion,
+} from "@contract-builder/db/schema/template";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { protectedProcedure, router } from "../index";
+import { orgProcedure, router } from "../index";
 
 export const documentsRouter = router({
-  list: protectedProcedure.query(async ({ ctx }) => {
-    const orgId = ctx.session.session.activeOrganizationId;
-    if (!orgId) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: "No active organization",
-      });
-    }
+  list: orgProcedure.query(async ({ ctx }) => {
+    const orgId = ctx.orgId;
 
     const documents = await db
       .select({
@@ -43,16 +40,10 @@ export const documentsRouter = router({
     return documents;
   }),
 
-  getById: protectedProcedure
+  getById: orgProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
-      const orgId = ctx.session.session.activeOrganizationId;
-      if (!orgId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "No active organization",
-        });
-      }
+      const orgId = ctx.orgId;
 
       const [found] = await db
         .select()
@@ -72,7 +63,7 @@ export const documentsRouter = router({
       return found;
     }),
 
-  save: protectedProcedure
+  save: orgProcedure
     .input(
       z.object({
         documentId: z.string().optional(),
@@ -90,18 +81,12 @@ export const documentsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const orgId = ctx.session.session.activeOrganizationId;
+      const orgId = ctx.orgId;
       const userId = ctx.session.user.id;
-      if (!orgId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "No active organization",
-        });
-      }
 
-      // Get template title for default document name
+      // Load full template — needed for backfill if no version exists yet.
       const [tmpl] = await db
-        .select({ title: template.title })
+        .select()
         .from(template)
         .where(eq(template.id, input.templateId))
         .limit(1);
@@ -110,6 +95,30 @@ export const documentsRouter = router({
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Template not found",
+        });
+      }
+
+      // Resolve the templateVersion to pin this document to. Always the latest
+      // for this template; legacy templates with no versions get one created here.
+      let pinnedVersionId: string;
+      const [latestVersion] = await db
+        .select({ id: templateVersion.id })
+        .from(templateVersion)
+        .where(eq(templateVersion.templateId, tmpl.id))
+        .orderBy(desc(templateVersion.version))
+        .limit(1);
+      if (latestVersion) {
+        pinnedVersionId = latestVersion.id;
+      } else {
+        pinnedVersionId = randomUUID();
+        await db.insert(templateVersion).values({
+          id: pinnedVersionId,
+          templateId: tmpl.id,
+          version: tmpl.currentVersion,
+          typstContent: tmpl.typstContent,
+          variables: tmpl.variables,
+          changelog: "backfill",
+          createdBy: userId,
         });
       }
 
@@ -135,11 +144,13 @@ export const documentsRouter = router({
 
         const newVersion = existing.currentVersion + 1;
 
-        // Save version snapshot
+        // Save version snapshot — pin to the same template version the document
+        // was originally pinned to (don't auto-upgrade on edit).
         await db.insert(documentVersion).values({
           id: randomUUID(),
           documentId: existing.id,
           version: newVersion,
+          templateVersionId: existing.templateVersionId ?? pinnedVersionId,
           variables: input.variables,
           logo: input.logo ?? null,
           style: input.style ?? null,
@@ -155,13 +166,14 @@ export const documentsRouter = router({
             style: input.style ?? null,
             currentVersion: newVersion,
             title: input.title ?? existing.title,
+            templateVersionId: existing.templateVersionId ?? pinnedVersionId,
           })
           .where(eq(document.id, existing.id));
 
         return { id: existing.id, version: newVersion };
       }
 
-      // Create new document
+      // Create new document — pin to current latest template version
       const docId = randomUUID();
       const title = input.title || tmpl.title;
 
@@ -169,6 +181,7 @@ export const documentsRouter = router({
         id: docId,
         title,
         templateId: input.templateId,
+        templateVersionId: pinnedVersionId,
         organizationId: orgId,
         createdBy: userId,
         currentVersion: 1,
@@ -182,6 +195,7 @@ export const documentsRouter = router({
         id: randomUUID(),
         documentId: docId,
         version: 1,
+        templateVersionId: pinnedVersionId,
         variables: input.variables,
         logo: input.logo ?? null,
         style: input.style ?? null,
@@ -191,16 +205,10 @@ export const documentsRouter = router({
       return { id: docId, version: 1 };
     }),
 
-  listVersions: protectedProcedure
+  listVersions: orgProcedure
     .input(z.object({ documentId: z.string() }))
     .query(async ({ input, ctx }) => {
-      const orgId = ctx.session.session.activeOrganizationId;
-      if (!orgId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "No active organization",
-        });
-      }
+      const orgId = ctx.orgId;
 
       // Verify document belongs to org
       const [doc] = await db
@@ -235,16 +243,10 @@ export const documentsRouter = router({
       return versions;
     }),
 
-  getVersion: protectedProcedure
+  getVersion: orgProcedure
     .input(z.object({ documentId: z.string(), version: z.number() }))
     .query(async ({ input, ctx }) => {
-      const orgId = ctx.session.session.activeOrganizationId;
-      if (!orgId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "No active organization",
-        });
-      }
+      const orgId = ctx.orgId;
 
       // Verify document belongs to org
       const [doc] = await db
@@ -286,17 +288,11 @@ export const documentsRouter = router({
       return ver;
     }),
 
-  revert: protectedProcedure
+  revert: orgProcedure
     .input(z.object({ documentId: z.string(), version: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      const orgId = ctx.session.session.activeOrganizationId;
+      const orgId = ctx.orgId;
       const userId = ctx.session.user.id;
-      if (!orgId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "No active organization",
-        });
-      }
 
       const [doc] = await db
         .select()

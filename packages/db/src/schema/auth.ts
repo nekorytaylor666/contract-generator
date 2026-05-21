@@ -1,12 +1,32 @@
 import { relations } from "drizzle-orm";
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  email: text("email").notNull().unique(),
+  email: text("email").unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
+  isAdmin: boolean("is_admin").default(false).notNull(),
   image: text("image"),
+  phoneNumber: text("phone_number").unique(),
+  phoneNumberVerified: boolean("phone_number_verified")
+    .default(false)
+    .notNull(),
+  accountType: text("account_type"),
+  onboardingGoals: jsonb("onboarding_goals").$type<string[]>(),
+  onboardingLegals: jsonb("onboarding_legals").$type<string[]>(),
+  onboardingIndustries: jsonb("onboarding_industries").$type<string[]>(),
+  onboardingOutreach: text("onboarding_outreach"),
+  onboardingPolicyAcceptedAt: timestamp("onboarding_policy_accepted_at"),
+  onboardingCompletedAt: timestamp("onboarding_completed_at"),
+  position: text("position"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -40,6 +60,7 @@ export const organization = pgTable("organization", {
   slug: text("slug").notNull().unique(),
   logo: text("logo"),
   metadata: text("metadata"),
+  bin: text("bin"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

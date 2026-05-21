@@ -5,10 +5,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { db } from "@contract-builder/db";
-import { template } from "@contract-builder/db/schema/template";
+import {
+  template,
+  templateVersion,
+} from "@contract-builder/db/schema/template";
 import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
 import { TRPCError } from "@trpc/server";
-import { eq } from "drizzle-orm";
+import { and, eq, gt, ilike, isNull, lte, type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { publicProcedure, router } from "../index";
@@ -298,22 +301,86 @@ async function compileTypstToVector(
 }
 
 export const templatesRouter = router({
-  list: publicProcedure.query(async () => {
-    const templates = await db
-      .select({
-        id: template.id,
-        title: template.title,
-        description: template.description,
-        price: template.price,
-        variables: template.variables,
-        isPublished: template.isPublished,
-        createdAt: template.createdAt,
-      })
-      .from(template)
-      .where(eq(template.isPublished, true));
+  list: publicProcedure
+    .input(
+      z
+        .object({
+          q: z.string().trim().max(200).optional(),
+          category: z.string().optional(),
+          industry: z.string().optional(),
+          contractType: z.string().optional(),
+          paymentTerm: z.string().optional(),
+          participant: z.string().optional(),
+          validityMaxSeconds: z.number().int().nonnegative().optional(),
+          validityMinSeconds: z.number().int().nonnegative().optional(),
+          validityIndefinite: z.boolean().optional(),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      const conditions: SQL[] = [eq(template.isPublished, true)];
 
-    return templates;
-  }),
+      const term = input?.q?.trim();
+      if (term) {
+        conditions.push(ilike(template.title, `%${term}%`));
+      }
+      if (input?.category) {
+        conditions.push(sql`${input.category} = ANY(${template.categories})`);
+      }
+      if (input?.industry) {
+        conditions.push(sql`${input.industry} = ANY(${template.industries})`);
+      }
+      if (input?.contractType) {
+        conditions.push(
+          sql`${input.contractType} = ANY(${template.contractTypes})`
+        );
+      }
+      if (input?.paymentTerm) {
+        conditions.push(
+          sql`${input.paymentTerm} = ANY(${template.paymentTerms})`
+        );
+      }
+      if (input?.participant) {
+        conditions.push(
+          sql`${input.participant} = ANY(${template.participants})`
+        );
+      }
+      if (input?.validityIndefinite) {
+        conditions.push(isNull(template.validitySeconds));
+      } else {
+        if (input?.validityMaxSeconds != null) {
+          conditions.push(
+            lte(template.validitySeconds, input.validityMaxSeconds)
+          );
+        }
+        if (input?.validityMinSeconds != null) {
+          conditions.push(
+            gt(template.validitySeconds, input.validityMinSeconds)
+          );
+        }
+      }
+
+      const templates = await db
+        .select({
+          id: template.id,
+          title: template.title,
+          description: template.description,
+          price: template.price,
+          variables: template.variables,
+          isPublished: template.isPublished,
+          categories: template.categories,
+          industries: template.industries,
+          contractTypes: template.contractTypes,
+          paymentTerms: template.paymentTerms,
+          participants: template.participants,
+          validitySeconds: template.validitySeconds,
+          createdAt: template.createdAt,
+        })
+        .from(template)
+        .where(and(...conditions));
+
+      return templates;
+    }),
 
   getById: publicProcedure
     .input(z.object({ id: z.string() }))
@@ -334,10 +401,44 @@ export const templatesRouter = router({
       return found;
     }),
 
+  /**
+   * Render a draft template that hasn't been saved yet (used by admin builder).
+   * Takes raw typstContent + variables[] + sample values directly.
+   */
+  previewDraft: publicProcedure
+    .input(
+      z.object({
+        typstContent: z.string(),
+        variables: z.array(z.unknown()).default([]),
+        values: z.record(z.string(), z.unknown()).default({}),
+        logo: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const templateVars = input.variables as TemplateVariable[];
+      const vars = computeDerivedVariables(input.values, templateVars);
+      const processedContent = replaceVariables(input.typstContent, vars);
+      try {
+        const vectorBuffer = await compileTypstToVector(processedContent, {
+          logoBase64: input.logo,
+        });
+        return { vectorData: vectorBuffer.toString("base64") };
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? `Failed to compile preview: ${error.message}`
+              : "Failed to compile preview",
+        });
+      }
+    }),
+
   preview: publicProcedure
     .input(
       z.object({
         templateId: z.string(),
+        templateVersionId: z.string().optional(),
         variables: z.record(z.string(), z.unknown()),
         changedVariables: z.array(z.string()).optional(),
         logo: z.string().optional(),
@@ -350,32 +451,24 @@ export const templatesRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const [found] = await db
-        .select()
-        .from(template)
-        .where(eq(template.id, input.templateId))
-        .limit(1);
-
-      if (!found) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Template not found",
-        });
-      }
+      const source = await loadTemplateSource(
+        input.templateId,
+        input.templateVersionId
+      );
 
       const changedSet = new Set(input.changedVariables ?? []);
-      const templateVars = (found.variables ?? []) as TemplateVariable[];
+      const templateVars = (source.variables ?? []) as TemplateVariable[];
       const vars = computeDerivedVariables(input.variables, templateVars);
 
       const processedContent =
         changedSet.size > 0
           ? replaceVariablesWithHighlight(
-              found.typstContent,
+              source.typstContent,
               vars,
               changedSet,
               templateVars
             )
-          : replaceVariables(found.typstContent, vars);
+          : replaceVariables(source.typstContent, vars);
 
       try {
         const vectorBuffer = await compileTypstToVector(processedContent, {
@@ -398,6 +491,7 @@ export const templatesRouter = router({
     .input(
       z.object({
         templateId: z.string(),
+        templateVersionId: z.string().optional(),
         variables: z.record(z.string(), z.unknown()),
         logo: z.string().optional(),
         style: z
@@ -409,22 +503,14 @@ export const templatesRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const [found] = await db
-        .select()
-        .from(template)
-        .where(eq(template.id, input.templateId))
-        .limit(1);
+      const source = await loadTemplateSource(
+        input.templateId,
+        input.templateVersionId
+      );
 
-      if (!found) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Template not found",
-        });
-      }
-
-      const templateVars = (found.variables ?? []) as TemplateVariable[];
+      const templateVars = (source.variables ?? []) as TemplateVariable[];
       const vars = computeDerivedVariables(input.variables, templateVars);
-      const processedContent = replaceVariables(found.typstContent, vars);
+      const processedContent = replaceVariables(source.typstContent, vars);
 
       try {
         const pdf = await compileTypst(processedContent, {
@@ -434,7 +520,7 @@ export const templatesRouter = router({
         const base64 = pdf.toString("base64");
         return {
           pdfDataUrl: `data:application/pdf;base64,${base64}`,
-          fileName: `${found.title}.pdf`,
+          fileName: `${source.title}.pdf`,
         };
       } catch (error) {
         throw new TRPCError({
@@ -447,3 +533,47 @@ export const templatesRouter = router({
       }
     }),
 });
+
+/**
+ * Load template content + variables. If `templateVersionId` is provided, returns
+ * the pinned snapshot (so old documents render with their original template).
+ * Otherwise returns the live template (for previewing fresh templates).
+ */
+async function loadTemplateSource(
+  templateId: string,
+  templateVersionId?: string
+): Promise<{ title: string; typstContent: string; variables: unknown }> {
+  if (templateVersionId) {
+    const [version] = await db
+      .select({
+        typstContent: templateVersion.typstContent,
+        variables: templateVersion.variables,
+        title: template.title,
+      })
+      .from(templateVersion)
+      .innerJoin(template, eq(template.id, templateVersion.templateId))
+      .where(eq(templateVersion.id, templateVersionId))
+      .limit(1);
+    if (version) {
+      return version;
+    }
+    // Pinned version was deleted somehow — fall through to live template.
+  }
+
+  const [live] = await db
+    .select()
+    .from(template)
+    .where(eq(template.id, templateId))
+    .limit(1);
+  if (!live) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Template not found",
+    });
+  }
+  return {
+    title: live.title,
+    typstContent: live.typstContent,
+    variables: live.variables,
+  };
+}

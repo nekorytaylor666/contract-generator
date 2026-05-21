@@ -4,7 +4,7 @@ import * as schema from "@contract-builder/db/schema/auth";
 import { env } from "@contract-builder/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { organization } from "better-auth/plugins";
+import { organization, phoneNumber } from "better-auth/plugins";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -16,6 +16,20 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  user: {
+    additionalFields: {
+      isAdmin: {
+        type: "boolean",
+        defaultValue: false,
+        input: false,
+      },
+      accountType: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+    },
+  },
   advanced: {
     defaultCookieAttributes: {
       sameSite: "none",
@@ -23,5 +37,33 @@ export const auth = betterAuth({
       httpOnly: true,
     },
   },
-  plugins: [expo(), organization()],
+  plugins: [
+    expo(),
+    organization(),
+    phoneNumber({
+      // Dev-заглушка: ничего не шлём, код всегда "111111". Подменить на
+      // SMS-провайдера + убрать verifyOTP, чтобы заработала встроенная
+      // генерация и проверка.
+      sendOTP: ({ phoneNumber: phone }) => {
+        process.stderr.write(`[OTP stub] ${phone}: используйте 111111\n`);
+      },
+      verifyOTP: ({ code }) => code === "111111",
+      signUpOnVerification: {
+        // Плагин требует строку — даём временный маркер, который сразу же
+        // обнулим в callbackOnVerification, чтобы email хранился как NULL
+        // для phone-only регистраций.
+        getTempEmail: (phone) => `${phone.replace(/\D/g, "")}@phone.local`,
+        getTempName: (phone) => phone,
+      },
+      callbackOnVerification: async ({ user }, ctx) => {
+        if (user.email?.endsWith("@phone.local")) {
+          // better-auth типизирует email как обязательный string, но в нашей
+          // схеме колонка nullable — обнуляем напрямую.
+          await ctx?.context.internalAdapter.updateUser(user.id, {
+            email: null as unknown as string,
+          });
+        }
+      },
+    }),
+  ],
 });

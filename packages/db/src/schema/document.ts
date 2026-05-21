@@ -9,7 +9,7 @@ import {
   unique,
 } from "drizzle-orm/pg-core";
 import { organization, user } from "./auth";
-import { template } from "./template";
+import { template, templateVersion } from "./template";
 
 export const document = pgTable(
   "document",
@@ -19,6 +19,10 @@ export const document = pgTable(
     templateId: text("template_id")
       .notNull()
       .references(() => template.id, { onDelete: "cascade" }),
+    templateVersionId: text("template_version_id").references(
+      () => templateVersion.id,
+      { onDelete: "restrict" }
+    ),
     organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
@@ -50,6 +54,10 @@ export const documentVersion = pgTable(
       .notNull()
       .references(() => document.id, { onDelete: "cascade" }),
     version: integer("version").notNull(),
+    templateVersionId: text("template_version_id").references(
+      () => templateVersion.id,
+      { onDelete: "restrict" }
+    ),
     variables: jsonb("variables").notNull(),
     logo: text("logo"),
     style: jsonb("style"),

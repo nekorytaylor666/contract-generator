@@ -1,4 +1,11 @@
 import { Link } from "@tanstack/react-router";
+import {
+  House,
+  type LucideIcon,
+  MoreHorizontal,
+  RefreshCw,
+} from "lucide-react";
+
 import type { TemplateVariable } from "@/routes/templates/index";
 
 interface TemplateCardProps {
@@ -6,7 +13,32 @@ interface TemplateCardProps {
   title: string;
   description?: string | null;
   createdAt?: Date | string;
+  categoryLabel?: string;
+  categoryIcon?: LucideIcon;
   variables?: TemplateVariable[];
+}
+
+const MONTHS = [
+  "Январь",
+  "Февраль",
+  "Март",
+  "Апрель",
+  "Май",
+  "Июнь",
+  "Июль",
+  "Август",
+  "Сентябрь",
+  "Октябрь",
+  "Ноябрь",
+  "Декабрь",
+];
+
+function formatMonthYear(date?: Date | string): string {
+  if (!date) {
+    return "Недавно";
+  }
+  const d = new Date(date);
+  return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 export function TemplateCard({
@@ -14,63 +46,51 @@ export function TemplateCard({
   title,
   description,
   createdAt,
+  categoryLabel = "Недвижимость",
+  categoryIcon: CategoryIcon = House,
 }: TemplateCardProps) {
-  const formatDate = (date?: Date | string) => {
-    if (!date) {
-      return "Недавно";
-    }
-    const d = new Date(date);
-    const now = new Date();
-    const diffDays = Math.floor(
-      (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    if (diffDays === 0) {
-      return "Сегодня";
-    }
-    if (diffDays === 1) {
-      return "1 день назад";
-    }
-    if (diffDays < 5) {
-      return `${diffDays} дня назад`;
-    }
-    return `${diffDays} дней назад`;
-  };
-
   return (
     <Link
-      className="group block"
+      className="group block h-full"
       params={{ templateId: id }}
       to="/templates/$templateId"
     >
-      <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:border-border/80 hover:shadow-sm">
-        {/* Document Preview */}
-        <div className="relative aspect-[4/3] overflow-hidden bg-muted/30 p-3">
-          <div className="flex h-full w-full flex-col rounded-sm border border-border/50 bg-white p-3 shadow-sm">
-            {/* Fake document lines */}
-            <div className="mb-2 h-2 w-3/4 rounded-sm bg-muted/60" />
-            <div className="mb-1.5 h-1.5 w-full rounded-sm bg-muted/40" />
-            <div className="mb-1.5 h-1.5 w-full rounded-sm bg-muted/40" />
-            <div className="mb-1.5 h-1.5 w-5/6 rounded-sm bg-muted/40" />
-            <div className="mb-3 h-1.5 w-4/5 rounded-sm bg-muted/40" />
-            <div className="mb-1.5 h-1.5 w-full rounded-sm bg-muted/40" />
-            <div className="mb-1.5 h-1.5 w-full rounded-sm bg-muted/40" />
-            <div className="h-1.5 w-2/3 rounded-sm bg-muted/40" />
+      <div className="flex h-full flex-col justify-between rounded-2xl border border-[#ececec] p-5 transition-colors hover:border-foreground/30">
+        <div className="flex flex-col gap-4">
+          <div className="flex h-6 items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <RefreshCw className="size-4 text-foreground" />
+              <span className="truncate text-foreground text-sm">
+                {formatMonthYear(createdAt)}
+              </span>
+            </div>
+            <button
+              aria-label="Действия"
+              className="flex size-6 items-center justify-center text-foreground"
+              onClick={(e) => e.preventDefault()}
+              type="button"
+            >
+              <MoreHorizontal className="size-4" />
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <h3 className="line-clamp-2 h-11 font-semibold text-[16px] text-black leading-5">
+              {title}
+            </h3>
+            {description && (
+              <p className="line-clamp-3 text-[14px] text-muted-foreground leading-[18px]">
+                {description}
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Card Content */}
-        <div className="flex flex-col gap-1.5 p-3">
-          <span className="text-[10px] text-muted-foreground">
-            Обновлено: {formatDate(createdAt)}
+        <div className="flex items-center gap-2 pt-4">
+          <CategoryIcon className="size-4 text-foreground" />
+          <span className="truncate text-[14px] text-foreground">
+            {categoryLabel}
           </span>
-          <h3 className="line-clamp-1 font-medium text-foreground text-sm">
-            {title}
-          </h3>
-          {description && (
-            <p className="line-clamp-2 text-muted-foreground text-xs">
-              {description}
-            </p>
-          )}
         </div>
       </div>
     </Link>

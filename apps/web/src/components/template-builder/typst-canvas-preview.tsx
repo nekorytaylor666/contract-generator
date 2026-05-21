@@ -33,6 +33,56 @@ function getRenderer(): Promise<RendererState> {
   return rendererPromise;
 }
 
+function getPixelPerPt(): number {
+  const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+  // Render at 2.5pt × dpr so canvases stay crisp once CSS scales them down to
+  // the container width. Clamp to keep memory reasonable.
+  return Math.min(8, Math.max(3, 2.5 * dpr));
+}
+
+function decodeBase64(data: string): Uint8Array {
+  const binaryStr = atob(data);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    bytes[i] = binaryStr.charCodeAt(i);
+  }
+  return bytes;
+}
+
+/**
+ * typst.ts renders each page as `.typst-page` (relative, fixed px size) →
+ * `canvasDiv` (absolute) → canvas, plus a `.typst-html-semantics` text
+ * overlay. For a read-only preview we want canvases to flow vertically and
+ * scale to container width. Strip absolute positioning, hide the text layer,
+ * and clear typst.ts's own `transform: scale(...)` (it conflicts with our
+ * CSS sizing and creates phantom gaps).
+ */
+function sanitizeRenderedPages(container: HTMLElement) {
+  for (const el of container.querySelectorAll<HTMLElement>(
+    ".typst-html-semantics"
+  )) {
+    el.style.display = "none";
+  }
+  for (const page of container.querySelectorAll<HTMLElement>(".typst-page")) {
+    page.style.width = "100%";
+    page.style.height = "auto";
+    page.style.position = "relative";
+  }
+  for (const c of container.querySelectorAll("canvas")) {
+    const canvas = c as HTMLCanvasElement;
+    const canvasDiv = canvas.parentElement;
+    if (canvasDiv) {
+      canvasDiv.style.position = "static";
+      canvasDiv.style.width = "100%";
+      canvasDiv.style.height = "auto";
+      canvasDiv.style.transform = "none";
+    }
+    canvas.style.width = "100%";
+    canvas.style.height = "auto";
+    canvas.style.display = "block";
+  }
+}
+
 export function TypstCanvasPreview({
   vectorData,
   isLoading,
@@ -53,31 +103,22 @@ export function TypstCanvasPreview({
 
     try {
       const { renderer } = await getRenderer();
-      const binaryStr = atob(data);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-
       const container = containerRef.current;
       if (!container) {
         return;
       }
-
-      // Clear previous render
       container.innerHTML = "";
 
       await renderer.renderToCanvas({
         container,
-        pixelPerPt: 2.5,
+        pixelPerPt: getPixelPerPt(),
         backgroundColor: "#ffffff",
         format: "vector",
-        artifactContent: bytes,
+        artifactContent: decodeBase64(data),
       });
 
-      // Count rendered pages from the generated canvases
-      const canvases = container.querySelectorAll("canvas");
-      setPageCount(canvases.length);
+      sanitizeRenderedPages(container);
+      setPageCount(container.querySelectorAll("canvas").length);
     } catch (err) {
       console.error("Typst canvas render failed:", err);
     } finally {
@@ -152,7 +193,7 @@ export function TypstCanvasPreview({
         )}
 
         <div
-          className="flex flex-col items-center gap-4 p-4"
+          className="flex w-full flex-col items-center gap-4 p-4"
           ref={containerRef}
         />
       </div>

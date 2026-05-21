@@ -194,7 +194,11 @@ function RouteComponent() {
           search: { documentId: data.id },
           replace: true,
         });
-        // Invalidate version list
+        // Invalidate "my documents" list so the newly saved doc appears there.
+        queryClient.invalidateQueries({
+          queryKey: trpc.documents.list.queryKey(),
+        });
+        // Invalidate version list for existing docs.
         if (documentId) {
           queryClient.invalidateQueries({
             queryKey: trpc.documents.listVersions.queryKey({
@@ -233,6 +237,7 @@ function RouteComponent() {
     }
     compileMutation.mutate({
       templateId,
+      templateVersionId: existingDocument?.templateVersionId ?? undefined,
       variables: latestValuesRef.current,
       logo: logo ?? undefined,
       style: {
@@ -240,7 +245,13 @@ function RouteComponent() {
         preset: documentStyle.preset,
       },
     });
-  }, [templateId, compileMutation.mutate, logo, documentStyle]);
+  }, [
+    templateId,
+    existingDocument?.templateVersionId,
+    compileMutation.mutate,
+    logo,
+    documentStyle,
+  ]);
 
   const handleSave = useCallback(() => {
     if (!latestValuesRef.current) {
