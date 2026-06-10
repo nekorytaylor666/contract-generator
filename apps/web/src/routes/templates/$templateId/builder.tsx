@@ -35,6 +35,8 @@ function RouteComponent() {
   const navigate = useNavigate();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const { data: myAccess } = useQuery(trpc.team.myAccess.queryOptions());
+  const canEdit = myAccess?.canEdit !== false;
   const [logo, setLogo] = useState<string | null>(null);
   const [documentStyle, setDocumentStyle] = useState<DocumentStyle>({
     font: "New Computer Modern",
@@ -254,7 +256,7 @@ function RouteComponent() {
   ]);
 
   const handleSave = useCallback(() => {
-    if (!latestValuesRef.current) {
+    if (!(canEdit && latestValuesRef.current)) {
       return;
     }
     saveMutation.mutate({
@@ -267,7 +269,14 @@ function RouteComponent() {
         preset: documentStyle.preset,
       },
     });
-  }, [templateId, documentId, saveMutation.mutate, logo, documentStyle]);
+  }, [
+    templateId,
+    documentId,
+    saveMutation.mutate,
+    logo,
+    documentStyle,
+    canEdit,
+  ]);
 
   const handleLogoChange = useCallback((newLogo: string | null) => {
     setLogo(newLogo);
@@ -425,6 +434,7 @@ function RouteComponent() {
         <div className="flex-1 overflow-auto bg-muted/30 p-4">
           <div className="mx-auto h-full max-w-5xl">
             <InteractiveDocumentPreview
+              canSave={canEdit}
               changedVars={changedVars}
               isDownloading={compileMutation.isPending}
               isSaving={saveMutation.isPending}

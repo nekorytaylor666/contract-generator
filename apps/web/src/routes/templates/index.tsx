@@ -3,8 +3,9 @@ import {
   CATEGORY_VALUES,
   type TemplateCategory,
 } from "@contract-builder/api/constants/template-options";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type { TFunction } from "i18next";
 import {
   Bookmark,
   Briefcase,
@@ -14,10 +15,15 @@ import {
   DollarSign,
   Building2 as House,
   type LucideIcon,
-  Search,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
+import {
+  type SearchSuggestion,
+  SearchWithSuggestions,
+} from "@/components/search-with-suggestions";
 import { TemplateCard } from "@/components/template-card";
 import {
   DropdownMenu,
@@ -26,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { requireAuth } from "@/lib/auth-guard";
+import { fuzzySearch } from "@/lib/fuzzy-search";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
 
@@ -48,11 +55,11 @@ export interface TemplateVariable {
 // their dictionaries (industry, contract type, payment terms, validity,
 // participants).
 const PLACEHOLDER_FILTERS = [
-  "Отрасль",
-  "Тип договора",
-  "Условия оплаты",
-  "Срок действия",
-  "Участники",
+  "templates.filters.industry",
+  "templates.filters.contractType",
+  "templates.filters.paymentTerms",
+  "templates.filters.validity",
+  "templates.filters.participants",
 ];
 
 const CARD_CATEGORIES: { label: string; icon: LucideIcon }[] = [
@@ -67,6 +74,15 @@ function isTemplateCategory(value: unknown): value is TemplateCategory {
     typeof value === "string" &&
     (CATEGORY_VALUES as readonly string[]).includes(value)
   );
+}
+
+// Human-readable label for a suggestion, taken from the template's first known
+// category. Returns undefined when the template has no recognised category.
+function categoryLabel(
+  categories: string[] | null | undefined
+): string | undefined {
+  const match = categories?.find(isTemplateCategory);
+  return match ? CATEGORY_LABELS[match] : undefined;
 }
 
 export const Route = createFileRoute("/templates/")({
@@ -88,6 +104,7 @@ export const Route = createFileRoute("/templates/")({
 });
 
 function RouteComponent() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { q, category } = Route.useSearch();
   const searchQuery = q ?? "";
@@ -109,41 +126,83 @@ function RouteComponent() {
   };
 
   const trpc = useTRPC();
-  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
 
-  // Debounce search input -> server query.
-  useEffect(() => {
-    const id = setTimeout(() => setDebouncedQuery(searchQuery), 250);
-    return () => clearTimeout(id);
-  }, [searchQuery]);
-
-  const queryInput =
-    debouncedQuery || category
-      ? { q: debouncedQuery || undefined, category }
-      : undefined;
-
+  // Fetch the category-filtered list once, then fuzzy-match on the client so
+  // typos still surface results (server ilike needs an exact substring).
   const { data: templates = [], isLoading } = useQuery(
-    trpc.templates.list.queryOptions(queryInput)
+    trpc.templates.list.queryOptions(category ? { category } : undefined)
   );
+
+  const filteredTemplates = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return templates;
+    }
+    return fuzzySearch(searchQuery, templates, (t) => t.title).map(
+      (result) => result.item
+    );
+  }, [searchQuery, templates]);
+
+  const searchSuggestions = useMemo<SearchSuggestion[]>(
+    () =>
+      templates.map((t) => ({
+        id: t.id,
+        label: t.title,
+        sublabel: categoryLabel(t.categories),
+      })),
+    [templates]
+  );
+
+  const queryClient = useQueryClient();
+  const { data: purchasedIds = [] } = useQuery(
+    trpc.payments.myPurchasedTemplateIds.queryOptions()
+  );
+  const purchasedSet = useMemo(() => new Set(purchasedIds), [purchasedIds]);
+  const [payingId, setPayingId] = useState<string | null>(null);
+
+  const checkoutMutation = useMutation(
+    trpc.payments.createTemplateCheckout.mutationOptions({
+      onSuccess: (result) => {
+        if (result.alreadyPurchased) {
+          toast.success(t("templates.alreadyPurchased"));
+          queryClient.invalidateQueries({
+            queryKey: trpc.payments.myPurchasedTemplateIds.queryKey(),
+          });
+          setPayingId(null);
+          return;
+        }
+        window.location.href = result.url;
+      },
+      onError: (error) => {
+        toast.error(error.message);
+        setPayingId(null);
+      },
+    })
+  );
+
+  const handlePay = (templateId: string) => {
+    setPayingId(templateId);
+    checkoutMutation.mutate({ templateId });
+  };
 
   return (
     <div className="flex h-full flex-col overflow-auto">
       <div className="flex flex-col gap-4 p-6">
         {/* Page heading */}
         <h1 className="font-semibold text-2xl text-foreground leading-7">
-          Шаблоны
+          {t("templates.title")}
         </h1>
 
         {/* Search */}
-        <div className="relative">
-          <Search className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            className="h-12 w-full rounded-full border border-[#e5e5e5] bg-background pr-4 pl-11 text-sm outline-none placeholder:text-muted-foreground focus:border-foreground/30"
-            onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Название договора или категория"
-            value={searchQuery}
-          />
-        </div>
+        <SearchWithSuggestions
+          ariaLabel={t("templates.searchPlaceholder")}
+          onSelectSuggestion={(suggestion) =>
+            handleSearchChange(suggestion.label)
+          }
+          onValueChange={handleSearchChange}
+          placeholder={t("templates.searchPlaceholder")}
+          suggestions={searchSuggestions}
+          value={searchQuery}
+        />
 
         {/* Filters + saved + sort */}
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -156,7 +215,7 @@ function RouteComponent() {
                   category ? "border-foreground/40" : "border-[#ececec]"
                 )}
               >
-                {category ? CATEGORY_LABELS[category] : "Категория"}
+                {category ? CATEGORY_LABELS[category] : t("templates.category")}
                 <ChevronDown className="size-3.5 text-muted-foreground" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="min-w-[300px]">
@@ -179,15 +238,15 @@ function RouteComponent() {
             </DropdownMenu>
 
             {/* Остальные фильтры — заглушки, пока без бэкенд-словарей */}
-            {PLACEHOLDER_FILTERS.map((label) => (
-              <DropdownMenu key={label}>
+            {PLACEHOLDER_FILTERS.map((labelKey) => (
+              <DropdownMenu key={labelKey}>
                 <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#ececec] px-3 text-foreground text-sm outline-none hover:border-foreground/30 data-open:border-foreground/30">
-                  {label}
+                  {t(labelKey)}
                   <ChevronDown className="size-3.5 text-muted-foreground" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="min-w-[300px]">
                   <div className="px-2 py-1.5 text-muted-foreground text-xs">
-                    Скоро
+                    {t("common.soon")}
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -199,7 +258,7 @@ function RouteComponent() {
               type="button"
             >
               <Bookmark className="size-4" />
-              Сохранённые
+              {t("templates.saved")}
             </button>
             {(category || searchQuery) && (
               <button
@@ -209,17 +268,17 @@ function RouteComponent() {
                 }
                 type="button"
               >
-                Сбросить
+                {t("common.reset")}
               </button>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#e5e5e5] py-2 pr-2 pl-3 text-foreground text-sm outline-none hover:border-foreground/30">
-                Сортировка
+                {t("common.sort")}
                 <ChevronDown className="size-4 text-muted-foreground" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <div className="px-2 py-1.5 text-muted-foreground text-xs">
-                  Скоро
+                  {t("common.soon")}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -227,7 +286,14 @@ function RouteComponent() {
         </div>
 
         {/* Grid */}
-        {renderGrid({ isLoading, templates })}
+        {renderGrid({
+          isLoading,
+          templates: filteredTemplates,
+          purchasedSet,
+          payingId,
+          onPay: handlePay,
+          t,
+        })}
       </div>
     </div>
   );
@@ -236,6 +302,10 @@ function RouteComponent() {
 function renderGrid({
   isLoading,
   templates,
+  purchasedSet,
+  payingId,
+  onPay,
+  t,
 }: {
   isLoading: boolean;
   templates: Array<{
@@ -243,12 +313,17 @@ function renderGrid({
     title: string;
     description?: string | null;
     createdAt?: Date | string;
+    price?: number;
   }>;
+  purchasedSet: Set<string>;
+  payingId: string | null;
+  onPay: (templateId: string) => void;
+  t: TFunction;
 }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">
-        Загрузка шаблонов...
+        {t("templates.loading")}
       </div>
     );
   }
@@ -257,10 +332,10 @@ function renderGrid({
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <p className="font-medium text-foreground text-sm">
-          Шаблоны не найдены
+          {t("templates.notFound")}
         </p>
         <p className="mt-1 text-muted-foreground text-xs">
-          Попробуйте изменить поисковый запрос
+          {t("templates.notFoundHint")}
         </p>
       </div>
     );
@@ -277,7 +352,11 @@ function renderGrid({
             createdAt={template.createdAt}
             description={template.description}
             id={template.id}
+            isPurchasing={payingId === template.id}
             key={template.id}
+            onPay={() => onPay(template.id)}
+            price={template.price}
+            purchased={purchasedSet.has(template.id)}
             title={template.title}
           />
         );

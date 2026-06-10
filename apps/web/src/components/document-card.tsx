@@ -1,6 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import { FileText } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
+
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { getInitials } from "@/lib/utils";
 
 interface DocumentCardProps {
   id: string;
@@ -12,33 +21,20 @@ interface DocumentCardProps {
   updatedAt: Date | string;
 }
 
-function formatDate(date: Date | string): string {
-  const d = new Date(date);
-  const now = new Date();
-  const diffDays = Math.floor(
-    (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24)
-  );
-  if (diffDays === 0) {
-    return "Сегодня";
-  }
-  if (diffDays === 1) {
-    return "1 день назад";
-  }
-  if (diffDays < 5) {
-    return `${diffDays} дня назад`;
-  }
-  return `${diffDays} дней назад`;
-}
+// Placeholder text for contract fields not yet in the data model.
+// TODO: заменить на реальные поля договора (сумма, дата завершения, статус,
+// контрагент), когда они появятся в схеме документа.
+const PLACEHOLDER = "—";
 
 export function DocumentCard({
   id,
   title,
   templateTitle,
   templateId,
-  currentVersion,
   authorName,
-  updatedAt,
 }: DocumentCardProps) {
+  const counterparty = templateTitle ?? PLACEHOLDER;
+
   return (
     <Link
       className="group block"
@@ -46,41 +42,56 @@ export function DocumentCard({
       search={{ documentId: id }}
       to="/templates/$templateId/builder"
     >
-      <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:border-border/80 hover:shadow-sm">
-        {/* Document Preview */}
-        <div className="relative aspect-[4/3] overflow-hidden bg-muted/30 p-3">
-          <div className="flex h-full w-full flex-col rounded-sm border border-border/50 bg-white p-3 shadow-sm">
-            <div className="mb-2 flex items-center gap-1.5">
-              <FileText className="size-3 text-muted-foreground/60" />
-              <div className="h-2 w-1/2 rounded-sm bg-muted/60" />
-            </div>
-            <div className="mb-1.5 h-1.5 w-full rounded-sm bg-muted/40" />
-            <div className="mb-1.5 h-1.5 w-full rounded-sm bg-muted/40" />
-            <div className="mb-1.5 h-1.5 w-5/6 rounded-sm bg-muted/40" />
-            <div className="mb-3 h-1.5 w-4/5 rounded-sm bg-muted/40" />
-            <div className="mb-1.5 h-1.5 w-full rounded-sm bg-muted/40" />
-            <div className="h-1.5 w-2/3 rounded-sm bg-muted/40" />
+      <div className="flex h-full flex-col gap-3 rounded-2xl border border-[#e5e5e5] bg-card p-4 transition-all hover:border-foreground/20 hover:shadow-sm">
+        {/* Counterparty + actions */}
+        <div className="flex items-start justify-between gap-2">
+          <span className="truncate text-muted-foreground text-xs">
+            {counterparty}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Действия с документом"
+              className="-mt-1 -mr-1 shrink-0 rounded-md p-1 text-muted-foreground outline-none hover:bg-muted hover:text-foreground"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            >
+              <MoreHorizontal className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem disabled>Скоро</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Title */}
+        <h3 className="line-clamp-2 min-h-[2.75rem] font-semibold text-base text-foreground leading-snug">
+          {title}
+        </h3>
+
+        {/* Meta */}
+        <div className="mt-auto flex flex-col gap-1 pt-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Сумма</span>
+            <span className="text-foreground">{PLACEHOLDER}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Завершение</span>
+            <span className="text-foreground">{PLACEHOLDER}</span>
           </div>
         </div>
 
-        {/* Card Content */}
-        <div className="flex flex-col gap-1.5 p-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-muted-foreground">
-              {formatDate(updatedAt)}
-            </span>
-            <Badge className="text-[9px]" variant="outline">
-              v{currentVersion}
-            </Badge>
-          </div>
-          <h3 className="line-clamp-1 font-medium text-foreground text-sm">
-            {title}
-          </h3>
-          {(templateTitle || authorName) && (
-            <p className="line-clamp-1 text-muted-foreground text-xs">
-              {[templateTitle, authorName].filter(Boolean).join(" · ")}
-            </p>
-          )}
+        {/* Status + author */}
+        <div className="flex items-center justify-between pt-1">
+          <Badge className="border-green-200 bg-green-50 text-green-700">
+            Подписан
+          </Badge>
+          <Avatar className="size-7">
+            <AvatarFallback className="bg-muted text-[10px]">
+              {getInitials(authorName)}
+            </AvatarFallback>
+          </Avatar>
         </div>
       </div>
     </Link>

@@ -13,7 +13,7 @@ import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { orgProcedure, router } from "../index";
+import { editorProcedure, orgProcedure, router } from "../index";
 
 export const documentsRouter = router({
   list: orgProcedure.query(async ({ ctx }) => {
@@ -63,7 +63,7 @@ export const documentsRouter = router({
       return found;
     }),
 
-  save: orgProcedure
+  save: editorProcedure
     .input(
       z.object({
         documentId: z.string().optional(),
@@ -288,7 +288,7 @@ export const documentsRouter = router({
       return ver;
     }),
 
-  revert: orgProcedure
+  revert: editorProcedure
     .input(z.object({ documentId: z.string(), version: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const orgId = ctx.orgId;

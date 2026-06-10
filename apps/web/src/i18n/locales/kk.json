@@ -1,0 +1,67 @@
+{
+  "nav": {
+    "templates": "Үлгілер",
+    "documents": "Менің құжаттарым",
+    "team": "Команда",
+    "profile": "Профиль",
+    "constructor": "Конструктор"
+  },
+  "language": {
+    "label": "Тіл",
+    "kk": "Қазақша",
+    "ru": "Русский",
+    "en": "English"
+  },
+  "common": {
+    "save": "Сақтау",
+    "cancel": "Болдырмау",
+    "reset": "Тазалау",
+    "soon": "Жақында",
+    "sort": "Сұрыптау"
+  },
+  "documents": {
+    "subtitle": "Шарттар",
+    "searchPlaceholder": "Шарт атауын енгізіңіз — құжатыңызды табамыз",
+    "notFound": "Құжаттар табылмады",
+    "empty": "Сақталған құжаттар жоқ",
+    "notFoundHint": "Іздеу сұранысын өзгертіп көріңіз",
+    "emptyHint": "Осы жерде көріну үшін үлгіден құжат жасаңыз",
+    "loading": "Құжаттар жүктелуде...",
+    "filters": {
+      "counterparty": "Контрагент",
+      "amount": "Шарт сомасы",
+      "status": "Шарт мәртебесі",
+      "responsible": "Жауапты"
+    }
+  },
+  "templates": {
+    "title": "Үлгілер",
+    "searchPlaceholder": "Шарт атауы немесе санаты",
+    "category": "Санат",
+    "saved": "Сақталғандар",
+    "sort": "Сұрыптау",
+    "notFound": "Үлгілер табылмады",
+    "notFoundHint": "Іздеу сұранысын өзгертіп көріңіз",
+    "loading": "Үлгілер жүктелуде...",
+    "pay": "Төлеу {{amount}}",
+    "purchased": "Сатып алынды",
+    "alreadyPurchased": "Үлгі сатып алынған",
+    "filters": {
+      "industry": "Сала",
+      "contractType": "Шарт түрі",
+      "paymentTerms": "Төлем шарттары",
+      "validity": "Қолданылу мерзімі",
+      "participants": "Қатысушылар"
+    }
+  },
+  "payment": {
+    "successTitle": "Төлем сәтті өтті",
+    "successPending": "Төлемді растап жатырмыз…",
+    "successPaidHint": "Үлгі қолжетімді — шарт жасауға болады.",
+    "successPendingHint": "Бұл бірнеше секунд алады. Бет автоматты түрде жаңарады.",
+    "toTemplates": "Үлгілерге",
+    "failTitle": "Төлем аяқталмады",
+    "failHint": "Төлем бас тартылды немесе қабылданбады. Қайта көруге болады.",
+    "backToTemplates": "Үлгілерге оралу"
+  }
+}

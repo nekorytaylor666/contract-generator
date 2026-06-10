@@ -1,4 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 import {
   CircleUserIcon,
@@ -10,6 +11,12 @@ import {
   UsersIcon,
 } from "@/components/icons/sidebar-icons";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -23,23 +30,25 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { SUPPORTED_LANGUAGES } from "@/i18n";
+import { cn } from "@/lib/utils";
 import { NavUser } from "./nav-user";
 
 interface NavItem {
-  title: string;
+  titleKey: string;
   url: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
 const userNavigation: NavItem[] = [
-  { title: "Шаблоны", url: "/templates", icon: FolderOpenIcon },
-  { title: "Мои документы", url: "/documents", icon: FilesIcon },
-  { title: "Команда", url: "/team", icon: UsersIcon },
-  { title: "Профиль", url: "/profile", icon: CircleUserIcon },
+  { titleKey: "nav.templates", url: "/templates", icon: FolderOpenIcon },
+  { titleKey: "nav.documents", url: "/documents", icon: FilesIcon },
+  { titleKey: "nav.team", url: "/team", icon: UsersIcon },
+  { titleKey: "nav.profile", url: "/profile", icon: CircleUserIcon },
 ];
 
 const adminNavigation: NavItem[] = [
-  { title: "Шаблоны", url: "/admin/templates", icon: FolderOpenIcon },
+  { titleKey: "nav.templates", url: "/admin/templates", icon: FolderOpenIcon },
 ];
 
 // Collapsed (icon) state: square button, centered icon, label hidden.
@@ -70,6 +79,7 @@ function SidebarToggle() {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation();
+  const { t, i18n } = useTranslation();
   const isAdminContext = location.pathname.startsWith("/admin");
   const navigation = isAdminContext ? adminNavigation : userNavigation;
 
@@ -90,7 +100,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
               {navigation.map((item) => (
-                <SidebarMenuItem key={item.title}>
+                <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
                     asChild
                     className={`h-9 ${COLLAPSED_ICON} ${ACTIVE_ITEM}`}
@@ -98,11 +108,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       location.pathname === item.url ||
                       location.pathname.startsWith(`${item.url}/`)
                     }
-                    tooltip={item.title}
+                    tooltip={t(item.titleKey)}
                   >
                     <Link to={item.url}>
                       <item.icon />
-                      <span>{item.title}</span>
+                      <span>{t(item.titleKey)}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -114,13 +124,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarFooter className="gap-1">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              className={`h-9 ${COLLAPSED_ICON}`}
-              tooltip="Сменить язык"
-            >
-              <GlobeIcon />
-              <span>Сменить язык</span>
-            </SidebarMenuButton>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton
+                  className={`h-9 ${COLLAPSED_ICON}`}
+                  tooltip={t("language.label")}
+                >
+                  <GlobeIcon />
+                  <span>{t("language.label")}</span>
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top">
+                {SUPPORTED_LANGUAGES.map((lng) => (
+                  <DropdownMenuItem
+                    className={cn(i18n.language === lng && "bg-muted")}
+                    key={lng}
+                    onSelect={() => {
+                      i18n.changeLanguage(lng).catch(() => undefined);
+                    }}
+                  >
+                    {t(`language.${lng}`)}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
         <NavUser />

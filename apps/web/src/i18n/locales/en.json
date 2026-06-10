@@ -1,0 +1,67 @@
+{
+  "nav": {
+    "templates": "Templates",
+    "documents": "My documents",
+    "team": "Team",
+    "profile": "Profile",
+    "constructor": "Constructor"
+  },
+  "language": {
+    "label": "Language",
+    "kk": "Қазақша",
+    "ru": "Русский",
+    "en": "English"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "reset": "Reset",
+    "soon": "Coming soon",
+    "sort": "Sort"
+  },
+  "documents": {
+    "subtitle": "Contracts",
+    "searchPlaceholder": "Enter a contract name — we'll find your document",
+    "notFound": "No documents found",
+    "empty": "No saved documents",
+    "notFoundHint": "Try changing your search query",
+    "emptyHint": "Create a document from a template to see it here",
+    "loading": "Loading documents...",
+    "filters": {
+      "counterparty": "Counterparty",
+      "amount": "Contract amount",
+      "status": "Contract status",
+      "responsible": "Responsible"
+    }
+  },
+  "templates": {
+    "title": "Templates",
+    "searchPlaceholder": "Contract name or category",
+    "category": "Category",
+    "saved": "Saved",
+    "sort": "Sort",
+    "notFound": "No templates found",
+    "notFoundHint": "Try changing your search query",
+    "loading": "Loading templates...",
+    "pay": "Pay {{amount}}",
+    "purchased": "Purchased",
+    "alreadyPurchased": "Template already purchased",
+    "filters": {
+      "industry": "Industry",
+      "contractType": "Contract type",
+      "paymentTerms": "Payment terms",
+      "validity": "Validity",
+      "participants": "Participants"
+    }
+  },
+  "payment": {
+    "successTitle": "Payment successful",
+    "successPending": "Confirming payment…",
+    "successPaidHint": "The template is available — you can create a contract.",
+    "successPendingHint": "This takes a few seconds. The page will refresh automatically.",
+    "toTemplates": "To templates",
+    "failTitle": "Payment not completed",
+    "failHint": "The payment was cancelled or declined. You can try again.",
+    "backToTemplates": "Back to templates"
+  }
+}

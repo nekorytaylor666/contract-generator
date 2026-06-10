@@ -1,15 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { ChevronDown, FileText, Search } from "lucide-react";
+import type { TFunction } from "i18next";
+import { ChevronDown, FileText } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { DocumentCard } from "@/components/document-card";
+import {
+  type SearchSuggestion,
+  SearchWithSuggestions,
+} from "@/components/search-with-suggestions";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { authClient } from "@/lib/auth-client";
 import { requireAuth } from "@/lib/auth-guard";
+import { fuzzySearch } from "@/lib/fuzzy-search";
 import { useTRPC } from "@/utils/trpc";
 
 export const Route = createFileRoute("/documents")({
@@ -21,10 +29,10 @@ export const Route = createFileRoute("/documents")({
 });
 
 const FILTER_DROPDOWNS = [
-  "Контрагент",
-  "Сумма договора",
-  "Статус договора",
-  "Ответственный",
+  "documents.filters.counterparty",
+  "documents.filters.amount",
+  "documents.filters.status",
+  "documents.filters.responsible",
 ];
 
 interface DocumentListItem {
@@ -38,6 +46,7 @@ interface DocumentListItem {
 }
 
 function RouteComponent() {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const { data: documents = [], isLoading } = useQuery({
     ...trpc.documents.list.queryOptions(),
@@ -46,45 +55,66 @@ function RouteComponent() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredDocuments = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) {
+    if (!searchQuery.trim()) {
       return documents;
     }
-    return documents.filter((doc) => {
-      return (
-        doc.title.toLowerCase().includes(query) ||
-        (doc.templateTitle?.toLowerCase().includes(query) ?? false) ||
-        (doc.authorName?.toLowerCase().includes(query) ?? false)
-      );
-    });
+    return fuzzySearch(searchQuery, documents, (doc) => [
+      doc.title,
+      doc.templateTitle,
+      doc.authorName,
+    ]).map((result) => result.item);
   }, [searchQuery, documents]);
+
+  const searchSuggestions = useMemo<SearchSuggestion[]>(
+    () =>
+      documents.map((doc) => ({
+        id: doc.id,
+        label: doc.title,
+        sublabel: doc.templateTitle ?? doc.authorName ?? undefined,
+      })),
+    [documents]
+  );
+
+  const { data: activeOrg } = authClient.useActiveOrganization();
+  const orgName = activeOrg?.name ?? t("nav.documents");
 
   return (
     <div className="flex h-full flex-col overflow-auto">
       <div className="flex flex-col gap-4 p-6">
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            className="h-12 w-full rounded-full border border-[#e5e5e5] bg-background pr-4 pl-12 text-base outline-none placeholder:text-muted-foreground focus:border-foreground/30"
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Введите название договора — найдём ваш документ"
-            value={searchQuery}
-          />
+        {/* Heading */}
+        <div className="flex flex-col gap-0.5">
+          <h1 className="font-semibold text-2xl text-foreground leading-7">
+            {orgName}
+          </h1>
+          <h2 className="font-medium text-lg text-muted-foreground">
+            {t("documents.subtitle")}
+          </h2>
         </div>
+
+        {/* Search */}
+        <SearchWithSuggestions
+          ariaLabel={t("documents.searchPlaceholder")}
+          iconClassName="size-5"
+          inputClassName="pl-12 text-base"
+          onSelectSuggestion={(suggestion) => setSearchQuery(suggestion.label)}
+          onValueChange={setSearchQuery}
+          placeholder={t("documents.searchPlaceholder")}
+          suggestions={searchSuggestions}
+          value={searchQuery}
+        />
 
         {/* Filters + sort */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            {FILTER_DROPDOWNS.map((label) => (
-              <DropdownMenu key={label}>
+            {FILTER_DROPDOWNS.map((labelKey) => (
+              <DropdownMenu key={labelKey}>
                 <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#d4d4d4] px-2.5 text-foreground text-sm outline-none hover:border-foreground/30">
-                  {label}
+                  {t(labelKey)}
                   <ChevronDown className="size-3.5 text-muted-foreground" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <div className="px-2 py-1.5 text-muted-foreground text-xs">
-                    Скоро
+                    {t("common.soon")}
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -94,17 +124,17 @@ function RouteComponent() {
               onClick={() => setSearchQuery("")}
               type="button"
             >
-              Сбросить
+              {t("common.reset")}
             </button>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger className="inline-flex h-9 items-center gap-2 rounded-full border border-[#e5e5e5] py-2 pr-2 pl-3 text-foreground text-sm outline-none hover:border-foreground/30">
-              Сортировать
+              {t("common.sort")}
               <ChevronDown className="size-4 text-muted-foreground" />
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <div className="px-2 py-1.5 text-muted-foreground text-xs">
-                Скоро
+                {t("common.soon")}
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -115,6 +145,7 @@ function RouteComponent() {
           documents: filteredDocuments,
           hasDocuments: documents.length > 0,
           isLoading,
+          t,
         })}
       </div>
     </div>
@@ -125,15 +156,17 @@ function renderGrid({
   documents,
   hasDocuments,
   isLoading,
+  t,
 }: {
   documents: DocumentListItem[];
   hasDocuments: boolean;
   isLoading: boolean;
+  t: TFunction;
 }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">
-        Загрузка документов...
+        {t("documents.loading")}
       </div>
     );
   }
@@ -143,12 +176,12 @@ function renderGrid({
       <div className="flex flex-col items-center justify-center py-20">
         <FileText className="mb-3 size-12 text-muted-foreground/30" />
         <p className="font-medium text-foreground text-sm">
-          {hasDocuments ? "Документы не найдены" : "Нет сохраненных документов"}
+          {hasDocuments ? t("documents.notFound") : t("documents.empty")}
         </p>
         <p className="mt-1 text-muted-foreground text-xs">
           {hasDocuments
-            ? "Попробуйте изменить поисковый запрос"
-            : "Создайте документ из шаблона, чтобы он появился здесь"}
+            ? t("documents.notFoundHint")
+            : t("documents.emptyHint")}
         </p>
       </div>
     );

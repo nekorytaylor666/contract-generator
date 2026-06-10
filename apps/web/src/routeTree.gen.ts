@@ -20,6 +20,8 @@ import { Route as ContinueSignupRouteImport } from './routes/continue-signup'
 import { Route as AiRouteImport } from './routes/ai'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TemplatesIndexRouteImport } from './routes/templates/index'
+import { Route as SuccessPaymentRouteImport } from './routes/success/payment'
+import { Route as FailPaymentRouteImport } from './routes/fail/payment'
 import { Route as AdminTemplatesRouteImport } from './routes/admin/templates'
 import { Route as TemplatesTemplateIdIndexRouteImport } from './routes/templates/$templateId/index'
 import { Route as TemplatesTemplateIdBuilderRouteImport } from './routes/templates/$templateId/builder'
@@ -79,6 +81,16 @@ const TemplatesIndexRoute = TemplatesIndexRouteImport.update({
   path: '/templates/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SuccessPaymentRoute = SuccessPaymentRouteImport.update({
+  id: '/success/payment',
+  path: '/success/payment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FailPaymentRoute = FailPaymentRouteImport.update({
+  id: '/fail/payment',
+  path: '/fail/payment',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
   id: '/admin/templates',
   path: '/admin/templates',
@@ -109,6 +121,8 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/fail/payment': typeof FailPaymentRoute
+  '/success/payment': typeof SuccessPaymentRoute
   '/templates/': typeof TemplatesIndexRoute
   '/templates/$templateId/builder': typeof TemplatesTemplateIdBuilderRoute
   '/templates/$templateId/': typeof TemplatesTemplateIdIndexRoute
@@ -125,6 +139,8 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/fail/payment': typeof FailPaymentRoute
+  '/success/payment': typeof SuccessPaymentRoute
   '/templates': typeof TemplatesIndexRoute
   '/templates/$templateId/builder': typeof TemplatesTemplateIdBuilderRoute
   '/templates/$templateId': typeof TemplatesTemplateIdIndexRoute
@@ -142,6 +158,8 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/fail/payment': typeof FailPaymentRoute
+  '/success/payment': typeof SuccessPaymentRoute
   '/templates/': typeof TemplatesIndexRoute
   '/templates/$templateId/builder': typeof TemplatesTemplateIdBuilderRoute
   '/templates/$templateId/': typeof TemplatesTemplateIdIndexRoute
@@ -160,6 +178,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/team'
     | '/admin/templates'
+    | '/fail/payment'
+    | '/success/payment'
     | '/templates/'
     | '/templates/$templateId/builder'
     | '/templates/$templateId/'
@@ -176,6 +196,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/team'
     | '/admin/templates'
+    | '/fail/payment'
+    | '/success/payment'
     | '/templates'
     | '/templates/$templateId/builder'
     | '/templates/$templateId'
@@ -192,6 +214,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/team'
     | '/admin/templates'
+    | '/fail/payment'
+    | '/success/payment'
     | '/templates/'
     | '/templates/$templateId/builder'
     | '/templates/$templateId/'
@@ -209,6 +233,8 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   TeamRoute: typeof TeamRoute
   AdminTemplatesRoute: typeof AdminTemplatesRoute
+  FailPaymentRoute: typeof FailPaymentRoute
+  SuccessPaymentRoute: typeof SuccessPaymentRoute
   TemplatesIndexRoute: typeof TemplatesIndexRoute
   TemplatesTemplateIdBuilderRoute: typeof TemplatesTemplateIdBuilderRoute
   TemplatesTemplateIdIndexRoute: typeof TemplatesTemplateIdIndexRoute
@@ -293,6 +319,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TemplatesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/success/payment': {
+      id: '/success/payment'
+      path: '/success/payment'
+      fullPath: '/success/payment'
+      preLoaderRoute: typeof SuccessPaymentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fail/payment': {
+      id: '/fail/payment'
+      path: '/fail/payment'
+      fullPath: '/fail/payment'
+      preLoaderRoute: typeof FailPaymentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/templates': {
       id: '/admin/templates'
       path: '/admin/templates'
@@ -329,6 +369,8 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   TeamRoute: TeamRoute,
   AdminTemplatesRoute: AdminTemplatesRoute,
+  FailPaymentRoute: FailPaymentRoute,
+  SuccessPaymentRoute: SuccessPaymentRoute,
   TemplatesIndexRoute: TemplatesIndexRoute,
   TemplatesTemplateIdBuilderRoute: TemplatesTemplateIdBuilderRoute,
   TemplatesTemplateIdIndexRoute: TemplatesTemplateIdIndexRoute,

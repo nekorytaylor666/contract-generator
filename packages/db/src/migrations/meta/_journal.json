@@ -57,6 +57,13 @@
       "when": 1778770691647,
       "tag": "0007_graceful_nova",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781074412146,
+      "tag": "0008_illegal_kat_farrell",
+      "breakpoints": true
     }
   ]
 }

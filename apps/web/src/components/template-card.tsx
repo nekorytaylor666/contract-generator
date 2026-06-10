@@ -6,6 +6,9 @@ import {
   RefreshCw,
 } from "lucide-react";
 
+import { useTranslation } from "react-i18next";
+
+import { Badge } from "@/components/ui/badge";
 import type { TemplateVariable } from "@/routes/templates/index";
 
 interface TemplateCardProps {
@@ -16,6 +19,19 @@ interface TemplateCardProps {
   categoryLabel?: string;
   categoryIcon?: LucideIcon;
   variables?: TemplateVariable[];
+  /** Price in minor units (0 = free). */
+  price?: number;
+  purchased?: boolean;
+  isPurchasing?: boolean;
+  onPay?: () => void;
+}
+
+function formatPrice(minorUnits: number): string {
+  const major = (minorUnits / 100).toLocaleString("ru-RU", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${major} ₽`;
 }
 
 const MONTHS = [
@@ -48,7 +64,13 @@ export function TemplateCard({
   createdAt,
   categoryLabel = "Недвижимость",
   categoryIcon: CategoryIcon = House,
+  price = 0,
+  purchased = false,
+  isPurchasing = false,
+  onPay,
 }: TemplateCardProps) {
+  const { t } = useTranslation();
+
   return (
     <Link
       className="group block h-full"
@@ -86,11 +108,34 @@ export function TemplateCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 pt-4">
-          <CategoryIcon className="size-4 text-foreground" />
-          <span className="truncate text-[14px] text-foreground">
-            {categoryLabel}
-          </span>
+        <div className="flex items-center justify-between gap-2 pt-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <CategoryIcon className="size-4 text-foreground" />
+            <span className="truncate text-[14px] text-foreground">
+              {categoryLabel}
+            </span>
+          </div>
+          {price > 0 &&
+            (purchased ? (
+              <Badge className="border-green-200 bg-green-50 text-green-700">
+                {t("templates.purchased")}
+              </Badge>
+            ) : (
+              <button
+                className="shrink-0 rounded-lg bg-primary px-3 py-1.5 font-medium text-primary-foreground text-xs hover:bg-primary/90 disabled:opacity-60"
+                disabled={isPurchasing}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onPay?.();
+                }}
+                type="button"
+              >
+                {isPurchasing
+                  ? "..."
+                  : t("templates.pay", { amount: formatPrice(price) })}
+              </button>
+            ))}
         </div>
       </div>
     </Link>

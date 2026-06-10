@@ -372,9 +372,17 @@ interface InteractiveDocumentPreviewProps {
   onSave?: () => void;
   isDownloading?: boolean;
   isSaving?: boolean;
+  canSave?: boolean;
 }
 
 const EMPTY_SET = new Set<string>();
+
+function getSaveLabel(canSave: boolean, isSaving: boolean): string {
+  if (!canSave) {
+    return "Только просмотр";
+  }
+  return isSaving ? "Сохранение..." : "Сохранить";
+}
 
 export function InteractiveDocumentPreview({
   typstContent,
@@ -388,6 +396,7 @@ export function InteractiveDocumentPreview({
   onSave,
   isDownloading,
   isSaving,
+  canSave = true,
 }: InteractiveDocumentPreviewProps) {
   const parsed = useMemo(
     () => parseTypstTemplate(typstContent),
@@ -449,13 +458,18 @@ export function InteractiveDocumentPreview({
         <div className="flex items-center gap-2">
           {onSave && (
             <Button
-              disabled={isSaving}
+              disabled={isSaving || !canSave}
               onClick={onSave}
               size="sm"
+              title={
+                canSave
+                  ? undefined
+                  : "Режим просмотра — редактирование недоступно"
+              }
               variant="outline"
             >
               <Save className="mr-1.5 size-3.5" />
-              {isSaving ? "Сохранение..." : "Сохранить"}
+              {getSaveLabel(canSave, Boolean(isSaving))}
             </Button>
           )}
           {onDownload && (

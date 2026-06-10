@@ -1,8 +1,9 @@
 import { db } from "@contract-builder/db";
 import { member } from "@contract-builder/db/schema/auth";
 import { initTRPC, TRPCError } from "@trpc/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
+import { canEditDocuments } from "./constants/access";
 import type { Context } from "./context";
 
 export const t = initTRPC.context<Context>().create();
@@ -43,20 +44,52 @@ export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
  * (better-auth doesn't auto-activate the first org on sign-in).
  */
 export const orgProcedure = protectedProcedure.use(async ({ ctx, next }) => {
-  let orgId = ctx.session.session.activeOrganizationId;
-  if (!orgId) {
-    const [first] = await db
-      .select({ organizationId: member.organizationId })
+  const userId = ctx.session.user.id;
+  const activeOrgId = ctx.session.session.activeOrganizationId;
+
+  // Prefer the active org membership; fall back to the user's first membership
+  // (better-auth doesn't auto-activate an org on sign-in). We also read the
+  // member's `role` so downstream procedures can gate edit permissions.
+  let [membership] = activeOrgId
+    ? await db
+        .select({ organizationId: member.organizationId, role: member.role })
+        .from(member)
+        .where(
+          and(eq(member.userId, userId), eq(member.organizationId, activeOrgId))
+        )
+        .limit(1)
+    : [];
+
+  if (!membership) {
+    [membership] = await db
+      .select({ organizationId: member.organizationId, role: member.role })
       .from(member)
-      .where(eq(member.userId, ctx.session.user.id))
+      .where(eq(member.userId, userId))
       .limit(1);
-    orgId = first?.organizationId ?? null;
   }
-  if (!orgId) {
+
+  if (!membership) {
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: "User has no organization",
     });
   }
-  return next({ ctx: { ...ctx, orgId } });
+
+  return next({
+    ctx: { ...ctx, orgId: membership.organizationId, role: membership.role },
+  });
+});
+
+/**
+ * Like `orgProcedure`, but requires the caller to have edit permission
+ * ("full" access = owner/admin). View-only members are rejected.
+ */
+export const editorProcedure = orgProcedure.use(({ ctx, next }) => {
+  if (!canEditDocuments(ctx.role)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Недостаточно прав: режим просмотра",
+    });
+  }
+  return next({ ctx });
 });
