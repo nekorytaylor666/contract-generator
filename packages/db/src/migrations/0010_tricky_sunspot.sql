@@ -1,0 +1,1 @@
+ALTER TABLE "template" ADD COLUMN "download_price" integer DEFAULT 0 NOT NULL;

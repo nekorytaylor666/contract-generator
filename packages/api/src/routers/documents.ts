@@ -14,6 +14,18 @@ import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { editorProcedure, orgProcedure, router } from "../index";
+import { consumeQuota } from "../lib/subscription";
+
+// Creating a document consumes one "edit" quota of the user's plan.
+async function consumeEditQuotaOrThrow(userId: string) {
+  const quota = await consumeQuota(userId, "edit");
+  if (!quota.allowed) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Лимит редактирований исчерпан. Оформите подписку.",
+    });
+  }
+}
 
 export const documentsRouter = router({
   list: orgProcedure.query(async ({ ctx }) => {
@@ -83,6 +95,10 @@ export const documentsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const orgId = ctx.orgId;
       const userId = ctx.session.user.id;
+
+      if (!input.documentId) {
+        await consumeEditQuotaOrThrow(userId);
+      }
 
       // Load full template — needed for backfill if no version exists yet.
       const [tmpl] = await db

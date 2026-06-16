@@ -1,0 +1,1 @@
+ALTER TABLE "template" ADD COLUMN "localized_content" jsonb DEFAULT '{}'::jsonb NOT NULL;

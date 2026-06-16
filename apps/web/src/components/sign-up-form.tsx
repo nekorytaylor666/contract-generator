@@ -243,9 +243,20 @@ export default function SignUpForm() {
           </Button>
           <Button
             className="h-10 w-full gap-2 rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90"
-            onClick={() => {
-              toast.info("Google OAuth будет подключён позже");
-            }}
+            onClick={() =>
+              authClient.signIn.social(
+                {
+                  provider: "google",
+                  callbackURL: `${window.location.origin}/dashboard`,
+                },
+                {
+                  onError: (ctx) =>
+                    toast.error(
+                      ctx.error.message || "Не удалось войти через Google"
+                    ),
+                }
+              )
+            }
             type="button"
           >
             <GoogleIcon className="size-4" />

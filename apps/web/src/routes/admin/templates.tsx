@@ -1,10 +1,20 @@
+import {
+  CATEGORY_LABEL_BY_SLUG,
+  DOCUMENT_TYPE_LABELS,
+  DOCUMENT_TYPE_VALUES,
+  type LocaleContent,
+  TEMPLATE_LOCALE_LABELS,
+  TEMPLATE_LOCALES,
+  type TemplateLocale,
+} from "@contract-builder/api/constants/template-options";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
 import { VariableCard } from "@/components/template-builder/variable-card";
+import { CategoryFilter } from "@/components/templates/category-filter";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,43 +58,142 @@ interface TemplateRow {
   title: string;
   description: string | null;
   price: number;
+  downloadPrice: number;
   typstContent: string;
   variables: unknown;
   isPublished: boolean;
+  categories: string[] | null;
+  documentType: string | null;
+  localizedContent: Record<string, LocaleContent> | null;
   updatedAt: string | Date;
+}
+
+interface LocaleForm {
+  title: string;
+  description: string;
+  typstContent: string;
 }
 
 interface FormState {
   title: string;
   description: string;
   price: string;
+  downloadPrice: string;
   typstContent: string;
   variables: TemplateVariable[];
   isPublished: boolean;
+  categories: string[];
+  documentType: string;
+  // Per-locale overrides (kk/ru/en). Empty fields fall back to the defaults.
+  localizedContent: Record<string, LocaleForm>;
 }
 
 const EMPTY_FORM: FormState = {
   title: "",
   description: "",
   price: "0",
+  downloadPrice: "0",
   typstContent: "",
   variables: [],
   isPublished: false,
+  categories: [],
+  documentType: "",
+  localizedContent: {},
 };
 
 const noopValueChange = () => undefined;
 const defaultPreviewStyle = { font: "", preset: "comfortable" };
+
+const EMPTY_LOCALE_FORM: LocaleForm = {
+  title: "",
+  description: "",
+  typstContent: "",
+};
+
+// The title/description/typstContent currently being edited for `activeLocale`.
+function getActiveContent(
+  form: FormState,
+  activeLocale: "default" | TemplateLocale
+): LocaleForm {
+  if (activeLocale === "default") {
+    return {
+      title: form.title,
+      description: form.description,
+      typstContent: form.typstContent,
+    };
+  }
+  return form.localizedContent[activeLocale] ?? EMPTY_LOCALE_FORM;
+}
+
+// Set one field of the active locale (default fields, or a localized override).
+function applyLocaleField(
+  prev: FormState,
+  activeLocale: "default" | TemplateLocale,
+  field: keyof LocaleForm,
+  value: string
+): FormState {
+  if (activeLocale === "default") {
+    return { ...prev, [field]: value };
+  }
+  return {
+    ...prev,
+    localizedContent: {
+      ...prev.localizedContent,
+      [activeLocale]: {
+        ...EMPTY_LOCALE_FORM,
+        ...prev.localizedContent[activeLocale],
+        [field]: value,
+      },
+    },
+  };
+}
+
+// Drop empty fields and empty locales before sending to the API.
+function cleanLocalizedContent(
+  localizedContent: Record<string, LocaleForm>
+): Record<string, LocaleContent> {
+  const cleaned: Record<string, LocaleContent> = {};
+  for (const [locale, content] of Object.entries(localizedContent)) {
+    const entry: LocaleContent = {};
+    if (content.title.trim()) {
+      entry.title = content.title;
+    }
+    if (content.description.trim()) {
+      entry.description = content.description;
+    }
+    if (content.typstContent.trim()) {
+      entry.typstContent = content.typstContent;
+    }
+    if (Object.keys(entry).length > 0) {
+      cleaned[locale] = entry;
+    }
+  }
+  return cleaned;
+}
 
 function rowToForm(row: TemplateRow): FormState {
   return {
     title: row.title,
     description: row.description ?? "",
     price: String(row.price),
+    downloadPrice: String(row.downloadPrice),
     typstContent: row.typstContent,
     variables: Array.isArray(row.variables)
       ? (row.variables as TemplateVariable[])
       : [],
     isPublished: row.isPublished,
+    categories: Array.isArray(row.categories) ? row.categories : [],
+    documentType: row.documentType ?? "",
+    localizedContent: Object.fromEntries(
+      Object.entries(row.localizedContent ?? {}).map(([loc, content]) => [
+        loc,
+        {
+          title: content?.title ?? "",
+          description: content?.description ?? "",
+          typstContent: content?.typstContent ?? "",
+        },
+      ])
+    ),
   };
 }
 
@@ -98,6 +207,15 @@ function AdminTemplatesPage() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [previewMaximized, setPreviewMaximized] = useState(false);
+  // Which language version is being edited; "default" = the fallback fields.
+  const [activeLocale, setActiveLocale] = useState<"default" | TemplateLocale>(
+    "default"
+  );
+
+  const isDefaultLocale = activeLocale === "default";
+  const activeContent = getActiveContent(form, activeLocale);
+  const setActiveField = (field: keyof LocaleForm, value: string) =>
+    setForm((prev) => applyLocaleField(prev, activeLocale, field, value));
 
   const invalidate = () =>
     queryClient.invalidateQueries({
@@ -139,12 +257,14 @@ function AdminTemplatesPage() {
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
+    setActiveLocale("default");
     setEditing(null);
     setCreating(true);
   };
 
   const openEdit = (row: TemplateRow) => {
     setForm(rowToForm(row));
+    setActiveLocale("default");
     setEditing(row);
     setCreating(false);
   };
@@ -240,9 +360,13 @@ function AdminTemplatesPage() {
       title: form.title,
       description: form.description || null,
       price: Number(form.price) || 0,
+      downloadPrice: Number(form.downloadPrice) || 0,
       typstContent: form.typstContent,
       variables: cleanVariables as never,
       isPublished: form.isPublished,
+      categories: form.categories,
+      documentType: form.documentType || null,
+      localizedContent: cleanLocalizedContent(form.localizedContent),
     };
 
     if (editing) {
@@ -376,13 +500,44 @@ function AdminTemplatesPage() {
           </DialogHeader>
           {/* Scrollable body */}
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 pb-16">
+            {/* Language version tabs — switch which version the fields edit */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-muted-foreground text-xs">
+                Язык версии:
+              </span>
+              {(["default", ...TEMPLATE_LOCALES] as const).map((loc) => {
+                const isActive = activeLocale === loc;
+                return (
+                  <button
+                    className={`inline-flex h-8 items-center rounded-lg border px-3 text-sm transition-colors ${
+                      isActive
+                        ? "border-foreground/40 bg-muted"
+                        : "border-[#ececec] hover:border-foreground/30"
+                    }`}
+                    key={loc}
+                    onClick={() => setActiveLocale(loc)}
+                    type="button"
+                  >
+                    {loc === "default"
+                      ? "По умолчанию"
+                      : TEMPLATE_LOCALE_LABELS[loc]}
+                  </button>
+                );
+              })}
+              {!isDefaultLocale && (
+                <span className="text-muted-foreground text-xs">
+                  Пусто = берётся из «По умолчанию». Переменные общие.
+                </span>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-[2fr_1fr]">
               <div className="grid gap-2">
                 <Label htmlFor="title">Название</Label>
                 <Input
                   id="title"
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  value={form.title}
+                  onChange={(e) => setActiveField("title", e.target.value)}
+                  value={activeContent.title}
                 />
               </div>
               <div className="grid gap-2">
@@ -390,14 +545,14 @@ function AdminTemplatesPage() {
                 <Input
                   id="description"
                   onChange={(e) =>
-                    setForm({ ...form, description: e.target.value })
+                    setActiveField("description", e.target.value)
                   }
-                  value={form.description}
+                  value={activeContent.description}
                 />
               </div>
               <div className="flex gap-3">
                 <div className="grid flex-1 gap-2">
-                  <Label htmlFor="price">Цена (копейки)</Label>
+                  <Label htmlFor="price">Цена редактирования</Label>
                   <Input
                     id="price"
                     onChange={(e) =>
@@ -405,6 +560,17 @@ function AdminTemplatesPage() {
                     }
                     type="number"
                     value={form.price}
+                  />
+                </div>
+                <div className="grid flex-1 gap-2">
+                  <Label htmlFor="downloadPrice">Цена скачивания</Label>
+                  <Input
+                    id="downloadPrice"
+                    onChange={(e) =>
+                      setForm({ ...form, downloadPrice: e.target.value })
+                    }
+                    type="number"
+                    value={form.downloadPrice}
                   />
                 </div>
                 <div className="flex items-end gap-2">
@@ -419,6 +585,62 @@ function AdminTemplatesPage() {
                   />
                   <Label htmlFor="published">Опубликован</Label>
                 </div>
+              </div>
+            </div>
+
+            {/* Taxonomy: categories (cascading multi-select) + document type */}
+            <div className="flex flex-wrap items-start gap-4 py-2">
+              <div className="grid max-w-md gap-2">
+                <Label>Категории</Label>
+                <CategoryFilter
+                  onChange={(next) => setForm({ ...form, categories: next })}
+                  selected={form.categories}
+                />
+                {form.categories.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {form.categories.map((slug) => (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-md bg-muted py-1 pr-1 pl-2 text-foreground text-xs"
+                        key={slug}
+                      >
+                        {CATEGORY_LABEL_BY_SLUG[slug] ?? slug}
+                        <button
+                          aria-label="Убрать категорию"
+                          className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                          onClick={() =>
+                            setForm({
+                              ...form,
+                              categories: form.categories.filter(
+                                (s) => s !== slug
+                              ),
+                            })
+                          }
+                          type="button"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="documentType">Вид документа</Label>
+                <select
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-foreground/30"
+                  id="documentType"
+                  onChange={(e) =>
+                    setForm({ ...form, documentType: e.target.value })
+                  }
+                  value={form.documentType}
+                >
+                  <option value="">— не указан —</option>
+                  {DOCUMENT_TYPE_VALUES.map((type) => (
+                    <option key={type} value={type}>
+                      {DOCUMENT_TYPE_LABELS[type]}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -438,10 +660,10 @@ function AdminTemplatesPage() {
                       className="min-h-0 flex-1 resize-none font-mono text-xs"
                       id="typst"
                       onChange={(e) =>
-                        setForm({ ...form, typstContent: e.target.value })
+                        setActiveField("typstContent", e.target.value)
                       }
                       placeholder="#set page(...)&#10;{{variableName}} ..."
-                      value={form.typstContent}
+                      value={activeContent.typstContent}
                     />
                   </div>
 
@@ -509,12 +731,12 @@ function AdminTemplatesPage() {
                       : "h-[90vh]"
                   }`}
                 >
-                  {form.typstContent ? (
+                  {activeContent.typstContent ? (
                     <InteractiveDocumentPreview
                       logo={null}
                       onValueChange={noopValueChange}
                       style={defaultPreviewStyle}
-                      typstContent={form.typstContent}
+                      typstContent={activeContent.typstContent}
                       values={previewValues}
                       variables={previewVariablesClean}
                     />

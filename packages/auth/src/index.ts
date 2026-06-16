@@ -1,10 +1,22 @@
 import { expo } from "@better-auth/expo";
 import { db } from "@contract-builder/db";
+// biome-ignore lint/performance/noNamespaceImport: drizzle adapter needs the full schema
 import * as schema from "@contract-builder/db/schema/auth";
 import { env } from "@contract-builder/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization, phoneNumber } from "better-auth/plugins";
+
+// Enable Google sign-in only when credentials are configured.
+const googleProvider =
+  env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+    ? {
+        google: {
+          clientId: env.GOOGLE_CLIENT_ID,
+          clientSecret: env.GOOGLE_CLIENT_SECRET,
+        },
+      }
+    : undefined;
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -16,6 +28,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  socialProviders: googleProvider,
   user: {
     additionalFields: {
       isAdmin: {

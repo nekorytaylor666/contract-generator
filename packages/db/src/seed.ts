@@ -6,7 +6,136 @@ dotenv.config({
 
 const { db } = await import("./index");
 const { template, templateVersion } = await import("./schema/template");
+const { subscriptionPlan } = await import("./schema/subscription");
 const { eq } = await import("drizzle-orm");
+
+const NI = "—"; // not included
+const subscriptionPlans = [
+  {
+    id: "plan_one_time",
+    name: "Разовый",
+    description:
+      "Один договор — одна оплата. Без подписки и обязательств. Достаточно для теста Zhebe.",
+    priceMonthly: 0,
+    discountLabel: null as string | null,
+    downloadQuota: 1,
+    editQuota: 1,
+    sortOrder: 0,
+    isDefault: true,
+    features: [
+      { label: "Поддержка", value: "Чат-бот" },
+      { label: "Сохранение реквизитов", value: NI },
+      { label: "Проверка документов", value: NI },
+      { label: "Риск аналитика", value: NI },
+      { label: "Пользователи в команде", value: NI },
+      { label: "Составление документов", value: NI },
+      { label: "Консультация от юриста", value: NI },
+    ],
+  },
+  {
+    id: "plan_basic",
+    name: "Базовый",
+    description:
+      "Регулярный доступ к шаблонам для фрилансеров и небольших проектов.",
+    priceMonthly: 23_870,
+    discountLabel: "-20%",
+    downloadQuota: 15,
+    editQuota: 5,
+    sortOrder: 1,
+    isDefault: false,
+    features: [
+      { label: "Поддержка", value: "Чат-бот" },
+      { label: "Сохранение реквизитов", value: "до 3" },
+      { label: "Проверка документов", value: "1" },
+      { label: "Риск аналитика", value: NI },
+      { label: "Пользователи в команде", value: NI },
+      { label: "Составление документов", value: NI },
+      { label: "Консультация от юриста", value: NI },
+    ],
+  },
+  {
+    id: "plan_standard",
+    name: "Стандарт",
+    description:
+      "Полный доступ и юридическая поддержка для команд до 10 человек.",
+    priceMonthly: 61_000,
+    discountLabel: "-20%",
+    downloadQuota: -1,
+    editQuota: 20,
+    sortOrder: 2,
+    isDefault: false,
+    features: [
+      { label: "Поддержка", value: "до 5 в месяц" },
+      { label: "Сохранение реквизитов", value: "∞" },
+      { label: "Проверка документов", value: "3" },
+      { label: "Риск аналитика", value: "∞" },
+      { label: "Пользователи в команде", value: "10" },
+      { label: "Составление документов", value: "1" },
+      { label: "Консультация от юриста", value: "1" },
+    ],
+  },
+  {
+    id: "plan_premium",
+    name: "Премиум",
+    description:
+      "Максимальные возможности платформы для компаний с высоким документооборотом.",
+    priceMonthly: 120_000,
+    discountLabel: "-20%",
+    downloadQuota: -1,
+    editQuota: 50,
+    sortOrder: 3,
+    isDefault: false,
+    features: [
+      { label: "Поддержка", value: "до 10 в месяц" },
+      { label: "Сохранение реквизитов", value: "∞" },
+      { label: "Проверка документов", value: "5" },
+      { label: "Риск аналитика", value: "∞" },
+      { label: "Пользователи в команде", value: "30" },
+      { label: "Составление документов", value: "3" },
+      { label: "Консультация от юриста", value: "5" },
+    ],
+  },
+];
+
+// Taxonomy assignment per template id. `categories` holds terminal slugs from
+// packages/api/src/constants/template-options.ts (CATEGORY_TREE); the catalogue
+// filter expands a broader selection down to these for matching.
+const TEMPLATE_TAXONOMY: Record<
+  string,
+  { categories: string[]; documentType: string | null }
+> = {
+  tpl_service_agreement: {
+    categories: ["uslugi-razovyy"],
+    documentType: "dogovor",
+  },
+  tpl_nda: { categories: [], documentType: "soglashenie" },
+  tpl_employment_contract: {
+    categories: ["trudovoy-dogovor"],
+    documentType: "dogovor",
+  },
+  tpl_consulting_agreement: {
+    categories: ["uslugi-konsultacii-razovyy"],
+    documentType: "dogovor",
+  },
+  tpl_rental_agreement: {
+    categories: ["arenda-kvartira-dolgo"],
+    documentType: "dogovor",
+  },
+  tpl_rental_agreement_kz: {
+    categories: ["arenda-nezhiloe"],
+    documentType: "dogovor",
+  },
+  tpl_service_agreement_kz: {
+    categories: ["uslugi-mnogorazovyy"],
+    documentType: "dogovor",
+  },
+  tpl_supply_contract_kz: {
+    categories: ["postavka-razovaya"],
+    documentType: "dogovor",
+  },
+};
+
+const EMPTY_TAXONOMY = { categories: [] as string[], documentType: null };
 
 const templates = [
   {
@@ -4228,6 +4357,7 @@ async function seed() {
   console.log("Seeding templates...");
 
   for (const t of templates) {
+    const taxonomy = TEMPLATE_TAXONOMY[t.id] ?? EMPTY_TAXONOMY;
     const [existing] = await db
       .select({ id: template.id })
       .from(template)
@@ -4245,6 +4375,9 @@ async function seed() {
           variables: t.variables,
           currentVersion: t.currentVersion,
           isPublished: t.isPublished,
+          categories: taxonomy.categories,
+          documentType: taxonomy.documentType,
+          downloadPrice: Math.round(t.price / 2),
         })
         .where(eq(template.id, t.id));
 
@@ -4259,6 +4392,9 @@ async function seed() {
         variables: t.variables,
         currentVersion: t.currentVersion,
         isPublished: t.isPublished,
+        categories: taxonomy.categories,
+        documentType: taxonomy.documentType,
+        downloadPrice: Math.round(t.price / 2),
       });
 
       await db.insert(templateVersion).values({
@@ -4275,6 +4411,26 @@ async function seed() {
   }
 
   console.log(`Seeded ${templates.length} templates successfully!`);
+
+  for (const plan of subscriptionPlans) {
+    const [existing] = await db
+      .select({ id: subscriptionPlan.id })
+      .from(subscriptionPlan)
+      .where(eq(subscriptionPlan.id, plan.id))
+      .limit(1);
+    if (existing) {
+      await db
+        .update(subscriptionPlan)
+        .set(plan)
+        .where(eq(subscriptionPlan.id, plan.id));
+      console.log(`  Updated plan: ${plan.name}`);
+    } else {
+      await db.insert(subscriptionPlan).values(plan);
+      console.log(`  Created plan: ${plan.name}`);
+    }
+  }
+  console.log(`Seeded ${subscriptionPlans.length} subscription plans!`);
+
   process.exit(0);
 }
 

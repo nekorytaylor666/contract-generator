@@ -20,7 +20,8 @@ const variableSchema = z.object({
   dependsOn: z
     .object({
       field: z.string(),
-      value: z.union([z.string(), z.array(z.string())]).optional(),
+      // string / string[] for select/text deps, boolean for checkbox deps.
+      value: z.union([z.string(), z.array(z.string()), z.boolean()]).optional(),
       operator: z.enum(["eq", "neq", "in"]).optional(),
     })
     .optional(),
@@ -31,9 +32,24 @@ const upsertInput = z.object({
   title: z.string().min(1),
   description: z.string().nullable().optional(),
   price: z.number().int().min(0).default(0),
+  downloadPrice: z.number().int().min(0).default(0),
   typstContent: z.string().min(1),
   variables: z.array(variableSchema).default([]),
   isPublished: z.boolean().default(false),
+  // Full ancestor path slugs (group/subcategory/leaf) — see template-options.ts.
+  categories: z.array(z.string()).default([]),
+  documentType: z.string().nullable().optional(),
+  // Per-locale overrides of title/description/typstContent (kk/ru/en).
+  localizedContent: z
+    .record(
+      z.string(),
+      z.object({
+        title: z.string().optional(),
+        description: z.string().nullable().optional(),
+        typstContent: z.string().optional(),
+      })
+    )
+    .default({}),
 });
 
 async function snapshotVersion(
@@ -65,9 +81,13 @@ export const adminTemplatesRouter = router({
         title: input.title,
         description: input.description ?? null,
         price: input.price,
+        downloadPrice: input.downloadPrice,
         typstContent: input.typstContent,
         variables: input.variables,
         isPublished: input.isPublished,
+        categories: input.categories,
+        documentType: input.documentType ?? null,
+        localizedContent: input.localizedContent,
         currentVersion: 1,
       })
       .returning();

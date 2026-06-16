@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import {
   CircleUserIcon,
+  CreditCardIcon,
   FilesIcon,
   FolderOpenIcon,
   GlobeIcon,
@@ -49,6 +50,13 @@ const userNavigation: NavItem[] = [
 
 const adminNavigation: NavItem[] = [
   { titleKey: "nav.templates", url: "/admin/templates", icon: FolderOpenIcon },
+  { titleKey: "nav.users", url: "/admin/users", icon: UsersIcon },
+  { titleKey: "nav.purchases", url: "/admin/purchases", icon: FilesIcon },
+  {
+    titleKey: "nav.subscriptions",
+    url: "/admin/subscriptions",
+    icon: CreditCardIcon,
+  },
 ];
 
 // Collapsed (icon) state: square button, centered icon, label hidden.

@@ -1,30 +1,25 @@
 import {
-  CATEGORY_LABELS,
-  CATEGORY_VALUES,
-  type TemplateCategory,
+  CATEGORY_LABEL_BY_SLUG,
+  expandCategorySelection,
+  isDocumentType,
+  isKnownCategorySlug,
+  mostSpecificCategory,
 } from "@contract-builder/api/constants/template-options";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import type { TFunction } from "i18next";
-import {
-  Bookmark,
-  Briefcase,
-  Check,
-  ChevronDown,
-  Code2,
-  DollarSign,
-  Building2 as House,
-  type LucideIcon,
-} from "lucide-react";
-import { useMemo, useState } from "react";
+import { Bookmark, Check, ChevronDown, FileText } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
 
+import { PaginationControls } from "@/components/pagination-controls";
 import {
   type SearchSuggestion,
   SearchWithSuggestions,
 } from "@/components/search-with-suggestions";
 import { TemplateCard } from "@/components/template-card";
+import { CategoryFilter } from "@/components/templates/category-filter";
+import { DocumentTypeFilter } from "@/components/templates/document-type-filter";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,7 +28,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { requireAuth } from "@/lib/auth-guard";
 import { fuzzySearch } from "@/lib/fuzzy-search";
-import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
 
 export interface TemplateVariable {
@@ -45,56 +39,106 @@ export interface TemplateVariable {
   options?: string[];
   dependsOn?: {
     field: string;
-    value?: string | string[];
+    value?: string | string[] | boolean;
     operator?: "eq" | "neq" | "in";
   };
   wordForms?: [string, string, string];
 }
 
-// Filters without wired options yet — placeholders until the user provides
-// their dictionaries (industry, contract type, payment terms, validity,
-// participants).
-const PLACEHOLDER_FILTERS = [
-  "templates.filters.industry",
-  "templates.filters.contractType",
-  "templates.filters.paymentTerms",
-  "templates.filters.validity",
-  "templates.filters.participants",
-];
+const PAGE_SIZE = 12;
 
-const CARD_CATEGORIES: { label: string; icon: LucideIcon }[] = [
-  { label: "Недвижимость", icon: House },
-  { label: "Разработка", icon: Code2 },
-  { label: "Строительство", icon: Briefcase },
-  { label: "Финансы", icon: DollarSign },
-];
+const SORT_KEYS = [
+  "new",
+  "popular",
+  "updated",
+  "priceAsc",
+  "priceDesc",
+] as const;
+type SortKey = (typeof SORT_KEYS)[number];
+const DEFAULT_SORT: SortKey = "new";
 
-function isTemplateCategory(value: unknown): value is TemplateCategory {
+const SORT_LABELS: Record<SortKey, string> = {
+  new: "templates.sortNew",
+  popular: "templates.sortPopular",
+  updated: "templates.sortUpdated",
+  priceAsc: "templates.sortPriceAsc",
+  priceDesc: "templates.sortPriceDesc",
+};
+
+function isSortKey(value: unknown): value is SortKey {
   return (
     typeof value === "string" &&
-    (CATEGORY_VALUES as readonly string[]).includes(value)
+    (SORT_KEYS as readonly string[]).includes(value)
   );
 }
 
-// Human-readable label for a suggestion, taken from the template's first known
-// category. Returns undefined when the template has no recognised category.
+interface SortableTemplate {
+  price?: number;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  purchaseCount?: number;
+}
+
+const time = (d?: Date | string) => (d ? new Date(d).getTime() : 0);
+
+function sortTemplates<T extends SortableTemplate>(
+  list: T[],
+  sort: SortKey
+): T[] {
+  const arr = [...list];
+  switch (sort) {
+    case "popular":
+      return arr.sort(
+        (a, b) => (b.purchaseCount ?? 0) - (a.purchaseCount ?? 0)
+      );
+    case "updated":
+      return arr.sort((a, b) => time(b.updatedAt) - time(a.updatedAt));
+    case "priceAsc":
+      return arr.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+    case "priceDesc":
+      return arr.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+    default:
+      return arr.sort((a, b) => time(b.createdAt) - time(a.createdAt));
+  }
+}
+
+// Human label for a template's category, taken from the deepest known slug.
 function categoryLabel(
   categories: string[] | null | undefined
 ): string | undefined {
-  const match = categories?.find(isTemplateCategory);
-  return match ? CATEGORY_LABELS[match] : undefined;
+  const slug = mostSpecificCategory(categories);
+  return slug ? CATEGORY_LABEL_BY_SLUG[slug] : undefined;
+}
+
+function toStringArray(
+  value: unknown,
+  guard: (v: unknown) => boolean
+): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item): item is string => guard(item));
+}
+
+interface TemplatesSearch {
+  q?: string;
+  categories?: string[];
+  docTypes?: string[];
+  saved?: boolean;
+  sort?: SortKey;
 }
 
 export const Route = createFileRoute("/templates/")({
   component: RouteComponent,
-  validateSearch: (
-    search: Record<string, unknown>
-  ): { q?: string; category?: TemplateCategory } => {
+  validateSearch: (search: Record<string, unknown>): TemplatesSearch => {
+    const categories = toStringArray(search.categories, isKnownCategorySlug);
+    const docTypes = toStringArray(search.docTypes, isDocumentType);
     return {
       q: search.q ? String(search.q) : undefined,
-      category: isTemplateCategory(search.category)
-        ? search.category
-        : undefined,
+      categories: categories.length > 0 ? categories : undefined,
+      docTypes: docTypes.length > 0 ? docTypes : undefined,
+      saved: search.saved ? true : undefined,
+      sort: isSortKey(search.sort) ? search.sort : undefined,
     };
   },
   beforeLoad: async () => {
@@ -104,85 +148,114 @@ export const Route = createFileRoute("/templates/")({
 });
 
 function RouteComponent() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { q, category } = Route.useSearch();
+  const { q, categories, docTypes, saved, sort } = Route.useSearch();
   const searchQuery = q ?? "";
+  const savedOnly = saved ?? false;
+  const sortKey = sort ?? DEFAULT_SORT;
+  const selectedCategories = useMemo(() => categories ?? [], [categories]);
+  const selectedDocTypes = useMemo(() => docTypes ?? [], [docTypes]);
+  const hasFilters =
+    searchQuery.length > 0 ||
+    selectedCategories.length > 0 ||
+    selectedDocTypes.length > 0 ||
+    savedOnly;
 
-  const handleSearchChange = (value: string) => {
+  const updateSearch = (next: Partial<TemplatesSearch>) => {
     navigate({
       to: "/templates",
-      search: { q: value || undefined, category },
+      search: (prev) => ({ ...prev, ...next }),
       replace: true,
     });
   };
 
-  const handleCategoryChange = (next: TemplateCategory | undefined) => {
-    navigate({
-      to: "/templates",
-      search: { q: searchQuery || undefined, category: next },
-      replace: true,
+  const handleSearchChange = (value: string) =>
+    updateSearch({ q: value || undefined });
+
+  const handleCategoriesChange = (next: string[]) => {
+    // Dropping a category may make some selected doc types irrelevant; the
+    // DocumentTypeFilter re-gates on next render, so just clear when empty.
+    updateSearch({
+      categories: next.length > 0 ? next : undefined,
+      docTypes: next.length > 0 ? selectedDocTypes : undefined,
     });
   };
+
+  const handleDocTypesChange = (next: string[]) =>
+    updateSearch({ docTypes: next.length > 0 ? next : undefined });
 
   const trpc = useTRPC();
 
-  // Fetch the category-filtered list once, then fuzzy-match on the client so
-  // typos still surface results (server ilike needs an exact substring).
+  // Build the server filter: expand the category selection (any level) down to
+  // every descendant slug so an array overlap matches deeper-tagged templates.
+  const listInput = useMemo(() => {
+    const input: {
+      locale: string;
+      categories?: string[];
+      documentTypes?: string[];
+    } = { locale: i18n.language };
+    if (selectedCategories.length > 0) {
+      input.categories = expandCategorySelection(selectedCategories);
+    }
+    if (selectedDocTypes.length > 0) {
+      input.documentTypes = selectedDocTypes;
+    }
+    return input;
+  }, [selectedCategories, selectedDocTypes, i18n.language]);
+
   const { data: templates = [], isLoading } = useQuery(
-    trpc.templates.list.queryOptions(category ? { category } : undefined)
+    trpc.templates.list.queryOptions(listInput)
   );
 
+  const { data: bookmarkIds = [] } = useQuery(
+    trpc.templates.myBookmarks.queryOptions()
+  );
+  const bookmarkSet = useMemo(() => new Set(bookmarkIds), [bookmarkIds]);
+
   const filteredTemplates = useMemo(() => {
+    const base = savedOnly
+      ? templates.filter((item) => bookmarkSet.has(item.id))
+      : templates;
     if (!searchQuery.trim()) {
-      return templates;
+      return base;
     }
-    return fuzzySearch(searchQuery, templates, (t) => t.title).map(
+    return fuzzySearch(searchQuery, base, (item) => item.title).map(
       (result) => result.item
     );
-  }, [searchQuery, templates]);
+  }, [searchQuery, templates, savedOnly, bookmarkSet]);
+
+  const sortedTemplates = useMemo(
+    () => sortTemplates(filteredTemplates, sortKey),
+    [filteredTemplates, sortKey]
+  );
+
+  // Client-side pagination over the sorted list (keeps search/filters intact).
+  const [page, setPage] = useState(1);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset to first page when the filters/search/sort change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, selectedCategories, selectedDocTypes, savedOnly, sortKey]);
+  const pageCount = Math.max(1, Math.ceil(sortedTemplates.length / PAGE_SIZE));
+  const pagedTemplates = sortedTemplates.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE
+  );
 
   const searchSuggestions = useMemo<SearchSuggestion[]>(
     () =>
-      templates.map((t) => ({
-        id: t.id,
-        label: t.title,
-        sublabel: categoryLabel(t.categories),
+      templates.map((item) => ({
+        id: item.id,
+        label: item.title,
+        sublabel: categoryLabel(item.categories),
       })),
     [templates]
   );
 
-  const queryClient = useQueryClient();
   const { data: purchasedIds = [] } = useQuery(
     trpc.payments.myPurchasedTemplateIds.queryOptions()
   );
   const purchasedSet = useMemo(() => new Set(purchasedIds), [purchasedIds]);
-  const [payingId, setPayingId] = useState<string | null>(null);
-
-  const checkoutMutation = useMutation(
-    trpc.payments.createTemplateCheckout.mutationOptions({
-      onSuccess: (result) => {
-        if (result.alreadyPurchased) {
-          toast.success(t("templates.alreadyPurchased"));
-          queryClient.invalidateQueries({
-            queryKey: trpc.payments.myPurchasedTemplateIds.queryKey(),
-          });
-          setPayingId(null);
-          return;
-        }
-        window.location.href = result.url;
-      },
-      onError: (error) => {
-        toast.error(error.message);
-        setPayingId(null);
-      },
-    })
-  );
-
-  const handlePay = (templateId: string) => {
-    setPayingId(templateId);
-    checkoutMutation.mutate({ templateId });
-  };
 
   return (
     <div className="flex h-full flex-col overflow-auto">
@@ -207,60 +280,33 @@ function RouteComponent() {
         {/* Filters + saved + sort */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            {/* Категория — реальный фильтр */}
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                className={cn(
-                  "inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-foreground text-sm outline-none hover:border-foreground/30 data-open:border-foreground/30",
-                  category ? "border-foreground/40" : "border-[#ececec]"
-                )}
-              >
-                {category ? CATEGORY_LABELS[category] : t("templates.category")}
-                <ChevronDown className="size-3.5 text-muted-foreground" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-[300px]">
-                {CATEGORY_VALUES.map((value) => {
-                  const selected = category === value;
-                  return (
-                    <DropdownMenuItem
-                      className={cn("justify-between", selected && "bg-muted")}
-                      key={value}
-                      onSelect={() =>
-                        handleCategoryChange(selected ? undefined : value)
-                      }
-                    >
-                      <span>{CATEGORY_LABELS[value]}</span>
-                      {selected && <Check className="size-4 text-foreground" />}
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Остальные фильтры — заглушки, пока без бэкенд-словарей */}
-            {PLACEHOLDER_FILTERS.map((labelKey) => (
-              <DropdownMenu key={labelKey}>
-                <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#ececec] px-3 text-foreground text-sm outline-none hover:border-foreground/30 data-open:border-foreground/30">
-                  {t(labelKey)}
-                  <ChevronDown className="size-3.5 text-muted-foreground" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="min-w-[300px]">
-                  <div className="px-2 py-1.5 text-muted-foreground text-xs">
-                    {t("common.soon")}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
+            <CategoryFilter
+              onChange={handleCategoriesChange}
+              selected={selectedCategories}
+            />
+            <DocumentTypeFilter
+              onChange={handleDocTypesChange}
+              selected={selectedDocTypes}
+            />
             <button
-              className="inline-flex h-8 items-center gap-2 rounded-lg border border-[#e5e5e5] px-3 text-foreground text-sm outline-none hover:border-foreground/30"
+              className={`inline-flex h-8 items-center gap-2 rounded-lg border px-3 text-foreground text-sm outline-none ${
+                savedOnly
+                  ? "border-foreground/40 bg-muted"
+                  : "border-[#ececec] hover:border-foreground/30"
+              }`}
+              onClick={() =>
+                updateSearch({ saved: savedOnly ? undefined : true })
+              }
               type="button"
             >
-              <Bookmark className="size-4" />
+              <Bookmark
+                className={savedOnly ? "size-4 fill-current" : "size-4"}
+              />
               {t("templates.saved")}
             </button>
-            {(category || searchQuery) && (
+          </div>
+          <div className="flex items-center gap-2">
+            {hasFilters && (
               <button
                 className="text-muted-foreground text-xs hover:text-foreground"
                 onClick={() =>
@@ -276,10 +322,21 @@ function RouteComponent() {
                 {t("common.sort")}
                 <ChevronDown className="size-4 text-muted-foreground" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <div className="px-2 py-1.5 text-muted-foreground text-xs">
-                  {t("common.soon")}
-                </div>
+              <DropdownMenuContent align="end" className="min-w-[200px]">
+                {SORT_KEYS.map((key) => (
+                  <DropdownMenuItem
+                    className="justify-between"
+                    key={key}
+                    onSelect={() =>
+                      updateSearch({
+                        sort: key === DEFAULT_SORT ? undefined : key,
+                      })
+                    }
+                  >
+                    <span>{t(SORT_LABELS[key])}</span>
+                    {sortKey === key && <Check className="size-4" />}
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -288,12 +345,16 @@ function RouteComponent() {
         {/* Grid */}
         {renderGrid({
           isLoading,
-          templates: filteredTemplates,
+          templates: pagedTemplates,
           purchasedSet,
-          payingId,
-          onPay: handlePay,
           t,
         })}
+
+        <PaginationControls
+          onPageChange={setPage}
+          page={page}
+          pageCount={pageCount}
+        />
       </div>
     </div>
   );
@@ -303,8 +364,6 @@ function renderGrid({
   isLoading,
   templates,
   purchasedSet,
-  payingId,
-  onPay,
   t,
 }: {
   isLoading: boolean;
@@ -312,12 +371,10 @@ function renderGrid({
     id: string;
     title: string;
     description?: string | null;
-    createdAt?: Date | string;
     price?: number;
+    categories?: string[] | null;
   }>;
   purchasedSet: Set<string>;
-  payingId: string | null;
-  onPay: (templateId: string) => void;
   t: TFunction;
 }) {
   if (isLoading) {
@@ -343,24 +400,18 @@ function renderGrid({
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {templates.map((template, index) => {
-        const category = CARD_CATEGORIES[index % CARD_CATEGORIES.length];
-        return (
-          <TemplateCard
-            categoryIcon={category.icon}
-            categoryLabel={category.label}
-            createdAt={template.createdAt}
-            description={template.description}
-            id={template.id}
-            isPurchasing={payingId === template.id}
-            key={template.id}
-            onPay={() => onPay(template.id)}
-            price={template.price}
-            purchased={purchasedSet.has(template.id)}
-            title={template.title}
-          />
-        );
-      })}
+      {templates.map((template) => (
+        <TemplateCard
+          categoryIcon={FileText}
+          categoryLabel={categoryLabel(template.categories)}
+          description={template.description}
+          id={template.id}
+          key={template.id}
+          price={template.price}
+          purchased={purchasedSet.has(template.id)}
+          title={template.title}
+        />
+      ))}
     </div>
   );
 }

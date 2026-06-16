@@ -22,7 +22,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as TemplatesIndexRouteImport } from './routes/templates/index'
 import { Route as SuccessPaymentRouteImport } from './routes/success/payment'
 import { Route as FailPaymentRouteImport } from './routes/fail/payment'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminTemplatesRouteImport } from './routes/admin/templates'
+import { Route as AdminSubscriptionsRouteImport } from './routes/admin/subscriptions'
+import { Route as AdminPurchasesRouteImport } from './routes/admin/purchases'
 import { Route as TemplatesTemplateIdIndexRouteImport } from './routes/templates/$templateId/index'
 import { Route as TemplatesTemplateIdBuilderRouteImport } from './routes/templates/$templateId/builder'
 
@@ -91,9 +94,24 @@ const FailPaymentRoute = FailPaymentRouteImport.update({
   path: '/fail/payment',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
   id: '/admin/templates',
   path: '/admin/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSubscriptionsRoute = AdminSubscriptionsRouteImport.update({
+  id: '/admin/subscriptions',
+  path: '/admin/subscriptions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminPurchasesRoute = AdminPurchasesRouteImport.update({
+  id: '/admin/purchases',
+  path: '/admin/purchases',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TemplatesTemplateIdIndexRoute =
@@ -120,7 +138,10 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
+  '/admin/purchases': typeof AdminPurchasesRoute
+  '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/admin/users': typeof AdminUsersRoute
   '/fail/payment': typeof FailPaymentRoute
   '/success/payment': typeof SuccessPaymentRoute
   '/templates/': typeof TemplatesIndexRoute
@@ -138,7 +159,10 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
+  '/admin/purchases': typeof AdminPurchasesRoute
+  '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/admin/users': typeof AdminUsersRoute
   '/fail/payment': typeof FailPaymentRoute
   '/success/payment': typeof SuccessPaymentRoute
   '/templates': typeof TemplatesIndexRoute
@@ -157,7 +181,10 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
+  '/admin/purchases': typeof AdminPurchasesRoute
+  '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/admin/templates': typeof AdminTemplatesRoute
+  '/admin/users': typeof AdminUsersRoute
   '/fail/payment': typeof FailPaymentRoute
   '/success/payment': typeof SuccessPaymentRoute
   '/templates/': typeof TemplatesIndexRoute
@@ -177,7 +204,10 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/team'
+    | '/admin/purchases'
+    | '/admin/subscriptions'
     | '/admin/templates'
+    | '/admin/users'
     | '/fail/payment'
     | '/success/payment'
     | '/templates/'
@@ -195,7 +225,10 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/team'
+    | '/admin/purchases'
+    | '/admin/subscriptions'
     | '/admin/templates'
+    | '/admin/users'
     | '/fail/payment'
     | '/success/payment'
     | '/templates'
@@ -213,7 +246,10 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/team'
+    | '/admin/purchases'
+    | '/admin/subscriptions'
     | '/admin/templates'
+    | '/admin/users'
     | '/fail/payment'
     | '/success/payment'
     | '/templates/'
@@ -232,7 +268,10 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   SettingsRoute: typeof SettingsRoute
   TeamRoute: typeof TeamRoute
+  AdminPurchasesRoute: typeof AdminPurchasesRoute
+  AdminSubscriptionsRoute: typeof AdminSubscriptionsRoute
   AdminTemplatesRoute: typeof AdminTemplatesRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   FailPaymentRoute: typeof FailPaymentRoute
   SuccessPaymentRoute: typeof SuccessPaymentRoute
   TemplatesIndexRoute: typeof TemplatesIndexRoute
@@ -333,11 +372,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FailPaymentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/templates': {
       id: '/admin/templates'
       path: '/admin/templates'
       fullPath: '/admin/templates'
       preLoaderRoute: typeof AdminTemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/subscriptions': {
+      id: '/admin/subscriptions'
+      path: '/admin/subscriptions'
+      fullPath: '/admin/subscriptions'
+      preLoaderRoute: typeof AdminSubscriptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/purchases': {
+      id: '/admin/purchases'
+      path: '/admin/purchases'
+      fullPath: '/admin/purchases'
+      preLoaderRoute: typeof AdminPurchasesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/templates/$templateId/': {
@@ -368,7 +428,10 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   SettingsRoute: SettingsRoute,
   TeamRoute: TeamRoute,
+  AdminPurchasesRoute: AdminPurchasesRoute,
+  AdminSubscriptionsRoute: AdminSubscriptionsRoute,
   AdminTemplatesRoute: AdminTemplatesRoute,
+  AdminUsersRoute: AdminUsersRoute,
   FailPaymentRoute: FailPaymentRoute,
   SuccessPaymentRoute: SuccessPaymentRoute,
   TemplatesIndexRoute: TemplatesIndexRoute,

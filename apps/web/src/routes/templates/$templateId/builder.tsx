@@ -1,7 +1,9 @@
+import { resolveLocalized } from "@contract-builder/api/constants/template-options";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   type DocumentStyle,
   DocumentStyleSettings,
@@ -35,6 +37,7 @@ function RouteComponent() {
   const navigate = useNavigate();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const { i18n } = useTranslation();
   const { data: myAccess } = useQuery(trpc.team.myAccess.queryOptions());
   const canEdit = myAccess?.canEdit !== false;
   const [logo, setLogo] = useState<string | null>(null);
@@ -240,6 +243,7 @@ function RouteComponent() {
     compileMutation.mutate({
       templateId,
       templateVersionId: existingDocument?.templateVersionId ?? undefined,
+      locale: i18n.language,
       variables: latestValuesRef.current,
       logo: logo ?? undefined,
       style: {
@@ -253,6 +257,7 @@ function RouteComponent() {
     compileMutation.mutate,
     logo,
     documentStyle,
+    i18n.language,
   ]);
 
   const handleSave = useCallback(() => {
@@ -378,6 +383,16 @@ function RouteComponent() {
   }
 
   const variables = template.variables as TemplateVariable[];
+  // Document content for the current UI language (falls back to the default).
+  const localized = resolveLocalized(
+    {
+      title: template.title,
+      description: template.description,
+      typstContent: template.typstContent,
+    },
+    template.localizedContent,
+    i18n.language
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -394,14 +409,14 @@ function RouteComponent() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-semibold text-base text-foreground">
-              {template.title}
+              {localized.title}
             </h1>
             <p className="mt-1 max-w-2xl text-muted-foreground text-xs">
               Заполните данные ниже для создания документа
             </p>
           </div>
           <Badge className="shrink-0 text-sm" variant="secondary">
-            {(template.price / 100).toFixed(2)} SAR
+            {template.price.toLocaleString("ru-RU")} ₸
           </Badge>
         </div>
       </div>
@@ -443,7 +458,7 @@ function RouteComponent() {
               onSave={handleSave}
               onValueChange={handleInlineChange}
               style={documentStyle}
-              typstContent={template.typstContent}
+              typstContent={localized.typstContent}
               values={formValues}
               variables={variables}
             />

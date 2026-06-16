@@ -1,3 +1,4 @@
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Check,
@@ -9,12 +10,14 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { requireAuth } from "@/lib/auth-guard";
 import { cn } from "@/lib/utils";
+import { useTRPC } from "@/utils/trpc";
 
 export const Route = createFileRoute("/profile")({
   component: ProfilePage,
@@ -23,8 +26,6 @@ export const Route = createFileRoute("/profile")({
     return { session, organizations };
   },
 });
-
-const NOT_INCLUDED = "—";
 
 const PERIODS = [
   "Ежемесячно",
@@ -62,102 +63,7 @@ interface Plan {
   features: Feature[];
 }
 
-const PLANS: Plan[] = [
-  {
-    id: "one-time",
-    name: "Разовый",
-    description:
-      "Один договор — одна оплата. Без подписки и обязательств. Достаточно для теста Zhebe.",
-    price: "Бесплатно",
-    cta: "Ваш тариф",
-    current: true,
-    quotas: [
-      { label: "Скачивание", value: "1" },
-      { label: "Редактирование", value: "1" },
-    ],
-    features: [
-      { label: "Поддержка", value: "Чат-бот" },
-      { label: "Сохранение реквизитов", value: NOT_INCLUDED },
-      { label: "Проверка документов", value: NOT_INCLUDED },
-      { label: "Риск аналитика", value: NOT_INCLUDED },
-      { label: "Пользователи в команде", value: NOT_INCLUDED },
-      { label: "Составление документов", value: NOT_INCLUDED },
-      { label: "Консультация от юриста", value: NOT_INCLUDED },
-    ],
-  },
-  {
-    id: "basic",
-    name: "Базовый",
-    discount: "-20%",
-    description:
-      "Регулярный доступ к шаблонам для фрилансеров и небольших проектов.",
-    price: "23 870 ₸",
-    period: "/ в месяц",
-    cta: "Перейти на Базовый",
-    current: false,
-    quotas: [
-      { label: "Скачивание", value: "15" },
-      { label: "Редактирование", value: "5" },
-    ],
-    features: [
-      { label: "Поддержка", value: "Чат-бот" },
-      { label: "Сохранение реквизитов", value: "до 3" },
-      { label: "Проверка документов", value: "1" },
-      { label: "Риск аналитика", value: NOT_INCLUDED },
-      { label: "Пользователи в команде", value: NOT_INCLUDED },
-      { label: "Составление документов", value: NOT_INCLUDED },
-      { label: "Консультация от юриста", value: NOT_INCLUDED },
-    ],
-  },
-  {
-    id: "standard",
-    name: "Стандарт",
-    discount: "-20%",
-    description:
-      "Полный доступ и юридическая поддержка для команд до 10 человек.",
-    price: "61 000 ₸",
-    period: "/ в месяц",
-    cta: "Перейти на Стандарт",
-    current: false,
-    quotas: [
-      { label: "Скачивание", value: "∞" },
-      { label: "Редактирование", value: "20" },
-    ],
-    features: [
-      { label: "Поддержка", value: "до 5 в месяц" },
-      { label: "Сохранение реквизитов", value: "∞" },
-      { label: "Проверка документов", value: "3" },
-      { label: "Риск аналитика", value: "∞" },
-      { label: "Пользователи в команде", value: "10" },
-      { label: "Составление документов", value: "1" },
-      { label: "Консультация от юриста", value: "1" },
-    ],
-  },
-  {
-    id: "premium",
-    name: "Премиум",
-    discount: "-20%",
-    description:
-      "Максимальные возможности платформы для компаний с высоким документооборотом.",
-    price: "120 000 ₸",
-    period: "/ в месяц",
-    cta: "Перейти на Премиум",
-    current: false,
-    quotas: [
-      { label: "Скачивание", value: "∞" },
-      { label: "Редактирование", value: "50" },
-    ],
-    features: [
-      { label: "Поддержка", value: "до 10 в месяц" },
-      { label: "Сохранение реквизитов", value: "∞" },
-      { label: "Проверка документов", value: "5" },
-      { label: "Риск аналитика", value: "∞" },
-      { label: "Пользователи в команде", value: "30" },
-      { label: "Составление документов", value: "3" },
-      { label: "Консультация от юриста", value: "5" },
-    ],
-  },
-];
+const NOT_INCLUDED = "—";
 
 function FeatureRow({ label, value }: Feature) {
   const included = value !== NOT_INCLUDED;
@@ -184,7 +90,15 @@ function FeatureRow({ label, value }: Feature) {
   );
 }
 
-function PlanCard({ plan }: { plan: Plan }) {
+function PlanCard({
+  plan,
+  onSelect,
+  loading,
+}: {
+  plan: Plan;
+  onSelect?: () => void;
+  loading?: boolean;
+}) {
   return (
     <div
       className={cn(
@@ -236,8 +150,13 @@ function PlanCard({ plan }: { plan: Plan }) {
         ))}
       </div>
 
-      <Button className="h-8 w-full" disabled={plan.current} variant="outline">
-        {plan.cta}
+      <Button
+        className="h-8 w-full"
+        disabled={plan.current || !onSelect || loading}
+        onClick={onSelect}
+        variant="outline"
+      >
+        {loading ? "Переход к оплате…" : plan.cta}
       </Button>
 
       <div className="h-px w-full bg-border" />
@@ -255,8 +174,63 @@ function PlanCard({ plan }: { plan: Plan }) {
   );
 }
 
+interface DbPlan {
+  id: string;
+  name: string;
+  description: string;
+  priceMonthly: number;
+  discountLabel: string | null;
+  downloadQuota: number;
+  editQuota: number;
+  features: Feature[];
+}
+
+function quotaText(n: number): string {
+  return n === -1 ? "∞" : String(n);
+}
+
+function dbPlanToCard(p: DbPlan, currentPlanId: string | null): Plan {
+  const isFree = p.priceMonthly === 0;
+  return {
+    id: p.id,
+    name: p.name,
+    discount: p.discountLabel ?? undefined,
+    description: p.description,
+    price: isFree ? "Бесплатно" : `${p.priceMonthly.toLocaleString("ru-RU")} ₸`,
+    period: isFree ? undefined : "/ в месяц",
+    cta: p.id === currentPlanId ? "Ваш тариф" : `Перейти на ${p.name}`,
+    current: p.id === currentPlanId,
+    quotas: [
+      { label: "Скачивание", value: quotaText(p.downloadQuota) },
+      { label: "Редактирование", value: quotaText(p.editQuota) },
+    ],
+    features: p.features ?? [],
+  };
+}
+
 function SubscriptionTab() {
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>(PERIODS[0]);
+  const trpc = useTRPC();
+  const { data: dbPlans = [] } = useQuery(
+    trpc.subscriptions.plans.queryOptions()
+  );
+  const { data: my } = useQuery(
+    trpc.subscriptions.mySubscription.queryOptions()
+  );
+  const typedPlans = dbPlans as DbPlan[];
+  const plans = typedPlans.map((p) => dbPlanToCard(p, my?.planId ?? null));
+
+  const checkout = useMutation(
+    trpc.payments.createSubscriptionCheckout.mutationOptions({
+      onSuccess: (res) => {
+        // Hand off to Robokassa; the ResultURL webhook activates the plan.
+        window.location.href = res.url;
+      },
+      onError: (err) => {
+        toast.error(err.message || "Не удалось перейти к оплате");
+      },
+    })
+  );
 
   return (
     <section className="flex flex-col gap-4">
@@ -289,10 +263,35 @@ function SubscriptionTab() {
         </div>
       </div>
 
+      {my?.planName && (
+        <div className="rounded-lg border bg-muted/30 px-4 py-3 text-foreground text-sm">
+          Текущий тариф: <span className="font-medium">{my.planName}</span>. В
+          этом месяце осталось — скачивания:{" "}
+          {my.downloadRemaining === -1 ? "∞" : my.downloadRemaining},
+          редактирования: {my.editRemaining === -1 ? "∞" : my.editRemaining}.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {PLANS.map((plan) => (
-          <PlanCard key={plan.id} plan={plan} />
-        ))}
+        {plans.map((plan, i) => {
+          const isFree = typedPlans[i].priceMonthly === 0;
+          const canBuy = !(plan.current || isFree);
+          return (
+            <PlanCard
+              key={plan.id}
+              loading={
+                checkout.isPending && checkout.variables?.planId === plan.id
+              }
+              onSelect={
+                canBuy
+                  ? () =>
+                      checkout.mutate({ planId: plan.id, period: "monthly" })
+                  : undefined
+              }
+              plan={plan}
+            />
+          );
+        })}
       </div>
     </section>
   );

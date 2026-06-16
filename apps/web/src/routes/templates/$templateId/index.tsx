@@ -1,11 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, FileText } from "lucide-react";
-import { useMemo } from "react";
+import { resolveLocalized } from "@contract-builder/api/constants/template-options";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, Bookmark, Download, FileText } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAuth } from "@/lib/auth-guard";
 import { useTRPC } from "@/utils/trpc";
@@ -70,9 +72,103 @@ function RouteComponent() {
     return sample;
   }, [variables]);
 
-  const formatPrice = (priceInCents: number) => {
-    return (priceInCents / 100).toFixed(2);
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { data: purchases = [] } = useQuery(
+    trpc.payments.myPurchases.queryOptions()
+  );
+  const hasEdit = purchases.some(
+    (p) => p.templateId === templateId && p.kind === "edit"
+  );
+  // Any purchase (edit or download) unlocks the download.
+  const hasDownload = purchases.some((p) => p.templateId === templateId);
+
+  const [isPaying, setIsPaying] = useState(false);
+
+  const goToBuilder = () =>
+    navigate({ to: "/templates/$templateId/builder", params: { templateId } });
+
+  const checkoutMutation = useMutation(
+    trpc.payments.createTemplateCheckout.mutationOptions({
+      onSuccess: (result, vars) => {
+        if (result.alreadyPurchased) {
+          queryClient.invalidateQueries({
+            queryKey: trpc.payments.myPurchases.queryKey(),
+          });
+          if (vars.kind !== "download") {
+            goToBuilder();
+          }
+          setIsPaying(false);
+          return;
+        }
+        window.location.href = result.url;
+      },
+      onError: (error) => {
+        toast.error(error.message);
+        setIsPaying(false);
+      },
+    })
+  );
+
+  const downloadMutation = useMutation(
+    trpc.templates.downloadPurchased.mutationOptions({
+      onSuccess: (result) => {
+        const link = document.createElement("a");
+        link.href = result.pdfDataUrl;
+        link.download = result.fileName;
+        link.click();
+      },
+      onError: (err) => toast.error(err.message),
+    })
+  );
+
+  // Saved templates ("сохранёнки").
+  const { data: bookmarks = [] } = useQuery(
+    trpc.templates.myBookmarks.queryOptions()
+  );
+  const isBookmarked = bookmarks.includes(templateId);
+  const bookmarkMutation = useMutation(
+    trpc.templates.toggleBookmark.mutationOptions({
+      onSuccess: () =>
+        queryClient.invalidateQueries({
+          queryKey: trpc.templates.myBookmarks.queryKey(),
+        }),
+      onError: (err) => toast.error(err.message),
+    })
+  );
+
+  // Edit: if already paid (edit) or free, open the builder; else start an
+  // edit-kind checkout (which forwards to the builder once paid).
+  const handleEdit = () => {
+    if (!template) {
+      return;
+    }
+    if (hasEdit || template.price === 0) {
+      goToBuilder();
+      return;
+    }
+    setIsPaying(true);
+    checkoutMutation.mutate({ templateId, kind: "edit" });
   };
+
+  // Download a finished copy: if already paid (any purchase) or free, fetch the
+  // PDF; otherwise start a download-kind checkout.
+  const handleDownload = () => {
+    if (!template) {
+      return;
+    }
+    if (hasDownload || template.downloadPrice === 0) {
+      downloadMutation.mutate({ templateId, locale: i18n.language });
+      return;
+    }
+    checkoutMutation.mutate({ templateId, kind: "download" });
+  };
+
+  // "4 999 ₸" — matches the catalogue card; free templates show a label.
+  const formatPrice = (tenge: number) =>
+    tenge > 0 ? `${tenge.toLocaleString("ru-RU")} ₸` : t("templates.free");
 
   if (isLoading) {
     return (
@@ -99,6 +195,17 @@ function RouteComponent() {
     );
   }
 
+  // Document content for the current UI language (falls back to the default).
+  const localized = resolveLocalized(
+    {
+      title: template.title,
+      description: template.description,
+      typstContent: template.typstContent,
+    },
+    template.localizedContent,
+    i18n.language
+  );
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -113,10 +220,10 @@ function RouteComponent() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-semibold text-base text-foreground">
-              {template.title}
+              {localized.title}
             </h1>
             <p className="mt-1 max-w-2xl text-muted-foreground text-xs">
-              {template.description}
+              {localized.description}
             </p>
             <div className="mt-2 flex items-center gap-2">
               <span className="text-muted-foreground text-xs">
@@ -124,9 +231,43 @@ function RouteComponent() {
               </span>
             </div>
           </div>
-          <Badge className="shrink-0 text-sm" variant="secondary">
-            {formatPrice(template.price)} SAR
-          </Badge>
+          {/* Action buttons: Сохранить + Скачать (secondary) + Редактировать */}
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#ececec] px-4 font-medium text-foreground text-sm transition-colors hover:bg-muted disabled:opacity-60"
+              disabled={bookmarkMutation.isPending}
+              onClick={() => bookmarkMutation.mutate({ templateId })}
+              type="button"
+            >
+              <Bookmark
+                className={isBookmarked ? "size-4 fill-current" : "size-4"}
+              />
+              {isBookmarked
+                ? t("templates.bookmarked")
+                : t("templates.bookmark")}
+            </button>
+            <button
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#f5f5f5] px-4 font-medium text-[#171717] text-sm transition-colors hover:bg-[#ececec] disabled:opacity-60"
+              disabled={downloadMutation.isPending}
+              onClick={handleDownload}
+              type="button"
+            >
+              <Download className="size-4" />
+              {hasDownload || template.downloadPrice === 0
+                ? t("templates.download")
+                : `${t("templates.download")} — ${formatPrice(template.downloadPrice)}`}
+            </button>
+            <button
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-[#9e1f5a] px-4 font-medium text-[#fafafa] text-sm transition-colors hover:bg-[#8b1a50] disabled:opacity-60"
+              disabled={isPaying}
+              onClick={handleEdit}
+              type="button"
+            >
+              {hasEdit || template.price === 0
+                ? t("templates.edit")
+                : `${t("templates.edit")} — ${formatPrice(template.price)}`}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -139,12 +280,12 @@ function RouteComponent() {
               Предпросмотр договора
             </h2>
             <div className="h-[80vh] overflow-hidden rounded-lg border border-border bg-background">
-              {template.typstContent ? (
+              {localized.typstContent ? (
                 <InteractiveDocumentPreview
                   logo={null}
                   onValueChange={noopValueChange}
                   style={PREVIEW_STYLE}
-                  typstContent={template.typstContent}
+                  typstContent={localized.typstContent}
                   values={previewValues}
                   variables={variables}
                 />
@@ -200,12 +341,6 @@ function RouteComponent() {
               </Card>
             ))}
           </div>
-
-          <Button asChild className="mt-4 w-full" size="lg">
-            <Link params={{ templateId }} to="/templates/$templateId/builder">
-              Использовать шаблон
-            </Link>
-          </Button>
         </div>
       </div>
     </div>

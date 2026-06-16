@@ -5,16 +5,30 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { db } from "@contract-builder/db";
+import { payment } from "@contract-builder/db/schema/payment";
 import {
   template,
+  templateBookmark,
   templateVersion,
 } from "@contract-builder/db/schema/template";
 import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
 import { TRPCError } from "@trpc/server";
-import { and, eq, gt, ilike, isNull, lte, type SQL, sql } from "drizzle-orm";
+import {
+  and,
+  arrayOverlaps,
+  eq,
+  gt,
+  ilike,
+  inArray,
+  isNull,
+  lte,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 import { z } from "zod";
-
-import { publicProcedure, router } from "../index";
+import { resolveLocalized } from "../constants/template-options";
+import { protectedProcedure, publicProcedure, router } from "../index";
+import { consumeQuota } from "../lib/subscription";
 import { pluralize } from "../utils/pluralize";
 
 const execAsync = promisify(exec);
@@ -27,10 +41,10 @@ function formatValue(value: unknown): string | null {
     return null;
   }
   if (value instanceof Date) {
-    return value.toISOString().split("T")[0];
+    return value.toISOString().slice(0, 10);
   }
   if (typeof value === "string" && DATE_ISO_REGEX.test(value)) {
-    return value.split("T")[0];
+    return value.split("T")[0] ?? value;
   }
   return String(value);
 }
@@ -306,7 +320,12 @@ export const templatesRouter = router({
       z
         .object({
           q: z.string().trim().max(200).optional(),
-          category: z.string().optional(),
+          // Document locale for localized title/description (kk/ru/en).
+          locale: z.string().optional(),
+          // Selected category slugs (any level: group/subcategory/leaf). A
+          // template matches when its stored ancestor path overlaps this set.
+          categories: z.array(z.string()).optional(),
+          documentTypes: z.array(z.string()).optional(),
           industry: z.string().optional(),
           contractType: z.string().optional(),
           paymentTerm: z.string().optional(),
@@ -324,8 +343,11 @@ export const templatesRouter = router({
       if (term) {
         conditions.push(ilike(template.title, `%${term}%`));
       }
-      if (input?.category) {
-        conditions.push(sql`${input.category} = ANY(${template.categories})`);
+      if (input?.categories && input.categories.length > 0) {
+        conditions.push(arrayOverlaps(template.categories, input.categories));
+      }
+      if (input?.documentTypes && input.documentTypes.length > 0) {
+        conditions.push(inArray(template.documentType, input.documentTypes));
       }
       if (input?.industry) {
         conditions.push(sql`${input.industry} = ANY(${template.industries})`);
@@ -365,21 +387,47 @@ export const templatesRouter = router({
           id: template.id,
           title: template.title,
           description: template.description,
+          localizedContent: template.localizedContent,
           price: template.price,
           variables: template.variables,
           isPublished: template.isPublished,
           categories: template.categories,
+          documentType: template.documentType,
           industries: template.industries,
           contractTypes: template.contractTypes,
           paymentTerms: template.paymentTerms,
           participants: template.participants,
           validitySeconds: template.validitySeconds,
           createdAt: template.createdAt,
+          updatedAt: template.updatedAt,
+          // Popularity = number of paid purchases (drives the "popular" sort).
+          purchaseCount: sql<number>`(
+            SELECT COUNT(*)::int FROM ${payment}
+            WHERE ${payment.templateId} = ${template.id}
+              AND ${payment.status} = 'paid'
+          )`,
         })
         .from(template)
         .where(and(...conditions));
 
-      return templates;
+      // Resolve localized title/description per locale; don't ship the heavy
+      // localizedContent (full per-language bodies) to the client.
+      return templates.map(({ localizedContent, ...rest }) => {
+        const resolved = resolveLocalized(
+          {
+            title: rest.title,
+            description: rest.description,
+            typstContent: "",
+          },
+          localizedContent,
+          input?.locale
+        );
+        return {
+          ...rest,
+          title: resolved.title,
+          description: resolved.description,
+        };
+      });
     }),
 
   getById: publicProcedure
@@ -399,6 +447,44 @@ export const templatesRouter = router({
       }
 
       return found;
+    }),
+
+  // Template ids the current user has bookmarked ("сохранёнки").
+  myBookmarks: protectedProcedure.query(async ({ ctx }) => {
+    const rows = await db
+      .select({ templateId: templateBookmark.templateId })
+      .from(templateBookmark)
+      .where(eq(templateBookmark.userId, ctx.session.user.id));
+    return rows.map((row) => row.templateId);
+  }),
+
+  // Add/remove a template from the user's saved list. Returns the new state.
+  toggleBookmark: protectedProcedure
+    .input(z.object({ templateId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const [existing] = await db
+        .select({ id: templateBookmark.id })
+        .from(templateBookmark)
+        .where(
+          and(
+            eq(templateBookmark.userId, userId),
+            eq(templateBookmark.templateId, input.templateId)
+          )
+        )
+        .limit(1);
+      if (existing) {
+        await db
+          .delete(templateBookmark)
+          .where(eq(templateBookmark.id, existing.id));
+        return { saved: false };
+      }
+      await db.insert(templateBookmark).values({
+        id: randomUUID(),
+        userId,
+        templateId: input.templateId,
+      });
+      return { saved: true };
     }),
 
   /**
@@ -439,6 +525,7 @@ export const templatesRouter = router({
       z.object({
         templateId: z.string(),
         templateVersionId: z.string().optional(),
+        locale: z.string().optional(),
         variables: z.record(z.string(), z.unknown()),
         changedVariables: z.array(z.string()).optional(),
         logo: z.string().optional(),
@@ -453,7 +540,8 @@ export const templatesRouter = router({
     .mutation(async ({ input }) => {
       const source = await loadTemplateSource(
         input.templateId,
-        input.templateVersionId
+        input.templateVersionId,
+        input.locale
       );
 
       const changedSet = new Set(input.changedVariables ?? []);
@@ -492,6 +580,7 @@ export const templatesRouter = router({
       z.object({
         templateId: z.string(),
         templateVersionId: z.string().optional(),
+        locale: z.string().optional(),
         variables: z.record(z.string(), z.unknown()),
         logo: z.string().optional(),
         style: z
@@ -505,7 +594,8 @@ export const templatesRouter = router({
     .mutation(async ({ input }) => {
       const source = await loadTemplateSource(
         input.templateId,
-        input.templateVersionId
+        input.templateVersionId,
+        input.locale
       );
 
       const templateVars = (source.variables ?? []) as TemplateVariable[];
@@ -532,6 +622,86 @@ export const templatesRouter = router({
         });
       }
     }),
+
+  /**
+   * Download a finished copy of a template as PDF. Gated: requires a paid
+   * "download" (or "edit") purchase unless the template's downloadPrice is 0.
+   * Compiles the blank template (placeholders rendered as underlines, matching
+   * the preview).
+   */
+  downloadPurchased: protectedProcedure
+    .input(z.object({ templateId: z.string(), locale: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const [tpl] = await db
+        .select({
+          title: template.title,
+          description: template.description,
+          typstContent: template.typstContent,
+          localizedContent: template.localizedContent,
+          downloadPrice: template.downloadPrice,
+        })
+        .from(template)
+        .where(eq(template.id, input.templateId))
+        .limit(1);
+      if (!tpl) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Шаблон не найден" });
+      }
+
+      if (tpl.downloadPrice > 0) {
+        const [paid] = await db
+          .select({ id: payment.id })
+          .from(payment)
+          .where(
+            and(
+              eq(payment.userId, ctx.session.user.id),
+              eq(payment.templateId, input.templateId),
+              eq(payment.status, "paid"),
+              inArray(payment.purpose, [
+                "template_download",
+                "template_edit",
+                "template_purchase",
+              ])
+            )
+          )
+          .limit(1);
+        // Not purchased one-off — try the user's subscription download quota.
+        if (!paid) {
+          const quota = await consumeQuota(ctx.session.user.id, "download");
+          if (!quota.allowed) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Шаблон не оплачен и лимит скачиваний исчерпан",
+            });
+          }
+        }
+      }
+
+      const resolved = resolveLocalized(
+        {
+          title: tpl.title,
+          description: tpl.description,
+          typstContent: tpl.typstContent,
+        },
+        tpl.localizedContent,
+        input.locale
+      );
+      const processedContent = replaceVariables(resolved.typstContent, {});
+      try {
+        const pdf = await compileTypst(processedContent);
+        return {
+          pdfDataUrl: `data:application/pdf;base64,${pdf.toString("base64")}`,
+          fileName: `${resolved.title}.pdf`,
+        };
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? `Failed to compile PDF: ${error.message}`
+              : "Failed to compile PDF",
+        });
+      }
+    }),
 });
 
 /**
@@ -541,7 +711,8 @@ export const templatesRouter = router({
  */
 async function loadTemplateSource(
   templateId: string,
-  templateVersionId?: string
+  templateVersionId?: string,
+  locale?: string
 ): Promise<{ title: string; typstContent: string; variables: unknown }> {
   if (templateVersionId) {
     const [version] = await db
@@ -571,9 +742,18 @@ async function loadTemplateSource(
       message: "Template not found",
     });
   }
+  const resolved = resolveLocalized(
+    {
+      title: live.title,
+      description: live.description,
+      typstContent: live.typstContent,
+    },
+    live.localizedContent,
+    locale
+  );
   return {
-    title: live.title,
-    typstContent: live.typstContent,
+    title: resolved.title,
+    typstContent: resolved.typstContent,
     variables: live.variables,
   };
 }

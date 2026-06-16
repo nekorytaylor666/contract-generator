@@ -487,7 +487,7 @@ export function InteractiveDocumentPreview({
       </div>
 
       <div
-        className="flex-1 overflow-auto rounded-lg border border-border bg-white"
+        className="flex-1 overflow-auto rounded-lg border border-border bg-white pb-24"
         ref={scrollContainerRef}
       >
         <div

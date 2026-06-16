@@ -27,6 +27,11 @@ export const user = pgTable("user", {
   onboardingPolicyAcceptedAt: timestamp("onboarding_policy_accepted_at"),
   onboardingCompletedAt: timestamp("onboarding_completed_at"),
   position: text("position"),
+  // Active subscription (plan id kept as plain text to avoid an import cycle
+  // with the subscription schema; integrity handled in app logic).
+  subscriptionPlanId: text("subscription_plan_id"),
+  subscriptionPeriod: text("subscription_period"),
+  subscriptionExpiresAt: timestamp("subscription_expires_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()

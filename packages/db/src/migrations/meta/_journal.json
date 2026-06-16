@@ -64,6 +64,41 @@
       "when": 1781074412146,
       "tag": "0008_illegal_kat_farrell",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781509148060,
+      "tag": "0009_outgoing_infant_terrible",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781519123690,
+      "tag": "0010_tricky_sunspot",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1781615387762,
+      "tag": "0011_dark_mandrill",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1781622873650,
+      "tag": "0012_strong_the_hand",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1781636135262,
+      "tag": "0013_unusual_supernaut",
+      "breakpoints": true
     }
   ]
 }

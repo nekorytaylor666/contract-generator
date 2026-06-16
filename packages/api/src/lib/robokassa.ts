@@ -3,6 +3,7 @@ import { env } from "@contract-builder/env/server";
 
 // Robokassa hosted payment page. The user is redirected here to pay.
 const ROBOKASSA_BASE_URL = "https://auth.robokassa.ru/Merchant/Index.aspx";
+const TRAILING_SLASH_REGEX = /\/$/;
 
 function md5(value: string): string {
   return createHash("md5").update(value, "utf8").digest("hex");
@@ -29,10 +30,11 @@ export function getRobokassaConfig(): RobokassaConfig {
   return { merchantLogin, password1, password2, isTest: env.ROBOKASSA_IS_TEST };
 }
 
-/** Minor units (e.g. cents) → Robokassa OutSum string ("123.45"). Single place
- * to change the money scale/currency handling. */
-export function formatOutSum(minorUnits: number): string {
-  return (minorUnits / 100).toFixed(2);
+/** Whole tenge (major units) → Robokassa OutSum string ("23870.00"). Amounts
+ * are stored as whole numbers in the major currency unit, so this only formats
+ * to 2 decimals — it never rescales. Single place to change money handling. */
+export function formatOutSum(amount: number): string {
+  return amount.toFixed(2);
 }
 
 /** Builds the redirect URL to Robokassa's hosted payment page, signed with
@@ -43,9 +45,28 @@ export function buildInitPaymentUrl(params: {
   description: string;
 }): string {
   const { merchantLogin, password1, isTest } = getRobokassaConfig();
+
+  // Optionally return the browser to our own server handlers (SuccessUrl2 /
+  // FailUrl2) instead of the cabinet-configured URLs. When enabled, these are
+  // part of the signature and must be URL-encoded with uppercase methods.
+  // Robokassa POSTs to them; /success/payment and /fail/payment verify the
+  // redirect signature and forward to the SPA.
+  let dynamicUrls: { successEnc: string; failEnc: string } | null = null;
+  if (env.ROBOKASSA_DYNAMIC_URLS) {
+    const base = env.BETTER_AUTH_URL.replace(TRAILING_SLASH_REGEX, "");
+    dynamicUrls = {
+      successEnc: encodeURIComponent(`${base}/success/payment`),
+      failEnc: encodeURIComponent(`${base}/fail/payment`),
+    };
+  }
+
+  const signatureBase = `${merchantLogin}:${params.outSum}:${params.invId}`;
   const signature = md5(
-    `${merchantLogin}:${params.outSum}:${params.invId}:${password1}`
+    dynamicUrls
+      ? `${signatureBase}:${dynamicUrls.successEnc}:POST:${dynamicUrls.failEnc}:POST:${password1}`
+      : `${signatureBase}:${password1}`
   );
+
   const query = new URLSearchParams({
     MerchantLogin: merchantLogin,
     OutSum: params.outSum,
@@ -58,7 +79,14 @@ export function buildInitPaymentUrl(params: {
   if (isTest) {
     query.set("IsTest", "1");
   }
-  return `${ROBOKASSA_BASE_URL}?${query.toString()}`;
+
+  let url = `${ROBOKASSA_BASE_URL}?${query.toString()}`;
+  if (dynamicUrls) {
+    // Append manually so the encoding exactly matches what we signed
+    // (URLSearchParams would re-encode the already-encoded values).
+    url += `&SuccessUrl2=${dynamicUrls.successEnc}&SuccessUrl2Method=POST&FailUrl2=${dynamicUrls.failEnc}&FailUrl2Method=POST`;
+  }
+  return url;
 }
 
 function signaturesMatch(expected: string, received: string): boolean {

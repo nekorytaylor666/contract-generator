@@ -2,10 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { TFunction } from "i18next";
 import { ChevronDown, FileText } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { DocumentCard } from "@/components/document-card";
+import { PaginationControls } from "@/components/pagination-controls";
 import {
   type SearchSuggestion,
   SearchWithSuggestions,
@@ -34,6 +35,8 @@ const FILTER_DROPDOWNS = [
   "documents.filters.status",
   "documents.filters.responsible",
 ];
+
+const PAGE_SIZE = 12;
 
 interface DocumentListItem {
   id: string;
@@ -64,6 +67,21 @@ function RouteComponent() {
       doc.authorName,
     ]).map((result) => result.item);
   }, [searchQuery, documents]);
+
+  // Client-side pagination over the filtered list.
+  const [page, setPage] = useState(1);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset to first page when the search changes
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery]);
+  const pageCount = Math.max(
+    1,
+    Math.ceil(filteredDocuments.length / PAGE_SIZE)
+  );
+  const pagedDocuments = filteredDocuments.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE
+  );
 
   const searchSuggestions = useMemo<SearchSuggestion[]>(
     () =>
@@ -142,11 +160,17 @@ function RouteComponent() {
 
         {/* Grid */}
         {renderGrid({
-          documents: filteredDocuments,
+          documents: pagedDocuments,
           hasDocuments: documents.length > 0,
           isLoading,
           t,
         })}
+
+        <PaginationControls
+          onPageChange={setPage}
+          page={page}
+          pageCount={pageCount}
+        />
       </div>
     </div>
   );

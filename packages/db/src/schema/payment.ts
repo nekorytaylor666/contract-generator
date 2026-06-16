@@ -29,7 +29,13 @@ export const payment = pgTable(
       onDelete: "set null",
     }),
     purpose: text("purpose").notNull().default("template_purchase"),
-    // Amount in minor units (copy of template.price at purchase time).
+    // For purpose="subscription": which plan was bought and for how long. The
+    // ResultURL webhook reads these to activate the user's subscription. Plain
+    // text (no FK) so the record survives plan deletion as a historical receipt.
+    subscriptionPlanId: text("subscription_plan_id"),
+    subscriptionPeriod: text("subscription_period"),
+    // Amount in whole tenge (major units; copy of template.price at purchase
+    // time). Stored as a whole number — never rescaled when sent to Robokassa.
     amount: integer("amount").notNull(),
     currency: text("currency").notNull().default("RUB"),
     // pending | paid | failed
