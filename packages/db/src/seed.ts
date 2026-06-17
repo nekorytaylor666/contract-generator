@@ -38,6 +38,9 @@ const subscriptionPlans = [
     description:
       "Регулярный доступ к шаблонам для фрилансеров и небольших проектов.",
     priceMonthly: 23_870,
+    // Годовая цена ≈ -20% от 12× месячной (совпадает с discountLabel). Поправь
+    // суммы под свою тарифную политику при необходимости.
+    priceYearly: 229_152,
     discountLabel: "-20%",
     downloadQuota: 15,
     editQuota: 5,
@@ -59,6 +62,7 @@ const subscriptionPlans = [
     description:
       "Полный доступ и юридическая поддержка для команд до 10 человек.",
     priceMonthly: 61_000,
+    priceYearly: 585_600,
     discountLabel: "-20%",
     downloadQuota: -1,
     editQuota: 20,
@@ -80,6 +84,7 @@ const subscriptionPlans = [
     description:
       "Максимальные возможности платформы для компаний с высоким документооборотом.",
     priceMonthly: 120_000,
+    priceYearly: 1_152_000,
     discountLabel: "-20%",
     downloadQuota: -1,
     editQuota: 50,
@@ -133,6 +138,22 @@ const TEMPLATE_TAXONOMY: Record<
     categories: ["postavka-razovaya"],
     documentType: "dogovor",
   },
+  tpl_prilozhenie_specifikaciya: {
+    categories: [],
+    documentType: "prilozhenie",
+  },
+  tpl_akt_vypolnennyh_rabot: { categories: [], documentType: "akt" },
+  tpl_reshenie_uchastnika: { categories: [], documentType: "reshenie" },
+  tpl_protokol_sobraniya: { categories: [], documentType: "protokol" },
+  tpl_prikaz_priem: { categories: [], documentType: "prikaz" },
+  tpl_uvedomlenie_rastorzhenie: { categories: [], documentType: "uvedomlenie" },
+  tpl_pretenziya_oplata: { categories: [], documentType: "pretenziya" },
+  tpl_zayavlenie_uvolnenie: { categories: [], documentType: "zayavlenie" },
+  tpl_iskovoe_zayavlenie: { categories: [], documentType: "isk" },
+  tpl_hodataystvo: { categories: [], documentType: "hodataystvo" },
+  tpl_zhaloba: { categories: [], documentType: "zhaloba" },
+  tpl_doverennost: { categories: [], documentType: "doverennost" },
+  tpl_garantiynoe_pismo: { categories: [], documentType: "pismo" },
 };
 
 const EMPTY_TAXONOMY = { categories: [] as string[], documentType: null };
@@ -4349,6 +4370,3045 @@ This Agreement shall be governed by the rental laws of the Kingdom of Saudi Arab
     {{supplierFIO}}
   ]
 )
+`,
+  },
+  {
+    id: "tpl_prilozhenie_specifikaciya",
+    title: "Приложение (спецификация) к договору",
+    description:
+      "Спецификация (приложение) к договору поставки: перечень поставляемых товаров с наименованием, количеством, ценой и суммой, реквизиты основного договора и подписи сторон. Используется как неотъемлемая часть договора поставки для согласования конкретной номенклатуры и стоимости товара.",
+    price: 2490,
+    currentVersion: 1,
+    isPublished: true,
+    variables: [
+      {
+        name: "city",
+        type: "text",
+        required: true,
+        label: "Город составления",
+        defaultValue: "Алматы",
+      },
+      {
+        name: "appendixDate",
+        type: "date",
+        required: true,
+        label: "Дата спецификации",
+      },
+      {
+        name: "appendixNumber",
+        type: "text",
+        required: true,
+        label: "Номер приложения (спецификации)",
+        defaultValue: "1",
+      },
+      {
+        name: "baseContractNumber",
+        type: "text",
+        required: true,
+        label: "Номер основного договора",
+      },
+      {
+        name: "baseContractDate",
+        type: "date",
+        required: true,
+        label: "Дата основного договора",
+      },
+      {
+        name: "supplierName",
+        type: "text",
+        required: true,
+        label: "Наименование Поставщика",
+      },
+      {
+        name: "supplierBin",
+        type: "text",
+        required: true,
+        label: "БИН/ИИН Поставщика",
+      },
+      {
+        name: "supplierRepresentative",
+        type: "text",
+        required: true,
+        label: "ФИО представителя Поставщика",
+      },
+      {
+        name: "buyerName",
+        type: "text",
+        required: true,
+        label: "Наименование Покупателя",
+      },
+      {
+        name: "buyerBin",
+        type: "text",
+        required: true,
+        label: "БИН/ИИН Покупателя",
+      },
+      {
+        name: "buyerRepresentative",
+        type: "text",
+        required: true,
+        label: "ФИО представителя Покупателя",
+      },
+      {
+        name: "goodsTable",
+        type: "textarea",
+        required: true,
+        label:
+          "Перечень товаров (одна позиция в строке: наименование; ед. изм.; кол-во; цена; сумма)",
+        defaultValue: "Товар 1; шт.; 10; 5 000; 50 000",
+      },
+      {
+        name: "totalAmount",
+        type: "number",
+        required: true,
+        label: "Итоговая сумма, тенге",
+      },
+      {
+        name: "vatIncluded",
+        type: "boolean",
+        required: true,
+        label: "Сумма включает НДС",
+        defaultValue: true,
+      },
+      {
+        name: "currency",
+        type: "select",
+        required: true,
+        label: "Валюта расчётов",
+        defaultValue: "тенге",
+        options: ["тенге", "доллары США", "евро", "российские рубли"],
+      },
+      {
+        name: "deliveryTerm",
+        type: "text",
+        required: true,
+        label: "Срок поставки",
+      },
+    ],
+    typstContent: `#set document(title: "Спецификация к договору")
+#set page(margin: 2cm)
+#set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
+
+#align(right)[
+  Приложение № {{appendixNumber}}\\
+  к Договору поставки № {{baseContractNumber}}\\
+  от {{baseContractDate}}
+]
+
+#v(1em)
+
+#align(center)[
+  #text(size: 16pt, weight: "bold")[СПЕЦИФИКАЦИЯ № {{appendixNumber}}]
+]
+
+#v(0.5em)
+
+#grid(
+  columns: (1fr, 1fr),
+  [г. {{city}}],
+  [#align(right)[{{appendixDate}}]],
+)
+
+#v(1em)
+
+Настоящая Спецификация является неотъемлемой частью Договора поставки № {{baseContractNumber}} от {{baseContractDate}} (далее — «Договор») и заключена между:
+
+#v(0.5em)
+
+*Поставщик:* {{supplierName}}, БИН/ИИН {{supplierBin}}, в лице {{supplierRepresentative}}, с одной стороны, и
+
+*Покупатель:* {{buyerName}}, БИН/ИИН {{buyerBin}}, в лице {{buyerRepresentative}}, с другой стороны, совместно именуемые «Стороны», о нижеследующем.
+
+#v(1em)
+
+== 1. Предмет спецификации
+
+Стороны согласовали наименование, количество, цену и общую стоимость поставляемого товара в соответствии с настоящей Спецификацией.
+
+#v(0.5em)
+
+*Перечень товаров:*
+
+#v(0.5em)
+
+#block(stroke: 0.5pt, inset: 8pt, width: 100%)[
+  {{goodsTable}}
+]
+
+#v(0.5em)
+
+#text(size: 9pt, style: "italic")[Формат позиции: наименование; единица измерения; количество; цена за единицу; сумма.]
+
+#v(1em)
+
+== 2. Цена и порядок расчётов
+
++ Общая стоимость товара по настоящей Спецификации составляет *{{totalAmount}}* ({{currency}}).
++ #if {{vatIncluded}} [
+  Указанная сумма *включает* НДС в соответствии с законодательством Республики Казахстан.
+] else [
+  Указанная сумма *не включает* НДС; НДС начисляется дополнительно в соответствии с законодательством Республики Казахстан.
+]
++ Расчёты производятся в валюте: {{currency}}.
+
+== 3. Условия и срок поставки
+
++ Срок поставки товара: {{deliveryTerm}}.
++ Иные условия поставки определяются Договором № {{baseContractNumber}} от {{baseContractDate}}.
+
+== 4. Заключительные положения
+
++ Настоящая Спецификация составлена в двух экземплярах, имеющих равную юридическую силу, по одному для каждой из Сторон.
++ Во всём остальном, что не предусмотрено настоящей Спецификацией, Стороны руководствуются условиями Договора и законодательством Республики Казахстан.
+
+#v(2em)
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 2em,
+  [
+    *ПОСТАВЩИК*
+    #v(0.5em)
+    {{supplierName}}\\
+    БИН/ИИН: {{supplierBin}}
+    #v(2em)
+    #line(length: 80%)
+    {{supplierRepresentative}}\\
+    М.П.
+  ],
+  [
+    *ПОКУПАТЕЛЬ*
+    #v(0.5em)
+    {{buyerName}}\\
+    БИН/ИИН: {{buyerBin}}
+    #v(2em)
+    #line(length: 80%)
+    {{buyerRepresentative}}\\
+    М.П.
+  ],
+)
+`,
+  },
+  {
+    id: "tpl_akt_vypolnennyh_rabot",
+    title: "Акт выполненных работ (оказанных услуг)",
+    description:
+      "Акт сдачи-приёмки выполненных работ или оказанных услуг между Исполнителем и Заказчиком со ссылкой на договор, перечнем работ, итоговой суммой и НДС. Используется для подтверждения факта выполнения обязательств и отсутствия претензий сторон.",
+    price: 1990,
+    currentVersion: 1,
+    isPublished: true,
+    variables: [
+      {
+        name: "city",
+        type: "text",
+        required: true,
+        label: "Город составления",
+        defaultValue: "Алматы",
+      },
+      { name: "actNumber", type: "text", required: true, label: "Номер акта" },
+      {
+        name: "actDate",
+        type: "date",
+        required: true,
+        label: "Дата составления акта",
+      },
+      {
+        name: "contractNumber",
+        type: "text",
+        required: true,
+        label: "Номер договора",
+      },
+      {
+        name: "contractDate",
+        type: "date",
+        required: true,
+        label: "Дата договора",
+      },
+      {
+        name: "contractorName",
+        type: "text",
+        required: true,
+        label: "Наименование Исполнителя",
+      },
+      {
+        name: "contractorBin",
+        type: "text",
+        required: true,
+        label: "БИН/ИИН Исполнителя",
+      },
+      {
+        name: "contractorRepresentative",
+        type: "text",
+        required: true,
+        label: "ФИО представителя Исполнителя",
+      },
+      {
+        name: "customerName",
+        type: "text",
+        required: true,
+        label: "Наименование Заказчика",
+      },
+      {
+        name: "customerBin",
+        type: "text",
+        required: true,
+        label: "БИН/ИИН Заказчика",
+      },
+      {
+        name: "customerRepresentative",
+        type: "text",
+        required: true,
+        label: "ФИО представителя Заказчика",
+      },
+      {
+        name: "workDescription",
+        type: "textarea",
+        required: true,
+        label: "Перечень выполненных работ (оказанных услуг)",
+      },
+      {
+        name: "totalAmount",
+        type: "number",
+        required: true,
+        label: "Общая стоимость, тенге",
+      },
+      {
+        name: "vatIncluded",
+        type: "boolean",
+        required: true,
+        label: "Стоимость включает НДС",
+        defaultValue: true,
+      },
+      {
+        name: "vatRate",
+        type: "number",
+        required: false,
+        label: "Ставка НДС, %",
+        defaultValue: 12,
+        dependsOn: { field: "vatIncluded", value: "true" },
+      },
+      {
+        name: "vatAmount",
+        type: "number",
+        required: false,
+        label: "Сумма НДС, тенге",
+        dependsOn: { field: "vatIncluded", value: "true" },
+      },
+    ],
+    typstContent: `#set document(title: "Акт выполненных работ")
+#set page(margin: 2cm)
+#set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
+
+#align(center)[
+  #text(size: 16pt, weight: "bold")[АКТ ВЫПОЛНЕННЫХ РАБОТ (ОКАЗАННЫХ УСЛУГ)]
+]
+
+#v(0.5em)
+
+#align(center)[
+  № {{actNumber}} от {{actDate}}
+]
+
+#v(1em)
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 1em,
+  align(left)[г. {{city}}],
+  align(right)[{{actDate}}],
+)
+
+#v(1em)
+
+Настоящий акт составлен в том, что *{{contractorName}}* (БИН/ИИН {{contractorBin}}), именуемое в дальнейшем «Исполнитель», в лице {{contractorRepresentative}}, с одной стороны, и *{{customerName}}* (БИН/ИИН {{customerBin}}), именуемое в дальнейшем «Заказчик», в лице {{customerRepresentative}}, с другой стороны, составили настоящий акт о нижеследующем.
+
+#v(1em)
+
+== 1. Основание
+
+Работы (услуги) выполнены (оказаны) в соответствии с договором № {{contractNumber}} от {{contractDate}}.
+
+== 2. Перечень выполненных работ (оказанных услуг)
+
+#block(inset: (left: 1em))[
+  {{workDescription}}
+]
+
+== 3. Стоимость
+
+Общая стоимость выполненных работ (оказанных услуг) составляет *{{totalAmount}} тенге*.
+
+#if {{vatIncluded}} [
+  В том числе НДС по ставке {{vatRate}}% в размере *{{vatAmount}} тенге*.
+] else [
+  Без учёта НДС (Исполнитель не является плательщиком НДС).
+]
+
+== 4. Заключение
+
++ Вышеуказанные работы (услуги) выполнены (оказаны) Исполнителем в полном объёме и в установленные сроки.
++ Заказчик принял выполненные работы (оказанные услуги) и претензий по объёму, качеству и срокам не имеет.
++ Настоящий акт составлен в двух экземплярах, имеющих равную юридическую силу, по одному для каждой из Сторон.
+
+#v(2em)
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 2em,
+  [
+    *ИСПОЛНИТЕЛЬ*
+    #v(0.5em)
+    {{contractorName}}\\
+    БИН/ИИН: {{contractorBin}}
+    #v(2em)
+    #line(length: 80%)
+    {{contractorRepresentative}}\\
+    М.П.
+  ],
+  [
+    *ЗАКАЗЧИК*
+    #v(0.5em)
+    {{customerName}}\\
+    БИН/ИИН: {{customerBin}}
+    #v(2em)
+    #line(length: 80%)
+    {{customerRepresentative}}\\
+    М.П.
+  ]
+)
+`,
+  },
+  {
+    id: "tpl_reshenie_uchastnika",
+    title: "Решение единственного участника ТОО",
+    description:
+      "Решение единственного участника товарищества с ограниченной ответственностью по ключевым вопросам деятельности: утверждение документов, назначение или смена директора, распределение чистого дохода, изменение устава или уставного капитала. Применяется в Республике Казахстан, когда в ТОО один участник и общее собрание не проводится.",
+    price: 2490,
+    currentVersion: 1,
+    isPublished: true,
+    variables: [
+      {
+        name: "city",
+        type: "text",
+        required: true,
+        label: "Город",
+        defaultValue: "Алматы",
+      },
+      {
+        name: "decisionDate",
+        type: "date",
+        required: true,
+        label: "Дата принятия решения",
+      },
+      {
+        name: "decisionNumber",
+        type: "text",
+        required: true,
+        label: "Номер решения",
+        defaultValue: "1",
+      },
+      {
+        name: "companyName",
+        type: "text",
+        required: true,
+        label: "Полное наименование ТОО",
+      },
+      {
+        name: "companyBIN",
+        type: "text",
+        required: true,
+        label: "БИН товарищества",
+      },
+      {
+        name: "companyAddress",
+        type: "text",
+        required: true,
+        label: "Юридический адрес ТОО",
+      },
+      {
+        name: "participantType",
+        type: "select",
+        required: true,
+        label: "Тип участника",
+        options: ["Физическое лицо", "Юридическое лицо"],
+      },
+      {
+        name: "participantFIO",
+        type: "text",
+        required: true,
+        label: "ФИО участника / ФИО представителя",
+      },
+      {
+        name: "participantGender",
+        type: "select",
+        required: true,
+        label: "Пол участника (для согласования текста)",
+        options: ["Мужской", "Женский"],
+      },
+      {
+        name: "participantIIN",
+        type: "text",
+        required: false,
+        label: "ИИН участника (физлицо)",
+        dependsOn: { field: "participantType", value: "Физическое лицо" },
+      },
+      {
+        name: "participantCompanyName",
+        type: "text",
+        required: false,
+        label: "Наименование участника-юрлица",
+        dependsOn: { field: "participantType", value: "Юридическое лицо" },
+      },
+      {
+        name: "participantBIN",
+        type: "text",
+        required: false,
+        label: "БИН участника-юрлица",
+        dependsOn: { field: "participantType", value: "Юридическое лицо" },
+      },
+      {
+        name: "decisionSubject",
+        type: "select",
+        required: true,
+        label: "Предмет решения",
+        options: [
+          "Назначение директора",
+          "Утверждение годовой финансовой отчётности",
+          "Распределение чистого дохода",
+          "Изменение устава",
+          "Увеличение уставного капитала",
+          "Иной вопрос",
+        ],
+      },
+      {
+        name: "directorFIO",
+        type: "text",
+        required: false,
+        label: "ФИО назначаемого директора",
+        dependsOn: { field: "decisionSubject", value: "Назначение директора" },
+      },
+      {
+        name: "directorTermYears",
+        type: "number",
+        required: false,
+        label: "Срок полномочий директора (лет)",
+        defaultValue: 3,
+        dependsOn: { field: "decisionSubject", value: "Назначение директора" },
+      },
+      {
+        name: "reportingYear",
+        type: "text",
+        required: false,
+        label: "Отчётный год",
+        dependsOn: {
+          field: "decisionSubject",
+          value: "Утверждение годовой финансовой отчётности",
+        },
+      },
+      {
+        name: "netIncomeAmount",
+        type: "number",
+        required: false,
+        label: "Сумма распределяемого чистого дохода (тенге)",
+        dependsOn: {
+          field: "decisionSubject",
+          value: "Распределение чистого дохода",
+        },
+      },
+      {
+        name: "capitalNewAmount",
+        type: "number",
+        required: false,
+        label: "Новый размер уставного капитала (тенге)",
+        dependsOn: {
+          field: "decisionSubject",
+          value: "Увеличение уставного капитала",
+        },
+      },
+      {
+        name: "decisionText",
+        type: "textarea",
+        required: true,
+        label: "Текст постановляющей части (что именно решено)",
+      },
+    ],
+    typstContent: `#set document(title: "Решение единственного участника ТОО")
+#set page(margin: 2cm)
+#set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
+
+#align(center)[
+  #text(size: 16pt, weight: "bold")[РЕШЕНИЕ №{{decisionNumber}}]
+]
+
+#align(center)[
+  #text(size: 12pt)[единственного участника {{companyName}}]
+]
+
+#v(0.5em)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[г. {{city}}],
+  align(right)[{{decisionDate}}]
+)
+
+#v(1em)
+
+// === ПРЕАМБУЛА: УЧАСТНИК ===
+#if "{{participantType}}" == "Юридическое лицо" [
+  Единственный участник Товарищества с ограниченной ответственностью {{companyName}} (БИН {{companyBIN}}, место нахождения: {{companyAddress}}) — {{participantCompanyName}}, БИН {{participantBIN}}, в лице {{participantFIO}}, #if "{{participantGender}}" == "Женский" [действующей] else [действующего] от имени участника,
+] else [
+  Единственный участник Товарищества с ограниченной ответственностью {{companyName}} (БИН {{companyBIN}}, место нахождения: {{companyAddress}}) — {{participantFIO}}, ИИН {{participantIIN}},
+]
+руководствуясь Законом Республики Казахстан «О товариществах с ограниченной и дополнительной ответственностью» и Уставом Товарищества, единолично рассмотрев вопрос повестки дня,
+
+#v(0.5em)
+
+== Повестка дня
+
++ #if "{{decisionSubject}}" == "Назначение директора" [О назначении директора Товарищества.] else if "{{decisionSubject}}" == "Утверждение годовой финансовой отчётности" [Об утверждении годовой финансовой отчётности Товарищества.] else if "{{decisionSubject}}" == "Распределение чистого дохода" [О распределении чистого дохода Товарищества.] else if "{{decisionSubject}}" == "Изменение устава" [О внесении изменений в Устав Товарищества.] else if "{{decisionSubject}}" == "Увеличение уставного капитала" [Об увеличении уставного капитала Товарищества.] else [По вопросу деятельности Товарищества.]
+
+#v(0.5em)
+
+== Решил
+
+#if "{{decisionSubject}}" == "Назначение директора" [
+  + Назначить директором Товарищества {{directorFIO}} сроком на {{directorTermYears}} (#if "{{directorTermYears}}" == "1" [один] else [указанное количество]) лет с даты принятия настоящего Решения.
+
+  + Предоставить директору право действовать от имени Товарищества без доверенности, заключать сделки, открывать банковские счета и совершать иные действия в пределах полномочий, установленных Уставом и законодательством Республики Казахстан.
+] else if "{{decisionSubject}}" == "Утверждение годовой финансовой отчётности" [
+  + Утвердить годовую финансовую отчётность Товарищества за {{reportingYear}} год.
+
+  + Признать результаты финансово-хозяйственной деятельности Товарищества за указанный период удовлетворительными.
+] else if "{{decisionSubject}}" == "Распределение чистого дохода" [
+  + Распределить чистый доход Товарищества в размере {{netIncomeAmount}} тенге в пользу единственного участника.
+
+  + Выплату распределённого чистого дохода произвести в порядке и сроки, установленные законодательством Республики Казахстан.
+] else if "{{decisionSubject}}" == "Изменение устава" [
+  + Внести изменения в Устав Товарищества и утвердить Устав в новой редакции.
+
+  + Поручить директору Товарищества осуществить государственную регистрацию изменений в установленном законом порядке.
+] else if "{{decisionSubject}}" == "Увеличение уставного капитала" [
+  + Увеличить уставный капитал Товарищества и установить его новый размер в сумме {{capitalNewAmount}} тенге.
+
+  + Поручить директору Товарищества внести соответствующие изменения в учредительные документы и обеспечить их государственную регистрацию.
+] else [
+  + Принять решение по вопросу повестки дня согласно постановляющей части настоящего Решения.
+]
+
+#v(0.5em)
+
+== Постановляющая часть
+
+#block(inset: (left: 1em))[
+  {{decisionText}}
+]
+
+#v(0.5em)
+
+== Заключительные положения
+
++ Настоящее Решение вступает в силу с момента его подписания единственным участником Товарищества.
+
++ Контроль за исполнением настоящего Решения возложить на директора Товарищества.
+
++ Настоящее Решение составлено в письменной форме на русском языке и хранится в делах Товарищества.
+
+#v(2em)
+
+#align(left)[
+  *Единственный участник Товарищества*
+  #v(2em)
+  #line(length: 50%)
+  #if "{{participantType}}" == "Юридическое лицо" [
+    {{participantCompanyName}}, в лице {{participantFIO}}\\
+    БИН: {{participantBIN}}
+  ] else [
+    {{participantFIO}}\\
+    ИИН: {{participantIIN}}
+  ]
+]
+`,
+  },
+  {
+    id: "tpl_protokol_sobraniya",
+    title: "Протокол общего собрания участников ТОО",
+    description:
+      "Протокол общего собрания участников товарищества с ограниченной ответственностью (Республика Казахстан): фиксирует дату и место проведения, состав присутствующих участников, повестку дня, ход голосования и принятые решения. Используется для документального оформления решений участников ТОО — например, об утверждении финансовой отчётности, распределении прибыли, смене директора или внесении изменений в устав.",
+    price: 2490,
+    currentVersion: 1,
+    isPublished: true,
+    variables: [
+      {
+        name: "companyName",
+        type: "text",
+        required: true,
+        label: "Полное наименование ТОО",
+        defaultValue: "ТОО «»",
+      },
+      {
+        name: "companyBin",
+        type: "text",
+        required: true,
+        label: "БИН товарищества",
+      },
+      {
+        name: "city",
+        type: "text",
+        required: true,
+        label: "Город (место проведения)",
+        defaultValue: "Алматы",
+      },
+      {
+        name: "meetingDate",
+        type: "date",
+        required: true,
+        label: "Дата проведения собрания",
+      },
+      {
+        name: "protocolNumber",
+        type: "text",
+        required: true,
+        label: "Номер протокола",
+        defaultValue: "1",
+      },
+      {
+        name: "meetingForm",
+        type: "select",
+        required: true,
+        label: "Форма проведения собрания",
+        defaultValue: "Очная",
+        options: ["Очная", "Заочная (опросным путём)"],
+      },
+      {
+        name: "meetingTime",
+        type: "text",
+        required: false,
+        label: "Время начала собрания",
+        defaultValue: "10:00",
+        dependsOn: { field: "meetingForm", value: "Очная" },
+      },
+      {
+        name: "totalParticipants",
+        type: "number",
+        required: true,
+        label: "Общее число участников ТОО",
+        defaultValue: 2,
+      },
+      {
+        name: "presentParticipants",
+        type: "textarea",
+        required: true,
+        label: "Присутствующие участники (ФИО, ИИН, доля в %)",
+        defaultValue:
+          "1. Иванов Иван Иванович, ИИН 000000000000, доля 50%;\n2. Петров Пётр Петрович, ИИН 000000000000, доля 50%.",
+      },
+      {
+        name: "totalVotesPercent",
+        type: "number",
+        required: true,
+        label: "Доля голосов присутствующих, %",
+        defaultValue: 100,
+      },
+      {
+        name: "chairmanName",
+        type: "text",
+        required: true,
+        label: "ФИО председателя собрания",
+      },
+      {
+        name: "secretaryName",
+        type: "text",
+        required: true,
+        label: "ФИО секретаря собрания",
+      },
+      {
+        name: "agendaItems",
+        type: "textarea",
+        required: true,
+        label: "Повестка дня (по пунктам)",
+        defaultValue:
+          "1. Утверждение годовой финансовой отчётности.\n2. Распределение чистого дохода.",
+      },
+      {
+        name: "decisions",
+        type: "textarea",
+        required: true,
+        label: "Принятые решения по вопросам повестки",
+        defaultValue:
+          "1. Утвердить годовую финансовую отчётность за отчётный период.\n2. Направить чистый доход на развитие товарищества.",
+      },
+      {
+        name: "votingResult",
+        type: "select",
+        required: true,
+        label: "Итог голосования",
+        defaultValue: "Единогласно",
+        options: ["Единогласно", "Большинством голосов"],
+      },
+      {
+        name: "votesFor",
+        type: "number",
+        required: false,
+        label: "Голосов «За», %",
+        defaultValue: 60,
+        dependsOn: { field: "votingResult", value: "Большинством голосов" },
+      },
+      {
+        name: "votesAgainst",
+        type: "number",
+        required: false,
+        label: "Голосов «Против», %",
+        defaultValue: 40,
+        dependsOn: { field: "votingResult", value: "Большинством голосов" },
+      },
+    ],
+    typstContent: `#set document(title: "Протокол общего собрания участников ТОО")
+#set page(margin: 2cm)
+#set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
+
+#align(center)[
+  #text(size: 16pt, weight: "bold")[ПРОТОКОЛ №{{protocolNumber}}]
+]
+
+#align(center)[
+  #text(size: 12pt, weight: "bold")[общего собрания участников {{companyName}} (БИН {{companyBin}})]
+]
+
+#v(0.5em)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[г. {{city}}],
+  align(right)[{{meetingDate}}]
+)
+
+#v(1em)
+
+== Сведения о собрании
+
+- Форма проведения собрания: {{meetingForm}}.
+#if "{{meetingForm}}" == "Очная" [
+- Время начала собрания: {{meetingTime}}.
+]
+- Общее число участников товарищества: {{totalParticipants}}.
+- На собрании присутствуют участники, обладающие в совокупности {{totalVotesPercent}}% голосов, что составляет кворум, необходимый для принятия решений по вопросам повестки дня.
+
+#v(0.5em)
+
+== Присутствующие участники
+
+{{presentParticipants}}
+
+#v(0.5em)
+
+== Председатель и секретарь собрания
+
++ Председателем собрания избран(а): {{chairmanName}}.
++ Секретарём собрания избран(а): {{secretaryName}}.
+
+#v(0.5em)
+
+== Повестка дня
+
+{{agendaItems}}
+
+#v(0.5em)
+
+== Рассмотрение вопросов и голосование
+
+По вопросам повестки дня выступили присутствующие участники товарищества. По итогам обсуждения проведено голосование.
+
+#if "{{votingResult}}" == "Единогласно" [
+Решения по всем вопросам повестки дня приняты *единогласно* — «За» проголосовали участники, обладающие 100% голосов от числа присутствующих.
+] else [
+Решения приняты *большинством голосов*: «За» — {{votesFor}}%, «Против» — {{votesAgainst}}% от числа голосов присутствующих участников.
+]
+
+#v(0.5em)
+
+== Принятые решения
+
+{{decisions}}
+
+#v(0.5em)
+
+Настоящий протокол составлен в соответствии с законодательством Республики Казахстан о товариществах с ограниченной и дополнительной ответственностью, отражает действительный ход и результаты общего собрания участников {{companyName}}.
+
+#v(2em)
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 2em,
+  [
+    Председатель собрания
+    #v(2em)
+    #line(length: 80%)
+    {{chairmanName}}
+  ],
+  [
+    Секретарь собрания
+    #v(2em)
+    #line(length: 80%)
+    {{secretaryName}}
+  ]
+)`,
+  },
+  {
+    id: "tpl_prikaz_priem",
+    title: "Приказ о приёме на работу",
+    description:
+      "Приказ (распоряжение) работодателя о приёме работника на работу в соответствии с Трудовым кодексом Республики Казахстан. Оформляется на основании заключённого трудового договора и фиксирует должность, размер оклада, дату начала работы и иные условия приёма.",
+    price: 1990,
+    currentVersion: 1,
+    isPublished: true,
+    variables: [
+      {
+        name: "companyName",
+        type: "text",
+        required: true,
+        label: "Наименование работодателя (организации)",
+      },
+      {
+        name: "companyBIN",
+        type: "text",
+        required: true,
+        label: "БИН работодателя",
+      },
+      {
+        name: "orderNumber",
+        type: "text",
+        required: true,
+        label: "Номер приказа",
+      },
+      {
+        name: "city",
+        type: "text",
+        required: true,
+        label: "Город (место издания приказа)",
+      },
+      {
+        name: "orderDate",
+        type: "date",
+        required: true,
+        label: "Дата приказа",
+      },
+      {
+        name: "contractNumber",
+        type: "text",
+        required: true,
+        label: "Номер трудового договора",
+      },
+      {
+        name: "contractDate",
+        type: "date",
+        required: true,
+        label: "Дата трудового договора",
+      },
+      {
+        name: "employeeFIO",
+        type: "text",
+        required: true,
+        label: "ФИО работника",
+      },
+      {
+        name: "employeeIIN",
+        type: "text",
+        required: true,
+        label: "ИИН работника",
+      },
+      { name: "position", type: "text", required: true, label: "Должность" },
+      {
+        name: "department",
+        type: "text",
+        required: false,
+        label: "Структурное подразделение (необязательно)",
+      },
+      {
+        name: "startDate",
+        type: "date",
+        required: true,
+        label: "Дата начала работы",
+      },
+      {
+        name: "employmentType",
+        type: "select",
+        required: true,
+        label: "Характер работы",
+        defaultValue: "Постоянная",
+        options: [
+          "Постоянная",
+          "На определённый срок",
+          "На время выполнения определённой работы",
+        ],
+      },
+      {
+        name: "contractEndDate",
+        type: "date",
+        required: false,
+        label: "Срок окончания трудового договора",
+        dependsOn: { field: "employmentType", value: "На определённый срок" },
+      },
+      {
+        name: "salaryAmount",
+        type: "number",
+        required: true,
+        label: "Должностной оклад (тенге в месяц)",
+      },
+      {
+        name: "hasProbation",
+        type: "boolean",
+        required: true,
+        label: "Установить испытательный срок",
+        defaultValue: false,
+      },
+      {
+        name: "probationMonths",
+        type: "number",
+        required: false,
+        label: "Продолжительность испытательного срока (месяцев)",
+        defaultValue: 3,
+        dependsOn: { field: "hasProbation", value: "true" },
+      },
+      {
+        name: "directorPosition",
+        type: "text",
+        required: true,
+        label: "Должность подписанта (руководителя)",
+      },
+      {
+        name: "directorFIO",
+        type: "text",
+        required: true,
+        label: "ФИО подписанта (руководителя)",
+      },
+    ],
+    typstContent: `#set document(title: "Приказ о приёме на работу")
+#set page(margin: 2cm)
+#set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
+
+#align(center)[
+  #text(size: 16pt, weight: "bold")[ПРИКАЗ О ПРИЁМЕ НА РАБОТУ]
+]
+
+#v(0.5em)
+
+#align(center)[
+  {{companyName}}, БИН {{companyBIN}}
+]
+
+#v(0.5em)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[№ {{orderNumber}}],
+  align(right)[г. {{city}}, {{orderDate}}]
+)
+
+#v(1em)
+
+На основании трудового договора № {{contractNumber}} от {{contractDate}}, в соответствии с Трудовым кодексом Республики Казахстан,
+
+#v(0.5em)
+
+#align(center)[ *ПРИКАЗЫВАЮ:* ]
+
+#v(0.5em)
+
++ Принять на работу {{employeeFIO}} (ИИН {{employeeIIN}}) на должность {{position}}#if "{{department}}" != "" [ в структурное подразделение: {{department}}].
+
++ Установить дату начала работы: {{startDate}}.
+
++ Определить характер работы как: #if "{{employmentType}}" == "Постоянная" [постоянную (трудовой договор заключён на неопределённый срок)] else if "{{employmentType}}" == "На определённый срок" [работу на определённый срок — по {{contractEndDate}}] else [работу на время выполнения определённой работы].
+
++ Установить работнику должностной оклад в размере {{salaryAmount}} (сумма прописью) тенге в месяц.
+
+#if {{hasProbation}} [
+  + Установить работнику испытательный срок продолжительностью {{probationMonths}} (прописью) месяца(ев) с даты начала работы.
+] else [
+  + Принять работника без установления испытательного срока.
+]
+
++ Главному бухгалтеру (бухгалтеру) обеспечить начисление и выплату заработной платы работнику в соответствии с условиями настоящего приказа и трудового договора.
+
++ Контроль за исполнением настоящего приказа оставляю за собой.
+
+#v(0.5em)
+
+== Основание
+
+- Трудовой договор № {{contractNumber}} от {{contractDate}}.
+
+#v(2em)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[
+    {{directorPosition}}
+    #v(2em)
+    #line(length: 80%)
+    {{directorFIO}}
+    #v(0.3em)
+    подпись / расшифровка
+  ],
+  align(right)[ ]
+)
+
+#v(2em)
+
+С приказом ознакомлен(а):
+
+#v(2em)
+
+#line(length: 60%)
+{{employeeFIO}}, ИИН {{employeeIIN}}
+
+#v(0.3em)
+подпись / дата`,
+  },
+  {
+    id: "tpl_uvedomlenie_rastorzhenie",
+    title: "Уведомление о расторжении договора",
+    description:
+      "Уведомление одной стороны о расторжении договора в одностороннем порядке с указанием реквизитов договора, основания, даты расторжения и требований к другой стороне. Используется, когда одна из сторон намерена прекратить договорные отношения в порядке, предусмотренном договором или законодательством Республики Казахстан.",
+    price: 2490,
+    currentVersion: 1,
+    isPublished: true,
+    variables: [
+      {
+        name: "city",
+        type: "text",
+        required: true,
+        label: "Город",
+        defaultValue: "Алматы",
+      },
+      {
+        name: "noticeDate",
+        type: "date",
+        required: true,
+        label: "Дата уведомления",
+      },
+      {
+        name: "senderType",
+        type: "select",
+        required: true,
+        label: "Тип отправителя",
+        defaultValue: "Юридическое лицо",
+        options: ["Юридическое лицо", "ИП", "Физическое лицо"],
+      },
+      {
+        name: "senderName",
+        type: "text",
+        required: true,
+        label: "Наименование / ФИО отправителя",
+      },
+      {
+        name: "senderRequisite",
+        type: "text",
+        required: true,
+        label: "БИН/ИИН отправителя",
+      },
+      {
+        name: "senderAddress",
+        type: "text",
+        required: true,
+        label: "Адрес отправителя",
+      },
+      {
+        name: "senderSignatoryFIO",
+        type: "text",
+        required: true,
+        label: "ФИО подписанта (отправитель)",
+      },
+      {
+        name: "recipientType",
+        type: "select",
+        required: true,
+        label: "Тип получателя",
+        defaultValue: "Юридическое лицо",
+        options: ["Юридическое лицо", "ИП", "Физическое лицо"],
+      },
+      {
+        name: "recipientName",
+        type: "text",
+        required: true,
+        label: "Наименование / ФИО получателя",
+      },
+      {
+        name: "recipientRequisite",
+        type: "text",
+        required: true,
+        label: "БИН/ИИН получателя",
+      },
+      {
+        name: "recipientAddress",
+        type: "text",
+        required: true,
+        label: "Адрес получателя",
+      },
+      {
+        name: "contractName",
+        type: "text",
+        required: true,
+        label: "Наименование договора",
+        defaultValue: "Договор оказания услуг",
+      },
+      {
+        name: "contractNumber",
+        type: "text",
+        required: true,
+        label: "Номер договора",
+      },
+      {
+        name: "contractDate",
+        type: "date",
+        required: true,
+        label: "Дата заключения договора",
+      },
+      {
+        name: "terminationGround",
+        type: "select",
+        required: true,
+        label: "Основание расторжения",
+        defaultValue: "Существенное нарушение условий договора",
+        options: [
+          "Существенное нарушение условий договора",
+          "Односторонний отказ по условиям договора",
+          "Односторонний отказ по закону",
+          "Иное основание",
+        ],
+      },
+      {
+        name: "groundDescription",
+        type: "textarea",
+        required: true,
+        label: "Описание основания / нарушения",
+      },
+      {
+        name: "contractClause",
+        type: "text",
+        required: false,
+        label: "Пункт договора (основание расторжения)",
+        dependsOn: {
+          field: "terminationGround",
+          value: "Односторонний отказ по условиям договора",
+        },
+      },
+      {
+        name: "lawArticle",
+        type: "text",
+        required: false,
+        label: "Статья закона (основание расторжения)",
+        dependsOn: {
+          field: "terminationGround",
+          value: "Односторонний отказ по закону",
+        },
+      },
+      {
+        name: "terminationDate",
+        type: "date",
+        required: true,
+        label: "Дата расторжения договора",
+      },
+      {
+        name: "hasMonetaryClaim",
+        type: "boolean",
+        required: false,
+        label: "Имеются денежные требования",
+        defaultValue: true,
+      },
+      {
+        name: "claimAmount",
+        type: "number",
+        required: false,
+        label: "Сумма требований (тенге)",
+        dependsOn: { field: "hasMonetaryClaim", value: "true" },
+      },
+      {
+        name: "responseDays",
+        type: "number",
+        required: true,
+        label: "Срок для ответа (дней)",
+        defaultValue: 10,
+      },
+    ],
+    typstContent: `#set document(title: "Уведомление о расторжении договора")
+#set page(margin: 2cm)
+#set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
+
+#align(center)[
+  #text(size: 16pt, weight: "bold")[УВЕДОМЛЕНИЕ О РАСТОРЖЕНИИ ДОГОВОРА]
+]
+
+#v(0.5em)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[г. {{city}}],
+  align(right)[{{noticeDate}}]
+)
+
+#v(1em)
+
+// === ШАПКА: ОТ КОГО / КОМУ ===
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 2em,
+  [
+    *От:*
+    #v(0.3em)
+    #if "{{senderType}}" == "Юридическое лицо" [
+      {{senderName}}\\
+      БИН: {{senderRequisite}}\\
+    ] else if "{{senderType}}" == "ИП" [
+      ИП {{senderName}}\\
+      ИИН: {{senderRequisite}}\\
+    ] else [
+      {{senderName}}\\
+      ИИН: {{senderRequisite}}\\
+    ]
+    Адрес: {{senderAddress}}
+  ],
+  [
+    *Кому:*
+    #v(0.3em)
+    #if "{{recipientType}}" == "Юридическое лицо" [
+      {{recipientName}}\\
+      БИН: {{recipientRequisite}}\\
+    ] else if "{{recipientType}}" == "ИП" [
+      ИП {{recipientName}}\\
+      ИИН: {{recipientRequisite}}\\
+    ] else [
+      {{recipientName}}\\
+      ИИН: {{recipientRequisite}}\\
+    ]
+    Адрес: {{recipientAddress}}
+  ]
+)
+
+#v(1em)
+
+Настоящим уведомляем Вас о том, что между Сторонами был заключён {{contractName}} № {{contractNumber}} от {{contractDate}} (далее — «Договор»).
+
+#v(0.5em)
+
+== 1. Основание расторжения
+
+#if "{{terminationGround}}" == "Существенное нарушение условий договора" [
+  В связи с существенным нарушением условий Договора, выразившимся в следующем:
+  #block(inset: (left: 1em))[
+    {{groundDescription}}
+  ]
+  руководствуясь положениями действующего законодательства Республики Казахстан, отправитель принял решение о расторжении Договора.
+] else if "{{terminationGround}}" == "Односторонний отказ по условиям договора" [
+  В соответствии с пунктом {{contractClause}} Договора отправитель реализует право на односторонний отказ от исполнения Договора по следующему основанию:
+  #block(inset: (left: 1em))[
+    {{groundDescription}}
+  ]
+] else if "{{terminationGround}}" == "Односторонний отказ по закону" [
+  В соответствии со статьёй {{lawArticle}} действующего законодательства Республики Казахстан отправитель реализует право на односторонний отказ от исполнения Договора по следующему основанию:
+  #block(inset: (left: 1em))[
+    {{groundDescription}}
+  ]
+] else [
+  Договор подлежит расторжению по следующему основанию:
+  #block(inset: (left: 1em))[
+    {{groundDescription}}
+  ]
+]
+
+#v(0.5em)
+
+== 2. Дата расторжения
+
+Договор считается расторгнутым с {{terminationDate}}. С указанной даты Стороны прекращают исполнение взаимных обязательств по Договору, за исключением обязательств, срок исполнения которых наступил до его расторжения.
+
+#v(0.5em)
+
+== 3. Требования
+
+В связи с расторжением Договора требуем:
+
++ Прекратить исполнение обязательств по Договору с даты его расторжения.
++ Произвести окончательные взаиморасчёты по Договору в полном объёме.
+#if {{hasMonetaryClaim}} [
+  + Погасить имеющуюся задолженность в размере {{claimAmount}} тенге в течение {{responseDays}} (прописью) дней с момента получения настоящего уведомления.
+]
++ Возвратить переданное по Договору имущество и документацию (при наличии).
+
+#v(0.5em)
+
+Просим в течение {{responseDays}} дней с момента получения настоящего уведомления направить отправителю письменный ответ по адресу: {{senderAddress}}.
+
+Непредставление ответа в указанный срок не препятствует расторжению Договора в порядке, предусмотренном Договором и законодательством Республики Казахстан.
+
+#v(2em)
+
+С уважением,
+
+#v(1.5em)
+
+{{senderName}}
+
+#v(1em)
+
+#line(length: 50%)
+{{senderSignatoryFIO}}
+#v(0.3em)
+Подпись / ФИО
+`,
+  },
+  {
+    id: "tpl_pretenziya_oplata",
+    title: "Претензия об оплате задолженности",
+    description:
+      "Досудебная претензия об оплате задолженности по договору: указываются сумма основного долга, период и дни просрочки, начисленная пеня, срок для добровольного исполнения и предупреждение об обращении в суд. Используется кредитором для соблюдения досудебного порядка урегулирования спора перед подачей иска.",
+    price: 2490,
+    currentVersion: 1,
+    isPublished: true,
+    variables: [
+      {
+        name: "city",
+        type: "text",
+        required: true,
+        label: "Город",
+        defaultValue: "Алматы",
+      },
+      {
+        name: "claimDate",
+        type: "date",
+        required: true,
+        label: "Дата претензии",
+      },
+      {
+        name: "creditorType",
+        type: "select",
+        required: true,
+        label: "Тип кредитора",
+        defaultValue: "Юридическое лицо",
+        options: ["Юридическое лицо", "ИП", "Физическое лицо"],
+      },
+      {
+        name: "creditorName",
+        type: "text",
+        required: true,
+        label: "Наименование / ФИО кредитора",
+      },
+      {
+        name: "creditorRequisites",
+        type: "textarea",
+        required: true,
+        label: "Реквизиты кредитора (БИН/ИИН, адрес, банковские реквизиты)",
+      },
+      {
+        name: "creditorSignatory",
+        type: "text",
+        required: true,
+        label: "Подписант со стороны кредитора (должность, ФИО)",
+      },
+      {
+        name: "debtorType",
+        type: "select",
+        required: true,
+        label: "Тип должника",
+        defaultValue: "Юридическое лицо",
+        options: ["Юридическое лицо", "ИП", "Физическое лицо"],
+      },
+      {
+        name: "debtorName",
+        type: "text",
+        required: true,
+        label: "Наименование / ФИО должника",
+      },
+      {
+        name: "debtorRequisites",
+        type: "textarea",
+        required: true,
+        label: "Реквизиты должника (БИН/ИИН, адрес)",
+      },
+      {
+        name: "contractName",
+        type: "text",
+        required: true,
+        label: "Наименование договора",
+        defaultValue: "Договор оказания услуг",
+      },
+      {
+        name: "contractNumber",
+        type: "text",
+        required: true,
+        label: "Номер договора",
+      },
+      {
+        name: "contractDate",
+        type: "date",
+        required: true,
+        label: "Дата заключения договора",
+      },
+      {
+        name: "obligationDescription",
+        type: "textarea",
+        required: true,
+        label: "Описание обязательства (за что возник долг)",
+      },
+      {
+        name: "paymentDueDate",
+        type: "date",
+        required: true,
+        label: "Срок оплаты по договору",
+      },
+      {
+        name: "overdueDays",
+        type: "number",
+        required: true,
+        label: "Количество дней просрочки",
+      },
+      {
+        name: "debtAmount",
+        type: "text",
+        required: true,
+        label: "Сумма основного долга (тенге)",
+      },
+      {
+        name: "hasPenalty",
+        type: "boolean",
+        required: false,
+        label: "Начислять пеню (неустойку)",
+        defaultValue: true,
+      },
+      {
+        name: "penaltyRate",
+        type: "text",
+        required: false,
+        label: "Размер пени (например, 0,1% за день)",
+        dependsOn: { field: "hasPenalty", value: "true" },
+      },
+      {
+        name: "penaltyAmount",
+        type: "text",
+        required: false,
+        label: "Сумма начисленной пени (тенге)",
+        dependsOn: { field: "hasPenalty", value: "true" },
+      },
+      {
+        name: "voluntaryDays",
+        type: "number",
+        required: true,
+        label: "Срок для добровольного исполнения (дней)",
+        defaultValue: 10,
+      },
+    ],
+    typstContent: `#set document(title: "Претензия об оплате задолженности")
+#set page(margin: 2cm)
+#set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[
+    *От:*\\
+    #if "{{creditorType}}" == "Юридическое лицо" [{{creditorName}}] else if "{{creditorType}}" == "ИП" [ИП {{creditorName}}] else [{{creditorName}}]\\
+    {{creditorRequisites}}
+  ],
+  align(left)[
+    *Кому:*\\
+    #if "{{debtorType}}" == "Юридическое лицо" [{{debtorName}}] else if "{{debtorType}}" == "ИП" [ИП {{debtorName}}] else [{{debtorName}}]\\
+    {{debtorRequisites}}
+  ]
+)
+
+#v(1em)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[г. {{city}}],
+  align(right)[{{claimDate}}]
+)
+
+#v(0.5em)
+
+#align(center)[
+  #text(size: 16pt, weight: "bold")[ПРЕТЕНЗИЯ]
+]
+
+#align(center)[
+  #text(size: 12pt)[об оплате задолженности по договору]
+]
+
+#v(1em)
+
+Между #if "{{creditorType}}" == "ИП" [ИП {{creditorName}}] else [{{creditorName}}] (далее — «Кредитор») и #if "{{debtorType}}" == "ИП" [ИП {{debtorName}}] else [{{debtorName}}] (далее — «Должник») заключён {{contractName}} №{{contractNumber}} от {{contractDate}} (далее — Договор).
+
+#v(0.5em)
+
+== 1. Основания возникновения задолженности
+
+1.1. В соответствии с условиями Договора у Должника возникло следующее обязательство: {{obligationDescription}}
+
+1.2. Должник обязан был произвести оплату в срок до {{paymentDueDate}}, однако в установленный срок оплата не поступила.
+
+1.3. По состоянию на дату направления настоящей претензии обязательство Должником не исполнено, период просрочки составляет {{overdueDays}} дней.
+
+#v(0.5em)
+
+== 2. Размер задолженности
+
+2.1. Сумма основного долга составляет {{debtAmount}} тенге.
+
+#if {{hasPenalty}} [
+  2.2. За нарушение сроков оплаты в соответствии с условиями Договора и законодательством Республики Казахстан начисляется пеня в размере {{penaltyRate}} от суммы задолженности за каждый день просрочки.
+
+  2.3. Сумма начисленной пени за {{overdueDays}} дней просрочки составляет {{penaltyAmount}} тенге.
+
+  2.4. Общая сумма задолженности, подлежащая оплате, складывается из суммы основного долга и пени.
+] else [
+  2.2. Требование об уплате пени (неустойки) Кредитором не заявляется. Должник обязан погасить сумму основного долга в полном объёме.
+]
+
+#v(0.5em)
+
+== 3. Требования Кредитора
+
+На основании изложенного и руководствуясь нормами Гражданского кодекса Республики Казахстан, *требую* в течение {{voluntaryDays}} календарных дней с момента получения настоящей претензии:
+
++ погасить сумму основного долга в размере {{debtAmount}} тенге;
+#if {{hasPenalty}} [
++ уплатить начисленную пеню в размере {{penaltyAmount}} тенге;
+]
++ произвести оплату по банковским реквизитам Кредитора, указанным в настоящей претензии.
+
+#v(0.5em)
+
+== 4. Последствия неисполнения
+
+4.1. В случае неисполнения настоящих требований в добровольном порядке в указанный срок Кредитор будет вынужден обратиться в суд за принудительным взысканием задолженности.
+
+4.2. При обращении в суд на Должника дополнительно будут отнесены судебные расходы, в том числе государственная пошлина и расходы на оплату услуг представителя, а также пеня, начисленная по день фактического исполнения обязательства.
+
+4.3. Настоящая претензия направляется в целях соблюдения досудебного порядка урегулирования спора.
+
+#v(1em)
+
+С уважением,
+
+#v(1.5em)
+
+#line(length: 60%)
+{{creditorSignatory}}
+
+#if "{{creditorType}}" != "Физическое лицо" [
+  #v(0.3em)
+  М.П.
+]
+`,
+  },
+  {
+    id: "tpl_zayavlenie_uvolnenie",
+    title: "Заявление об увольнении",
+    description:
+      "Заявление работника об увольнении по собственному желанию (расторжение трудового договора по инициативе работника согласно Трудовому кодексу РК). Подаётся на имя руководителя организации с указанием желаемой даты прекращения трудовых отношений.",
+    price: 1490,
+    currentVersion: 1,
+    isPublished: true,
+    variables: [
+      {
+        name: "managerPosition",
+        type: "text",
+        required: true,
+        label: "Должность руководителя (адресата)",
+        defaultValue: "Генеральному директору",
+      },
+      {
+        name: "companyName",
+        type: "text",
+        required: true,
+        label: "Наименование организации",
+      },
+      {
+        name: "managerFIO",
+        type: "text",
+        required: true,
+        label: "Ф.И.О. руководителя (в дательном падеже)",
+      },
+      {
+        name: "employeePosition",
+        type: "text",
+        required: true,
+        label: "Должность работника",
+      },
+      {
+        name: "employeeFIO",
+        type: "text",
+        required: true,
+        label: "Ф.И.О. работника",
+      },
+      {
+        name: "employeeIIN",
+        type: "text",
+        required: false,
+        label: "ИИН работника",
+      },
+      {
+        name: "contractNumber",
+        type: "text",
+        required: false,
+        label: "Номер трудового договора",
+      },
+      {
+        name: "contractDate",
+        type: "date",
+        required: false,
+        label: "Дата заключения трудового договора",
+      },
+      {
+        name: "dismissalDate",
+        type: "date",
+        required: true,
+        label: "Дата увольнения (последний рабочий день)",
+      },
+      {
+        name: "reason",
+        type: "select",
+        required: true,
+        label: "Основание увольнения",
+        defaultValue: "По собственному желанию",
+        options: [
+          "По собственному желанию",
+          "По соглашению сторон",
+          "В связи с выходом на пенсию",
+          "По состоянию здоровья",
+        ],
+      },
+      {
+        name: "reasonDetails",
+        type: "textarea",
+        required: false,
+        label: "Дополнительное пояснение причины",
+        dependsOn: { field: "reason", value: "По состоянию здоровья" },
+      },
+      {
+        name: "withoutWorkout",
+        type: "boolean",
+        required: false,
+        label: "Просить уволить без отработки",
+        defaultValue: false,
+      },
+      {
+        name: "transferDuties",
+        type: "boolean",
+        required: false,
+        label: "Обязуюсь передать дела по акту приёма-передачи",
+        defaultValue: true,
+      },
+      {
+        name: "applicationDate",
+        type: "date",
+        required: true,
+        label: "Дата подачи заявления",
+      },
+    ],
+    typstContent: `#set document(title: "Заявление об увольнении")
+#set page(margin: 2cm)
+#set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
+
+#grid(
+  columns: (1fr, 1fr),
+  [],
+  align(left)[
+    {{managerPosition}} \\
+    {{companyName}} \\
+    {{managerFIO}} \\
+    #v(0.5em)
+    от {{employeePosition}} \\
+    {{employeeFIO}}#if "{{employeeIIN}}" != "" [, ИИН {{employeeIIN}}]
+  ]
+)
+
+#v(1.5em)
+
+#align(center)[
+  #text(size: 16pt, weight: "bold")[ЗАЯВЛЕНИЕ]
+]
+
+#v(1.5em)
+
+#if "{{reason}}" == "По собственному желанию" [
+  Прошу расторгнуть заключённый со мной трудовой договор#if "{{contractNumber}}" != "" [ №{{contractNumber}}]#if "{{contractDate}}" != "" [ от {{contractDate}}] и уволить меня с занимаемой должности {{employeePosition}} по собственному желанию (по инициативе работника) с {{dismissalDate}} в соответствии с Трудовым кодексом Республики Казахстан.
+] else if "{{reason}}" == "По соглашению сторон" [
+  Прошу расторгнуть заключённый со мной трудовой договор#if "{{contractNumber}}" != "" [ №{{contractNumber}}]#if "{{contractDate}}" != "" [ от {{contractDate}}] и уволить меня с занимаемой должности {{employeePosition}} по соглашению сторон с {{dismissalDate}} в соответствии с Трудовым кодексом Республики Казахстан.
+] else if "{{reason}}" == "В связи с выходом на пенсию" [
+  Прошу расторгнуть заключённый со мной трудовой договор#if "{{contractNumber}}" != "" [ №{{contractNumber}}]#if "{{contractDate}}" != "" [ от {{contractDate}}] и уволить меня с занимаемой должности {{employeePosition}} по собственному желанию в связи с выходом на пенсию с {{dismissalDate}}.
+] else [
+  Прошу расторгнуть заключённый со мной трудовой договор#if "{{contractNumber}}" != "" [ №{{contractNumber}}]#if "{{contractDate}}" != "" [ от {{contractDate}}] и уволить меня с занимаемой должности {{employeePosition}} по состоянию здоровья с {{dismissalDate}}. {{reasonDetails}}
+]
+
+#v(0.5em)
+
+#if {{withoutWorkout}} [
+  Прошу произвести увольнение без отработки установленного законодательством срока предупреждения.
+] else [
+  С установленным законодательством сроком предупреждения об увольнении ознакомлен(а) и согласен(а).
+]
+
+#if {{transferDuties}} [
+  #v(0.5em)
+  Обязуюсь передать находящиеся в моём ведении дела, документы и материальные ценности по акту приёма-передачи до даты увольнения.
+]
+
+#v(0.5em)
+
+Прошу произвести окончательный расчёт и выдать трудовую книжку (при наличии), а также иные документы, связанные с трудовой деятельностью, в день увольнения.
+
+#v(3em)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[
+    {{applicationDate}}
+  ],
+  align(right)[
+    #line(length: 5cm) \\
+    {{employeeFIO}} \\
+    #text(size: 9pt)[(подпись, Ф.И.О.)]
+  ]
+)`,
+  },
+  {
+    id: "tpl_iskovoe_zayavlenie",
+    title: "Исковое заявление о взыскании задолженности",
+    description:
+      "Исковое заявление в суд Республики Казахстан о взыскании задолженности с должника. Используется кредитором (истцом) для обращения в суд с требованием о взыскании основного долга, неустойки и судебных расходов с ответчика, не исполнившего денежное обязательство.",
+    price: 2990,
+    currentVersion: 1,
+    isPublished: true,
+    variables: [
+      {
+        name: "courtName",
+        type: "text",
+        required: true,
+        label: "Наименование суда",
+        defaultValue:
+          "Специализированный межрайонный экономический суд города Алматы",
+      },
+      {
+        name: "city",
+        type: "text",
+        required: true,
+        label: "Город (место составления)",
+        defaultValue: "Алматы",
+      },
+      {
+        name: "statementDate",
+        type: "date",
+        required: true,
+        label: "Дата составления заявления",
+      },
+      {
+        name: "plaintiffType",
+        type: "select",
+        required: true,
+        label: "Тип истца",
+        defaultValue: "Юридическое лицо",
+        options: ["Юридическое лицо", "ИП", "Физическое лицо"],
+      },
+      {
+        name: "plaintiffName",
+        type: "text",
+        required: true,
+        label: "Наименование / ФИО истца",
+      },
+      {
+        name: "plaintiffBINIIN",
+        type: "text",
+        required: true,
+        label: "БИН/ИИН истца",
+      },
+      {
+        name: "plaintiffAddress",
+        type: "text",
+        required: true,
+        label: "Адрес истца",
+      },
+      {
+        name: "plaintiffPhone",
+        type: "text",
+        required: false,
+        label: "Телефон истца",
+      },
+      {
+        name: "defendantType",
+        type: "select",
+        required: true,
+        label: "Тип ответчика",
+        defaultValue: "Юридическое лицо",
+        options: ["Юридическое лицо", "ИП", "Физическое лицо"],
+      },
+      {
+        name: "defendantName",
+        type: "text",
+        required: true,
+        label: "Наименование / ФИО ответчика",
+      },
+      {
+        name: "defendantBINIIN",
+        type: "text",
+        required: true,
+        label: "БИН/ИИН ответчика",
+      },
+      {
+        name: "defendantAddress",
+        type: "text",
+        required: true,
+        label: "Адрес ответчика",
+      },
+      {
+        name: "basisDocument",
+        type: "text",
+        required: true,
+        label: "Документ-основание возникновения долга",
+        defaultValue: "Договор поставки № 12 от 10.01.2026",
+      },
+      {
+        name: "circumstances",
+        type: "textarea",
+        required: true,
+        label: "Обстоятельства дела",
+      },
+      {
+        name: "principalDebt",
+        type: "text",
+        required: true,
+        label: "Сумма основного долга (тенге)",
+      },
+      {
+        name: "hasPenalty",
+        type: "boolean",
+        required: true,
+        label: "Требовать неустойку (пеню)",
+        defaultValue: true,
+      },
+      {
+        name: "penaltyAmount",
+        type: "text",
+        required: false,
+        label: "Сумма неустойки (тенге)",
+        dependsOn: { field: "hasPenalty", value: "true" },
+      },
+      {
+        name: "penaltyCalculation",
+        type: "textarea",
+        required: false,
+        label: "Расчёт неустойки",
+        dependsOn: { field: "hasPenalty", value: "true" },
+      },
+      {
+        name: "stateDuty",
+        type: "text",
+        required: true,
+        label: "Сумма государственной пошлины (тенге)",
+      },
+      {
+        name: "claimPrice",
+        type: "text",
+        required: true,
+        label: "Цена иска (тенге)",
+      },
+      {
+        name: "preTrialClaim",
+        type: "select",
+        required: true,
+        label: "Досудебная претензия направлялась",
+        defaultValue: "Да",
+        options: ["Да", "Нет"],
+      },
+      {
+        name: "preTrialClaimDetails",
+        type: "text",
+        required: false,
+        label: "Реквизиты претензии (№, дата)",
+        dependsOn: { field: "preTrialClaim", value: "Да" },
+      },
+      {
+        name: "attachments",
+        type: "textarea",
+        required: true,
+        label: "Перечень приложений",
+      },
+    ],
+    typstContent: `#set document(title: "Исковое заявление")
+#set page(margin: 2cm)
+#set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
+
+#align(right)[
+  В {{courtName}}
+
+  #v(0.5em)
+  *Истец:* {{plaintiffName}}\\
+  #if "{{plaintiffType}}" == "Физическое лицо" [ИИН: {{plaintiffBINIIN}}\\] else [БИН/ИИН: {{plaintiffBINIIN}}\\]
+  Адрес: {{plaintiffAddress}}\\
+  #if "{{plaintiffPhone}}" != "" [Телефон: {{plaintiffPhone}}\\]
+
+  #v(0.5em)
+  *Ответчик:* {{defendantName}}\\
+  #if "{{defendantType}}" == "Физическое лицо" [ИИН: {{defendantBINIIN}}\\] else [БИН/ИИН: {{defendantBINIIN}}\\]
+  Адрес: {{defendantAddress}}\\
+
+  #v(0.5em)
+  *Цена иска:* {{claimPrice}} тенге\\
+  *Государственная пошлина:* {{stateDuty}} тенге
+]
+
+#v(1em)
+
+#align(center)[
+  #text(size: 16pt, weight: "bold")[ИСКОВОЕ ЗАЯВЛЕНИЕ]
+]
+
+#align(center)[
+  о взыскании задолженности
+]
+
+#v(0.5em)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[г. {{city}}],
+  align(right)[{{statementDate}}]
+)
+
+#v(1em)
+
+== 1. Обстоятельства дела
+
+Между Истцом и Ответчиком возникли правоотношения на основании следующего документа: {{basisDocument}}.
+
+{{circumstances}}
+
+В нарушение принятых на себя обязательств Ответчик свои обязательства надлежащим образом не исполнил, в результате чего за ним образовалась задолженность перед Истцом.
+
+#v(0.5em)
+
+== 2. Расчёт суммы иска
+
+Сумма основного долга Ответчика перед Истцом составляет *{{principalDebt}} тенге*.
+
+#if {{hasPenalty}} [
+  В связи с просрочкой исполнения денежного обязательства Истцом начислена неустойка (пеня) в размере *{{penaltyAmount}} тенге*.
+
+  Расчёт неустойки: {{penaltyCalculation}}
+]
+
+Общая цена иска составляет *{{claimPrice}} тенге*.
+
+#v(0.5em)
+
+== 3. Досудебный порядок урегулирования
+
+#if "{{preTrialClaim}}" == "Да" [
+  Истцом в адрес Ответчика была направлена досудебная претензия ({{preTrialClaimDetails}}) с требованием погасить образовавшуюся задолженность. Требования претензии Ответчиком в добровольном порядке не исполнены.
+] else [
+  В силу характера спора и положений законодательства Республики Казахстан обязательный досудебный порядок урегулирования для данного требования не предусмотрен.
+]
+
+#v(0.5em)
+
+== 4. Правовое обоснование
+
+В соответствии со статьями 268, 272, 349 Гражданского кодекса Республики Казахстан обязательства должны исполняться надлежащим образом в соответствии с условиями обязательства и требованиями законодательства, а односторонний отказ от исполнения обязательства не допускается. Согласно статье 293 Гражданского кодекса Республики Казахстан в случае неисполнения или ненадлежащего исполнения обязательства должник обязан уплатить кредитору неустойку.
+
+#v(0.5em)
+
+На основании изложенного и руководствуясь статьями 148, 149 Гражданского процессуального кодекса Республики Казахстан,
+
+#align(center)[*ПРОШУ:*]
+
++ Взыскать с Ответчика {{defendantName}} в пользу Истца {{plaintiffName}} сумму основного долга в размере {{principalDebt}} тенге.
+#if {{hasPenalty}} [
+  + Взыскать с Ответчика в пользу Истца неустойку (пеню) в размере {{penaltyAmount}} тенге.
+]
++ Взыскать с Ответчика в пользу Истца расходы по оплате государственной пошлины в размере {{stateDuty}} тенге.
+
+#v(0.5em)
+
+== Приложения:
+
+{{attachments}}
+
+#v(2em)
+
+#align(left)[
+  «{{statementDate}}»
+
+  #v(1.5em)
+  #line(length: 50%)
+  {{plaintiffName}} (подпись)
+]
+`,
+  },
+  {
+    id: "tpl_hodataystvo",
+    title: "Ходатайство в суд",
+    description:
+      "Ходатайство, подаваемое в суд по гражданскому или административному делу (об отложении судебного заседания, об истребовании или приобщении доказательств и т. п.) с указанием реквизитов дела, существа просьбы и её обоснования. Используется участником процесса для обращения к суду с процессуальной просьбой в ходе рассмотрения дела.",
+    price: 1990,
+    currentVersion: 1,
+    isPublished: true,
+    variables: [
+      {
+        name: "courtName",
+        type: "text",
+        required: true,
+        label: "Наименование суда",
+        defaultValue:
+          "Специализированный межрайонный экономический суд г. Алматы",
+      },
+      {
+        name: "applicationDate",
+        type: "date",
+        required: true,
+        label: "Дата подачи ходатайства",
+      },
+      {
+        name: "applicantType",
+        type: "select",
+        required: true,
+        label: "Заявитель является",
+        defaultValue: "Физическое лицо",
+        options: ["Юридическое лицо", "Физическое лицо"],
+      },
+      {
+        name: "applicantName",
+        type: "text",
+        required: true,
+        label: "ФИО / наименование заявителя",
+      },
+      {
+        name: "applicantRole",
+        type: "select",
+        required: true,
+        label: "Процессуальное положение заявителя",
+        defaultValue: "Истец",
+        options: ["Истец", "Ответчик", "Третье лицо", "Представитель"],
+      },
+      {
+        name: "applicantBIN",
+        type: "text",
+        required: false,
+        label: "БИН заявителя",
+        dependsOn: { field: "applicantType", value: "Юридическое лицо" },
+      },
+      {
+        name: "applicantIIN",
+        type: "text",
+        required: false,
+        label: "ИИН заявителя",
+        dependsOn: { field: "applicantType", value: "Физическое лицо" },
+      },
+      {
+        name: "applicantAddress",
+        type: "text",
+        required: true,
+        label: "Адрес и телефон заявителя",
+      },
+      { name: "caseNumber", type: "text", required: true, label: "Номер дела" },
+      {
+        name: "caseParties",
+        type: "text",
+        required: true,
+        label: "Стороны по делу (Истец / Ответчик)",
+      },
+      {
+        name: "caseSubject",
+        type: "text",
+        required: true,
+        label: "Предмет иска (о чём дело)",
+      },
+      {
+        name: "motionType",
+        type: "select",
+        required: true,
+        label: "Вид ходатайства",
+        defaultValue: "Об отложении судебного заседания",
+        options: [
+          "Об отложении судебного заседания",
+          "Об истребовании доказательств",
+          "О приобщении документов к материалам дела",
+          "Иное",
+        ],
+      },
+      {
+        name: "motionSubject",
+        type: "textarea",
+        required: true,
+        label: "Суть ходатайства (что именно просите)",
+      },
+      {
+        name: "motionGrounds",
+        type: "textarea",
+        required: true,
+        label: "Обоснование ходатайства (причины и обстоятельства)",
+      },
+      {
+        name: "hearingDate",
+        type: "date",
+        required: false,
+        label: "Дата текущего судебного заседания",
+        dependsOn: {
+          field: "motionType",
+          value: "Об отложении судебного заседания",
+        },
+      },
+      {
+        name: "evidenceHolder",
+        type: "text",
+        required: false,
+        label: "У кого находится доказательство",
+        dependsOn: {
+          field: "motionType",
+          value: "Об истребовании доказательств",
+        },
+      },
+      {
+        name: "hasAttachments",
+        type: "boolean",
+        required: false,
+        label: "Приложить документы к ходатайству",
+        defaultValue: true,
+      },
+      {
+        name: "attachmentsList",
+        type: "textarea",
+        required: false,
+        label: "Перечень приложений",
+        dependsOn: { field: "hasAttachments", value: "true" },
+      },
+    ],
+    typstContent: `#set document(title: "Ходатайство в суд")
+#set page(margin: 2cm)
+#set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
+
+#grid(
+  columns: (1fr, 1fr),
+  [],
+  align(left)[
+    В {{courtName}}
+    #v(0.5em)
+    #if "{{applicantType}}" == "Юридическое лицо" [
+      Заявитель ({{applicantRole}}): {{applicantName}}\\
+      БИН: {{applicantBIN}}\\
+    ] else [
+      Заявитель ({{applicantRole}}): {{applicantName}}\\
+      ИИН: {{applicantIIN}}\\
+    ]
+    Адрес, телефон: {{applicantAddress}}\\
+    #v(0.5em)
+    Дело № {{caseNumber}}\\
+    Стороны: {{caseParties}}
+  ]
+)
+
+#v(1em)
+
+#align(center)[
+  #text(size: 16pt, weight: "bold")[ХОДАТАЙСТВО]
+]
+
+#align(center)[
+  #text(size: 11pt)[{{motionType}}]
+]
+
+#v(1em)
+
+В производстве {{courtName}} находится гражданское дело № {{caseNumber}} по иску {{caseParties}} о {{caseSubject}}, в котором {{applicantName}} участвует в качестве {{applicantRole}}.
+
+#if "{{motionType}}" == "Об отложении судебного заседания" [
+  Рассмотрение дела назначено на {{hearingDate}}. В связи с изложенными ниже обстоятельствами участие в указанном судебном заседании в назначенную дату является невозможным.
+] else if "{{motionType}}" == "Об истребовании доказательств" [
+  Для всестороннего и полного рассмотрения дела необходимо истребовать доказательства, которые находятся у {{evidenceHolder}} и не могут быть получены заявителем самостоятельно.
+] else if "{{motionType}}" == "О приобщении документов к материалам дела" [
+  Для подтверждения обстоятельств, имеющих значение для дела, заявитель считает необходимым приобщить к материалам дела дополнительные документы.
+] else [
+  В ходе рассмотрения настоящего дела у заявителя возникла необходимость обратиться к суду с настоящим ходатайством.
+]
+
+#v(0.5em)
+
+== Существо ходатайства
+
+{{motionSubject}}
+
+#v(0.5em)
+
+== Обоснование
+
+{{motionGrounds}}
+
+#v(0.5em)
+
+== Просительная часть
+
+На основании изложенного и руководствуясь нормами Гражданского процессуального кодекса Республики Казахстан,
+
+#v(0.5em)
+
+*ПРОШУ:*
+
++ #if "{{motionType}}" == "Об отложении судебного заседания" [
+    Отложить судебное заседание по делу № {{caseNumber}}, назначенное на {{hearingDate}}, на другой срок.
+  ] else if "{{motionType}}" == "Об истребовании доказательств" [
+    Истребовать у {{evidenceHolder}} доказательства, имеющие значение для рассмотрения дела № {{caseNumber}}.
+  ] else if "{{motionType}}" == "О приобщении документов к материалам дела" [
+    Приобщить представленные документы к материалам дела № {{caseNumber}}.
+  ] else [
+    Удовлетворить настоящее ходатайство по делу № {{caseNumber}}.
+  ]
+
+#v(0.5em)
+
+#if {{hasAttachments}} [
+  == Приложения
+
+  {{attachmentsList}}
+
+  #v(0.5em)
+] else [
+  Приложения к настоящему ходатайству не представляются.
+
+  #v(0.5em)
+]
+
+#v(1.5em)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[
+    {{applicationDate}}
+  ],
+  align(right)[
+    #line(length: 60%)
+    {{applicantName}}\\
+    (подпись)
+  ]
+)
+`,
+  },
+  {
+    id: "tpl_zhaloba",
+    title: "Жалоба в государственный орган",
+    description:
+      "Жалоба (обращение) в государственный орган или на действия (бездействие) должностного лица: содержит данные заявителя и органа, описание нарушения, требования заявителя и ссылку на нормы законодательства. Применяется для защиты прав и законных интересов в порядке, установленном Административным процедурно-процессуальным кодексом Республики Казахстан.",
+    price: 1990,
+    currentVersion: 1,
+    isPublished: true,
+    variables: [
+      {
+        name: "authorityName",
+        type: "text",
+        required: true,
+        label: "Наименование государственного органа (адресат)",
+        defaultValue: "Акимат города Алматы",
+      },
+      {
+        name: "authorityAddress",
+        type: "text",
+        required: false,
+        label: "Адрес государственного органа",
+      },
+      {
+        name: "applicantType",
+        type: "select",
+        required: true,
+        label: "Заявитель",
+        defaultValue: "Физическое лицо",
+        options: ["Физическое лицо", "Юридическое лицо"],
+      },
+      {
+        name: "applicantFIO",
+        type: "text",
+        required: false,
+        label: "ФИО заявителя",
+        dependsOn: { field: "applicantType", value: "Физическое лицо" },
+      },
+      {
+        name: "applicantIIN",
+        type: "text",
+        required: false,
+        label: "ИИН заявителя",
+        dependsOn: { field: "applicantType", value: "Физическое лицо" },
+      },
+      {
+        name: "applicantCompanyName",
+        type: "text",
+        required: false,
+        label: "Наименование организации",
+        dependsOn: { field: "applicantType", value: "Юридическое лицо" },
+      },
+      {
+        name: "applicantBIN",
+        type: "text",
+        required: false,
+        label: "БИН организации",
+        dependsOn: { field: "applicantType", value: "Юридическое лицо" },
+      },
+      {
+        name: "applicantRepFIO",
+        type: "text",
+        required: false,
+        label: "ФИО представителя (руководителя)",
+        dependsOn: { field: "applicantType", value: "Юридическое лицо" },
+      },
+      {
+        name: "applicantAddress",
+        type: "text",
+        required: true,
+        label: "Адрес заявителя для корреспонденции",
+      },
+      {
+        name: "applicantPhone",
+        type: "text",
+        required: false,
+        label: "Контактный телефон заявителя",
+      },
+      {
+        name: "officialName",
+        type: "text",
+        required: false,
+        label: "Должностное лицо, чьи действия обжалуются (если есть)",
+      },
+      {
+        name: "violationSubject",
+        type: "text",
+        required: true,
+        label: "Суть нарушения (краткая формулировка)",
+      },
+      {
+        name: "circumstances",
+        type: "textarea",
+        required: true,
+        label: "Обстоятельства и факты нарушения",
+        defaultValue:
+          "Изложите хронологию событий, даты обращений, реквизиты документов и существо нарушения ваших прав.",
+      },
+      {
+        name: "legalBasis",
+        type: "textarea",
+        required: false,
+        label: "Ссылки на нормы законодательства",
+        defaultValue:
+          "Административный процедурно-процессуальный кодекс Республики Казахстан",
+      },
+      {
+        name: "demands",
+        type: "textarea",
+        required: true,
+        label: "Требования заявителя",
+        defaultValue:
+          "Рассмотреть настоящую жалобу, признать действия (бездействие) незаконными и принять меры по восстановлению нарушенных прав.",
+      },
+      {
+        name: "attachments",
+        type: "textarea",
+        required: false,
+        label: "Перечень приложений (по одному в строке)",
+      },
+      {
+        name: "responseRequested",
+        type: "boolean",
+        required: false,
+        label: "Просить направить письменный ответ",
+        defaultValue: true,
+      },
+      {
+        name: "city",
+        type: "text",
+        required: true,
+        label: "Город (место подачи)",
+        defaultValue: "Алматы",
+      },
+      {
+        name: "complaintDate",
+        type: "date",
+        required: true,
+        label: "Дата подачи жалобы",
+      },
+    ],
+    typstContent: `#set document(title: "Жалоба в государственный орган")
+#set page(margin: 2cm)
+#set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
+
+// === АДРЕСНЫЙ БЛОК ===
+#align(right)[
+  #block(width: 60%)[
+    #align(left)[
+      В {{authorityName}}\\
+      #if "{{authorityAddress}}" != "" [Адрес: {{authorityAddress}}\\ ]
+      #v(0.5em)
+      От #if "{{applicantType}}" == "Юридическое лицо" [{{applicantCompanyName}}, БИН {{applicantBIN}}, в лице {{applicantRepFIO}}] else [{{applicantFIO}}, ИИН {{applicantIIN}}]\\
+      Адрес: {{applicantAddress}}\\
+      #if "{{applicantPhone}}" != "" [Тел.: {{applicantPhone}}]
+    ]
+  ]
+]
+
+#v(1.5em)
+
+#align(center)[
+  #text(size: 16pt, weight: "bold")[ЖАЛОБА]
+]
+
+#align(center)[
+  на {{violationSubject}}#if "{{officialName}}" != "" [ (должностное лицо: {{officialName}})]
+]
+
+#v(1em)
+
+== 1. Обстоятельства дела
+
+{{circumstances}}
+
+#v(0.5em)
+
+#if "{{officialName}}" != "" [
+  Указанные нарушения допущены должностным лицом — {{officialName}}, в результате чего нарушены права и законные интересы заявителя.
+] else [
+  В результате указанных действий (бездействия) государственного органа нарушены права и законные интересы заявителя.
+]
+
+#v(0.5em)
+
+== 2. Правовое обоснование
+
+#if "{{legalBasis}}" != "" [
+  Считаю, что описанные действия (бездействие) противоречат требованиям законодательства Республики Казахстан, в том числе: {{legalBasis}}.
+] else [
+  Считаю, что описанные действия (бездействие) противоречат требованиям законодательства Республики Казахстан.
+]
+
+#v(0.5em)
+
+На основании изложенного и руководствуясь нормами Административного процедурно-процессуального кодекса Республики Казахстан,
+
+== 3. Прошу
+
+{{demands}}
+
+#if {{responseRequested}} [
+  #v(0.5em)
+  Прошу рассмотреть настоящую жалобу в установленный законом срок и направить мотивированный письменный ответ по адресу заявителя, указанному выше.
+]
+
+#v(0.5em)
+
+#if "{{attachments}}" != "" [
+  == Приложения
+
+  {{attachments}}
+
+  #v(0.5em)
+]
+
+#v(2em)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[г. {{city}}],
+  align(right)[{{complaintDate}}]
+)
+
+#v(2em)
+
+#align(left)[
+  #if "{{applicantType}}" == "Юридическое лицо" [
+    {{applicantCompanyName}}\\
+    {{applicantRepFIO}}
+  ] else [
+    {{applicantFIO}}
+  ]
+  #v(2em)
+  #line(length: 50%)
+  Подпись заявителя
+]
+`,
+  },
+  {
+    id: "tpl_doverennost",
+    title: "Доверенность",
+    description:
+      "Доверенность от имени физического или юридического лица, которой доверитель уполномочивает поверенного совершать определённые действия и сделки от его имени. Используется для представления интересов в государственных органах, банках, судах, при заключении сделок и в иных случаях, когда требуется письменное подтверждение полномочий представителя.",
+    price: 1990,
+    currentVersion: 1,
+    isPublished: true,
+    variables: [
+      {
+        name: "city",
+        type: "text",
+        required: true,
+        label: "Город (место составления)",
+        defaultValue: "Алматы",
+      },
+      {
+        name: "issueDate",
+        type: "date",
+        required: true,
+        label: "Дата выдачи доверенности",
+      },
+      {
+        name: "principalType",
+        type: "select",
+        required: true,
+        label: "Тип доверителя",
+        defaultValue: "Физическое лицо",
+        options: ["Физическое лицо", "Юридическое лицо"],
+      },
+      {
+        name: "principalFIO",
+        type: "text",
+        required: true,
+        label: "ФИО доверителя (или представителя юрлица)",
+      },
+      {
+        name: "principalIIN",
+        type: "text",
+        required: true,
+        label: "ИИН доверителя",
+      },
+      {
+        name: "principalDocDetails",
+        type: "text",
+        required: true,
+        label:
+          "Паспорт / удостоверение личности доверителя (№, кем и когда выдан)",
+        dependsOn: { field: "principalType", value: "Физическое лицо" },
+      },
+      {
+        name: "principalAddress",
+        type: "text",
+        required: true,
+        label: "Адрес проживания доверителя",
+      },
+      {
+        name: "principalCompanyName",
+        type: "text",
+        required: false,
+        label: "Наименование юридического лица (доверитель)",
+        dependsOn: { field: "principalType", value: "Юридическое лицо" },
+      },
+      {
+        name: "principalBIN",
+        type: "text",
+        required: false,
+        label: "БИН юридического лица",
+        dependsOn: { field: "principalType", value: "Юридическое лицо" },
+      },
+      {
+        name: "principalPosition",
+        type: "text",
+        required: false,
+        label: "Должность представителя юрлица (на основании Устава)",
+        dependsOn: { field: "principalType", value: "Юридическое лицо" },
+      },
+      {
+        name: "attorneyFIO",
+        type: "text",
+        required: true,
+        label: "ФИО поверенного",
+      },
+      {
+        name: "attorneyIIN",
+        type: "text",
+        required: true,
+        label: "ИИН поверенного",
+      },
+      {
+        name: "attorneyDocDetails",
+        type: "text",
+        required: true,
+        label:
+          "Паспорт / удостоверение личности поверенного (№, кем и когда выдан)",
+      },
+      {
+        name: "attorneyAddress",
+        type: "text",
+        required: true,
+        label: "Адрес проживания поверенного",
+      },
+      {
+        name: "powersList",
+        type: "textarea",
+        required: true,
+        label: "Перечень полномочий (каждое с новой строки)",
+      },
+      {
+        name: "validityPeriod",
+        type: "select",
+        required: true,
+        label: "Срок действия доверенности",
+        defaultValue: "До конкретной даты",
+        options: ["До конкретной даты", "В течение определённого срока"],
+      },
+      {
+        name: "validUntilDate",
+        type: "date",
+        required: false,
+        label: "Доверенность действительна до (дата)",
+        dependsOn: { field: "validityPeriod", value: "До конкретной даты" },
+      },
+      {
+        name: "validityTerm",
+        type: "text",
+        required: false,
+        label: "Срок действия (например: один год с даты выдачи)",
+        dependsOn: {
+          field: "validityPeriod",
+          value: "В течение определённого срока",
+        },
+      },
+      {
+        name: "subdelegationAllowed",
+        type: "boolean",
+        required: true,
+        label: "Право передоверия предоставляется",
+        defaultValue: false,
+      },
+    ],
+    typstContent: `#set document(title: "Доверенность")
+#set page(margin: 2cm)
+#set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
+
+#align(center)[
+  #text(size: 16pt, weight: "bold")[ДОВЕРЕННОСТЬ]
+]
+
+#v(0.5em)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[г. {{city}}],
+  align(right)[{{issueDate}}]
+)
+
+#v(1em)
+
+// === ДОВЕРИТЕЛЬ ===
+#if "{{principalType}}" == "Юридическое лицо" [
+  {{principalCompanyName}}, БИН {{principalBIN}}, юридический адрес: {{principalAddress}}, в лице {{principalPosition}} {{principalFIO}} (ИИН {{principalIIN}}), действующего на основании Устава, именуемое в дальнейшем «Доверитель»,
+] else [
+  Я, {{principalFIO}}, ИИН {{principalIIN}}, документ, удостоверяющий личность: {{principalDocDetails}}, проживающий(ая) по адресу: {{principalAddress}}, именуемый(ая) в дальнейшем «Доверитель»,
+]
+
+#v(0.5em)
+
+настоящей доверенностью уполномочиваю:
+
+#v(0.5em)
+
+{{attorneyFIO}}, ИИН {{attorneyIIN}}, документ, удостоверяющий личность: {{attorneyDocDetails}}, проживающий(ая) по адресу: {{attorneyAddress}}, именуемый(ая) в дальнейшем «Поверенный»,
+
+#v(0.5em)
+
+совершать от имени и в интересах Доверителя следующие действия:
+
+#v(0.5em)
+
+// ============================================================
+// 1. ПОЛНОМОЧИЯ
+// ============================================================
+== 1. Полномочия поверенного
+
+{{powersList}}
+
+#v(0.5em)
+
+Для выполнения указанных полномочий Поверенный вправе подавать и получать от имени Доверителя необходимые заявления, справки, документы и иные сведения, расписываться и совершать иные юридически значимые и фактические действия, связанные с исполнением настоящего поручения, в пределах предоставленных ему полномочий.
+
+#v(0.5em)
+
+// ============================================================
+// 2. СРОК ДЕЙСТВИЯ
+// ============================================================
+== 2. Срок действия доверенности
+
+#if "{{validityPeriod}}" == "До конкретной даты" [
+  2.1. Настоящая доверенность выдана и действительна по {{validUntilDate}} включительно.
+] else [
+  2.1. Настоящая доверенность выдана сроком на {{validityTerm}}.
+]
+
+2.2. Доверенность может быть в любое время отменена Доверителем, а Поверенный вправе отказаться от неё, о чём другая сторона должна быть уведомлена в порядке, предусмотренном законодательством Республики Казахстан.
+
+#v(0.5em)
+
+// ============================================================
+// 3. ПЕРЕДОВЕРИЕ
+// ============================================================
+== 3. Право передоверия
+
+#if {{subdelegationAllowed}} [
+  3.1. Поверенному предоставляется право передоверия предоставленных по настоящей доверенности полномочий другим лицам с соблюдением требований законодательства Республики Казахстан.
+] else [
+  3.1. Полномочия по настоящей доверенности не могут быть переданы (передоверены) другим лицам.
+]
+
+#v(1em)
+
+Настоящая доверенность составлена в соответствии с требованиями Гражданского кодекса Республики Казахстан. Содержание статей законодательства о полномочиях, сроке действия и прекращении доверенности Доверителю разъяснено и понятно.
+
+#v(2em)
+
+// === ПОДПИСЬ ДОВЕРИТЕЛЯ ===
+*Доверитель:*
+
+#v(2em)
+
+#line(length: 60%)
+#if "{{principalType}}" == "Юридическое лицо" [
+  {{principalPosition}} {{principalFIO}} / подпись / М.П.
+] else [
+  {{principalFIO}} / подпись
+]
+`,
+  },
+  {
+    id: "tpl_garantiynoe_pismo",
+    title: "Гарантийное письмо",
+    description:
+      "Гарантийное письмо об оплате или исполнении обязательства, в котором отправитель официально подтверждает получателю свои намерения и гарантирует исполнение в указанный срок. Используется в деловой переписке для подтверждения платёжеспособности, намерения заключить договор или своевременной оплаты задолженности.",
+    price: 1990,
+    currentVersion: 1,
+    isPublished: true,
+    variables: [
+      {
+        name: "city",
+        type: "text",
+        required: true,
+        label: "Город составления",
+        defaultValue: "Алматы",
+      },
+      {
+        name: "letterDate",
+        type: "date",
+        required: true,
+        label: "Дата письма",
+      },
+      {
+        name: "outgoingNumber",
+        type: "text",
+        required: false,
+        label: "Исходящий номер",
+      },
+      {
+        name: "senderType",
+        type: "select",
+        required: true,
+        label: "Тип отправителя",
+        defaultValue: "Юридическое лицо",
+        options: ["Юридическое лицо", "ИП", "Физическое лицо"],
+      },
+      {
+        name: "senderName",
+        type: "text",
+        required: true,
+        label: "Наименование / ФИО отправителя",
+        defaultValue: "ТОО «Компания»",
+      },
+      {
+        name: "senderBIN",
+        type: "text",
+        required: false,
+        label: "БИН/ИИН отправителя",
+        dependsOn: { field: "senderType", value: "Юридическое лицо" },
+      },
+      {
+        name: "senderAddress",
+        type: "text",
+        required: true,
+        label: "Адрес отправителя",
+      },
+      {
+        name: "directorPosition",
+        type: "text",
+        required: true,
+        label: "Должность подписанта",
+        defaultValue: "Директор",
+      },
+      {
+        name: "directorName",
+        type: "text",
+        required: true,
+        label: "ФИО руководителя (подписанта)",
+      },
+      {
+        name: "recipientName",
+        type: "text",
+        required: true,
+        label: "Наименование / ФИО получателя",
+      },
+      {
+        name: "recipientAddress",
+        type: "text",
+        required: false,
+        label: "Адрес получателя",
+      },
+      {
+        name: "guaranteeSubject",
+        type: "select",
+        required: true,
+        label: "Предмет гарантии",
+        defaultValue: "Оплата задолженности",
+        options: [
+          "Оплата задолженности",
+          "Оплата по договору",
+          "Исполнение обязательства",
+        ],
+      },
+      {
+        name: "obligationDescription",
+        type: "textarea",
+        required: true,
+        label: "Описание обязательства / основание",
+      },
+      {
+        name: "guaranteeAmount",
+        type: "number",
+        required: true,
+        label: "Сумма гарантии (тенге)",
+      },
+      {
+        name: "fulfillmentDate",
+        type: "date",
+        required: true,
+        label: "Срок исполнения / оплаты",
+      },
+      {
+        name: "addPenaltyClause",
+        type: "boolean",
+        required: false,
+        label: "Добавить пункт о пене за просрочку",
+        defaultValue: false,
+      },
+      {
+        name: "penaltyRate",
+        type: "number",
+        required: false,
+        label: "Размер пени, % за день просрочки",
+        defaultValue: 0.1,
+        dependsOn: { field: "addPenaltyClause", value: "true" },
+      },
+    ],
+    typstContent: `#set document(title: "Гарантийное письмо")
+#set page(margin: 2cm)
+#set text(font: "New Computer Modern", size: 11pt)
+#set par(justify: true)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[
+    #if "{{senderType}}" == "Юридическое лицо" [
+      {{senderName}}\\
+      #if "{{senderBIN}}" != "" [БИН: {{senderBIN}}\\ ]
+    ] else if "{{senderType}}" == "ИП" [
+      ИП {{senderName}}\\
+    ] else [
+      {{senderName}}\\
+    ]
+    {{senderAddress}}\\
+    #if "{{outgoingNumber}}" != "" [Исх. № {{outgoingNumber}} от {{letterDate}}]
+  ],
+  align(right)[
+    Кому: {{recipientName}}\\
+    #if "{{recipientAddress}}" != "" [{{recipientAddress}}]
+  ]
+)
+
+#v(1em)
+
+#align(center)[
+  #text(size: 16pt, weight: "bold")[ГАРАНТИЙНОЕ ПИСЬМО]
+]
+
+#v(0.5em)
+
+#grid(
+  columns: (1fr, 1fr),
+  align(left)[г. {{city}}],
+  align(right)[{{letterDate}}]
+)
+
+#v(1em)
+
+Уважаемый(ая) представитель {{recipientName}}!
+
+#v(0.5em)
+
+#if "{{guaranteeSubject}}" == "Оплата задолженности" [
+  Настоящим письмом
+  #if "{{senderType}}" == "Юридическое лицо" [ {{senderName}} ]
+  else if "{{senderType}}" == "ИП" [ ИП {{senderName}} ]
+  else [ {{senderName}} ]
+  гарантирует оплату имеющейся перед Вами задолженности по следующему основанию: {{obligationDescription}}.
+] else if "{{guaranteeSubject}}" == "Оплата по договору" [
+  Настоящим письмом
+  #if "{{senderType}}" == "Юридическое лицо" [ {{senderName}} ]
+  else if "{{senderType}}" == "ИП" [ ИП {{senderName}} ]
+  else [ {{senderName}} ]
+  гарантирует оплату по принятым на себя обязательствам, а именно: {{obligationDescription}}.
+] else [
+  Настоящим письмом
+  #if "{{senderType}}" == "Юридическое лицо" [ {{senderName}} ]
+  else if "{{senderType}}" == "ИП" [ ИП {{senderName}} ]
+  else [ {{senderName}} ]
+  гарантирует надлежащее исполнение принятого на себя обязательства, а именно: {{obligationDescription}}.
+]
+
+#v(0.5em)
+
+== Условия гарантии
+
++ Сумма, в отношении которой предоставляется настоящая гарантия, составляет {{guaranteeAmount}} (сумма прописью) тенге.
+
++ #if "{{guaranteeSubject}}" == "Исполнение обязательства" [
+  Указанное обязательство будет исполнено в полном объёме в срок до *{{fulfillmentDate}}*.
+] else [
+  Указанная сумма будет перечислена (оплачена) в полном объёме в срок до *{{fulfillmentDate}}*.
+]
+
++ Платёжные реквизиты получателя должны быть предоставлены отправителю по адресу: {{senderAddress}}, либо иным согласованным Сторонами способом.
+
+#if {{addPenaltyClause}} [
+  + В случае нарушения указанного срока отправитель обязуется уплатить пеню в размере {{penaltyRate}}% от суммы неисполненного обязательства за каждый день просрочки.
+]
+
+#v(0.5em)
+
+Настоящее гарантийное письмо составлено в соответствии с законодательством Республики Казахстан и подтверждает действительные намерения отправителя по исполнению указанного обязательства.
+
+#v(2em)
+
+С уважением,
+
+#v(0.5em)
+
+{{directorPosition}}
+#if "{{senderType}}" == "Юридическое лицо" [ {{senderName}} ]
+
+#v(2em)
+
+#line(length: 40%)
+{{directorName}}
+
+#v(0.5em)
+М.П.
 `,
   },
 ];

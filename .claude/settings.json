@@ -5,8 +5,21 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
       "Bash(pnpm exec *)",
       "Bash(psql postgresql://contract:23je9fm31mdltk4m1da90031ksla@localhost:5432/contract-builder -c ' *)",
-      "Bash(psql \"postgresql://contract:23je9fm31mdltk4m1da90031ksla@localhost:5432/contract-builder\" -c \"\\\\d payment\")"
-    ]
+      "Bash(psql \"postgresql://contract:23je9fm31mdltk4m1da90031ksla@localhost:5432/contract-builder\" -c \"\\\\d payment\")",
+      "Bash(python3 -c \"import json; e=json.load\\(open\\('/tmp/entry.json'\\)\\); print\\(list\\(e.keys\\(\\)\\)\\)\")",
+      "Read(//private/tmp/**)",
+      "Bash(python3 check.py)",
+      "Read(//tmp/**)",
+      "Bash(brew install *)",
+      "Bash(typst --version)",
+      "Read(//opt/homebrew/bin/**)",
+      "Bash(npm ls *)",
+      "Bash(brew list *)",
+      "Bash(npx --no-install typst --version)",
+      "Bash(cat > *)",
+      "Bash(echo \"exit: $?\")"
+    ],
+    "additionalDirectories": ["/tmp"]
   },
   "hooks": {
     "PostToolUse": [
