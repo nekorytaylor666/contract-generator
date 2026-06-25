@@ -11,7 +11,6 @@ import { useTranslation } from "react-i18next";
 import { CommandSearchProvider } from "@/components/command-search/command-search-context";
 import { CommandSearchDialog } from "@/components/command-search/command-search-dialog";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { ShareAccessMenu } from "@/components/share-access-menu";
 import { TeamAvatarStack } from "@/components/team-avatar-stack";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
@@ -61,8 +60,12 @@ function usePageHeader(): { title: string; icon: LucideIcon } {
   return { title: t("nav.constructor"), icon: PenLine };
 }
 
-function useIsAuthRoute() {
+// Routes that render their own full-screen layout (no app sidebar/header):
+// the public landing, the auth screens, and the invitation accept page.
+function useIsChromelessRoute() {
+  const indexMatch = useMatch({ from: "/", shouldThrow: false });
   const loginMatch = useMatch({ from: "/login", shouldThrow: false });
+  const registerMatch = useMatch({ from: "/register", shouldThrow: false });
   const onboardingMatch = useMatch({
     from: "/onboarding",
     shouldThrow: false,
@@ -71,17 +74,28 @@ function useIsAuthRoute() {
     from: "/continue-signup",
     shouldThrow: false,
   });
-  return Boolean(loginMatch || onboardingMatch || continueSignupMatch);
+  const acceptInviteMatch = useMatch({
+    from: "/accept-invitation/$invitationId/",
+    shouldThrow: false,
+  });
+  return Boolean(
+    indexMatch ||
+      loginMatch ||
+      registerMatch ||
+      onboardingMatch ||
+      continueSignupMatch ||
+      acceptInviteMatch
+  );
 }
 
 export function SidebarLayout({ children }: SidebarLayoutProps) {
   const { title, icon: TitleIcon } = usePageHeader();
-  const isAuthRoute = useIsAuthRoute();
+  const isChromeless = useIsChromelessRoute();
   const documentsMatch = useMatch({ from: "/documents", shouldThrow: false });
   const { data: activeOrg } = authClient.useActiveOrganization();
   const isDocuments = Boolean(documentsMatch);
 
-  if (isAuthRoute) {
+  if (isChromeless) {
     return <>{children}</>;
   }
 
@@ -107,12 +121,8 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
               )}
             </div>
             <div className="flex items-center gap-3">
-              {isDocuments && (
-                <>
-                  <TeamAvatarStack />
-                  <ShareAccessMenu />
-                </>
-              )}
+              {/* Временно скрыто: добавление в команду (ShareAccessMenu) */}
+              {isDocuments && <TeamAvatarStack />}
               <LanguageSwitcher />
             </div>
           </header>

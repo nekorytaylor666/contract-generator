@@ -12,6 +12,15 @@ export const env = createEnv({
     // without it; the Google sign-in button only works when both are set.
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
     GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+    // SMTP for transactional email (team invitations). Optional so the server
+    // boots without it; invites just won't email until USER + PASSWORD are set.
+    // For Gmail use an App Password (smtp.gmail.com:465).
+    SMTP_HOST: z.string().min(1).default("smtp.gmail.com"),
+    SMTP_PORT: z.coerce.number().int().positive().default(465),
+    SMTP_USER: z.string().min(1).optional(),
+    SMTP_PASSWORD: z.string().min(1).optional(),
+    // Optional display "From" (e.g. "Zhebe <no-reply@zhebe.kz>"); defaults to SMTP_USER.
+    SMTP_FROM: z.string().min(1).optional(),
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),
@@ -21,10 +30,12 @@ export const env = createEnv({
     ROBOKASSA_MERCHANT_LOGIN: z.string().min(1).optional(),
     ROBOKASSA_PASSWORD_1: z.string().min(1).optional(),
     ROBOKASSA_PASSWORD_2: z.string().min(1).optional(),
-    ROBOKASSA_IS_TEST: z
-      .enum(["true", "false"])
-      .default("true")
-      .transform((value) => value === "true"),
+    // Public base URL Robokassa can reach (e.g. an ngrok tunnel like
+    // https://abc123.ngrok-free.app). Used for the SuccessUrl2/FailUrl2 return
+    // URLs; falls back to BETTER_AUTH_URL when unset. Also where you point the
+    // cabinet ResultURL: <ROBOKASSA_PUBLIC_URL>/result/payment. When set, the
+    // gateway runs in TEST mode (IsTest=1); empty = live payments.
+    ROBOKASSA_PUBLIC_URL: z.url().optional(),
     // Pass SuccessUrl2/FailUrl2 per payment (return the browser to our own
     // server handlers) instead of relying on the cabinet SuccessURL/FailURL.
     // Requires "additional Success/Fail URL" enabled in the Robokassa cabinet —
@@ -38,3 +49,16 @@ export const env = createEnv({
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
 });
+
+// Allowed web origins for CORS + better-auth. Browsers treat localhost and
+// 127.0.0.1 as different origins, so include both variants of CORS_ORIGIN.
+export const allowedWebOrigins: string[] = (() => {
+  const origin = env.CORS_ORIGIN;
+  const twin = origin.includes("localhost")
+    ? origin.replace("localhost", "127.0.0.1")
+    : origin.replace("127.0.0.1", "localhost");
+  const res = twin === origin ? [origin] : [origin, twin];
+  console.log("allowedWebOrigins", res);
+
+  return res;
+})();

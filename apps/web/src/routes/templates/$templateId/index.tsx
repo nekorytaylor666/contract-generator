@@ -85,6 +85,15 @@ function RouteComponent() {
   // Any purchase (edit or download) unlocks the download.
   const hasDownload = purchases.some((p) => p.templateId === templateId);
 
+  // The subscription covers edit/download while there's quota left (-1 = ∞).
+  const { data: mySub } = useQuery(
+    trpc.subscriptions.mySubscription.queryOptions()
+  );
+  const hasEditQuota =
+    mySub?.editRemaining === -1 || (mySub?.editRemaining ?? 0) > 0;
+  const hasDownloadQuota =
+    mySub?.downloadRemaining === -1 || (mySub?.downloadRemaining ?? 0) > 0;
+
   const [isPaying, setIsPaying] = useState(false);
 
   const goToBuilder = () =>
@@ -124,6 +133,24 @@ function RouteComponent() {
     })
   );
 
+  // Create the document up-front so it shows in "Мои документы" immediately,
+  // then open the builder editing it (further changes update the same doc).
+  const createDraftMutation = useMutation(
+    trpc.documents.save.mutationOptions({
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({
+          queryKey: trpc.documents.list.queryKey(),
+        });
+        navigate({
+          to: "/templates/$templateId/builder",
+          params: { templateId },
+          search: { documentId: data.id },
+        });
+      },
+      onError: (err) => toast.error(err.message),
+    })
+  );
+
   // Saved templates ("сохранёнки").
   const { data: bookmarks = [] } = useQuery(
     trpc.templates.myBookmarks.queryOptions()
@@ -145,8 +172,12 @@ function RouteComponent() {
     if (!template) {
       return;
     }
-    if (hasEdit || template.price === 0) {
-      goToBuilder();
+    if (hasEdit || template.price === 0 || hasEditQuota) {
+      createDraftMutation.mutate({
+        templateId,
+        title: template.title,
+        variables: {},
+      });
       return;
     }
     setIsPaying(true);
@@ -159,7 +190,7 @@ function RouteComponent() {
     if (!template) {
       return;
     }
-    if (hasDownload || template.downloadPrice === 0) {
+    if (hasDownload || template.downloadPrice === 0 || hasDownloadQuota) {
       downloadMutation.mutate({ templateId, locale: i18n.language });
       return;
     }
@@ -222,10 +253,7 @@ function RouteComponent() {
             <h1 className="font-semibold text-base text-foreground">
               {localized.title}
             </h1>
-            <p className="mt-1 max-w-2xl text-muted-foreground text-xs">
-              {localized.description}
-            </p>
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-1 flex items-center gap-2">
               <span className="text-muted-foreground text-xs">
                 {variables.length} полей для заполнения
               </span>
@@ -253,17 +281,17 @@ function RouteComponent() {
               type="button"
             >
               <Download className="size-4" />
-              {hasDownload || template.downloadPrice === 0
+              {hasDownload || template.downloadPrice === 0 || hasDownloadQuota
                 ? t("templates.download")
                 : `${t("templates.download")} — ${formatPrice(template.downloadPrice)}`}
             </button>
             <button
               className="inline-flex h-10 items-center justify-center rounded-lg bg-[#9e1f5a] px-4 font-medium text-[#fafafa] text-sm transition-colors hover:bg-[#8b1a50] disabled:opacity-60"
-              disabled={isPaying}
+              disabled={isPaying || createDraftMutation.isPending}
               onClick={handleEdit}
               type="button"
             >
-              {hasEdit || template.price === 0
+              {hasEdit || template.price === 0 || hasEditQuota
                 ? t("templates.edit")
                 : `${t("templates.edit")} — ${formatPrice(template.price)}`}
             </button>
@@ -304,10 +332,18 @@ function RouteComponent() {
         </div>
 
         {/* Fields Sidebar */}
-        <div className="w-80 shrink-0 overflow-auto border-border border-l bg-background p-4">
-          <h2 className="mb-2 font-medium text-foreground text-sm">
-            Необходимая информация
+        <div className="w-96 shrink-0 overflow-auto border-border border-l bg-background p-5">
+          <h2 className="font-semibold text-foreground text-xl leading-tight">
+            {localized.title}
           </h2>
+          {localized.description && (
+            <p className="mt-2 mb-6 text-muted-foreground text-sm leading-relaxed">
+              {localized.description}
+            </p>
+          )}
+          <h3 className="mb-2 font-medium text-foreground text-sm">
+            Необходимая информация
+          </h3>
           <p className="mb-4 text-muted-foreground text-xs">
             Эти поля необходимо заполнить при использовании шаблона.
           </p>

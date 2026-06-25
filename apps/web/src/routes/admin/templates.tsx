@@ -696,7 +696,8 @@ function AdminTemplatesPage() {
                       {mergedVariables.map((v, i) => (
                         <VariableCard
                           allVariables={mergedVariables}
-                          key={v.name}
+                          // biome-ignore lint/suspicious/noArrayIndexKey: a variable's identity is its position (edits/deletes go by index). Keying by the editable `name` remounts the card on every keystroke — collapsing it and dropping focus.
+                          key={i}
                           onChange={(next) => handleVariableChange(i, next)}
                           onDelete={() => handleVariableDelete(i)}
                           variable={v}

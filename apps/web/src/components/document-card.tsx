@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { MoreHorizontal } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -82,11 +81,8 @@ export function DocumentCard({
           </div>
         </div>
 
-        {/* Status + author */}
-        <div className="flex items-center justify-between pt-1">
-          <Badge className="border-green-200 bg-green-50 text-green-700">
-            Подписан
-          </Badge>
+        {/* Author */}
+        <div className="flex items-center justify-end pt-1">
           <Avatar className="size-7">
             <AvatarFallback className="bg-muted text-[10px]">
               {getInitials(authorName)}

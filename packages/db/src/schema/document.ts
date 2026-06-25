@@ -30,6 +30,8 @@ export const document = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     currentVersion: integer("current_version").notNull().default(1),
+    // Lifecycle: draft | in_progress | signed | completed.
+    status: text("status").notNull().default("draft"),
     variables: jsonb("variables").notNull().default({}),
     logo: text("logo"),
     style: jsonb("style"),

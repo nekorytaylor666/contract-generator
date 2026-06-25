@@ -27,7 +27,14 @@ export function getRobokassaConfig(): RobokassaConfig {
       "Robokassa не настроена: задайте ROBOKASSA_MERCHANT_LOGIN / ROBOKASSA_PASSWORD_1 / ROBOKASSA_PASSWORD_2"
     );
   }
-  return { merchantLogin, password1, password2, isTest: env.ROBOKASSA_IS_TEST };
+  // Test mode is inferred from ROBOKASSA_PUBLIC_URL: set (e.g. an ngrok tunnel
+  // for local dev) → test payments; empty (production domain) → live payments.
+  return {
+    merchantLogin,
+    password1,
+    password2,
+    isTest: Boolean(env.ROBOKASSA_PUBLIC_URL),
+  };
 }
 
 /** Whole tenge (major units) → Robokassa OutSum string ("23870.00"). Amounts
@@ -43,6 +50,9 @@ export function buildInitPaymentUrl(params: {
   outSum: string;
   invId: number;
   description: string;
+  // Pre-fills the buyer's email on Robokassa's page so they don't enter it.
+  // Not part of the signature. Omit it for phone-only users (no email).
+  email?: string;
 }): string {
   const { merchantLogin, password1, isTest } = getRobokassaConfig();
 
@@ -53,7 +63,11 @@ export function buildInitPaymentUrl(params: {
   // redirect signature and forward to the SPA.
   let dynamicUrls: { successEnc: string; failEnc: string } | null = null;
   if (env.ROBOKASSA_DYNAMIC_URLS) {
-    const base = env.BETTER_AUTH_URL.replace(TRAILING_SLASH_REGEX, "");
+    // Prefer the public/ngrok URL so Robokassa returns to a reachable host.
+    const base = (env.ROBOKASSA_PUBLIC_URL ?? env.BETTER_AUTH_URL).replace(
+      TRAILING_SLASH_REGEX,
+      ""
+    );
     dynamicUrls = {
       successEnc: encodeURIComponent(`${base}/success/payment`),
       failEnc: encodeURIComponent(`${base}/fail/payment`),
@@ -78,6 +92,9 @@ export function buildInitPaymentUrl(params: {
   });
   if (isTest) {
     query.set("IsTest", "1");
+  }
+  if (params.email) {
+    query.set("Email", params.email);
   }
 
   let url = `${ROBOKASSA_BASE_URL}?${query.toString()}`;

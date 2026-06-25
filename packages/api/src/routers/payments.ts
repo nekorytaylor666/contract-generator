@@ -4,7 +4,7 @@ import { payment } from "@contract-builder/db/schema/payment";
 import { subscriptionPlan } from "@contract-builder/db/schema/subscription";
 import { template } from "@contract-builder/db/schema/template";
 import { TRPCError } from "@trpc/server";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "../index";
 import {
@@ -12,6 +12,19 @@ import {
   formatOutSum,
   getRobokassaConfig,
 } from "../lib/robokassa";
+
+// Unpaid invoices expire after 6 hours instead of waiting indefinitely.
+const PENDING_PAYMENT_TTL_MS = 6 * 60 * 60 * 1000;
+
+// The account email to pre-fill on Robokassa (so it isn't asked again). Phone-
+// only users have no real email (their placeholder ends with @phone.local) —
+// returns undefined so Robokassa prompts the buyer for one.
+function accountEmail(email: string | null | undefined): string | undefined {
+  if (!email || email.endsWith("@phone.local")) {
+    return undefined;
+  }
+  return email;
+}
 
 export const paymentsRouter = router({
   // Creates a pending payment for a paid template and returns the Robokassa
@@ -103,6 +116,7 @@ export const paymentsRouter = router({
         outSum: formatOutSum(amount),
         invId: created.invId,
         description,
+        email: accountEmail(ctx.session.user.email),
       });
 
       return { alreadyPurchased: false as const, url };
@@ -178,6 +192,7 @@ export const paymentsRouter = router({
         outSum: formatOutSum(amount),
         invId: created.invId,
         description,
+        email: accountEmail(ctx.session.user.email),
       });
 
       return { url };
@@ -243,4 +258,34 @@ export const paymentsRouter = router({
       }
       return found;
     }),
+
+  // Purchase history for the profile (subscriptions + template payments).
+  myHistory: protectedProcedure.query(async ({ ctx }) => {
+    // Pending invoices stop "waiting" after 6 hours — mark them expired so they
+    // don't hang forever. A genuine late Robokassa confirmation still completes
+    // them (processRobokassaResult also accepts the "expired" state).
+    await db
+      .update(payment)
+      .set({ status: "expired" })
+      .where(
+        and(
+          eq(payment.userId, ctx.session.user.id),
+          eq(payment.status, "pending"),
+          lt(payment.createdAt, new Date(Date.now() - PENDING_PAYMENT_TTL_MS))
+        )
+      );
+
+    return await db
+      .select({
+        invId: payment.invId,
+        description: payment.description,
+        purpose: payment.purpose,
+        amount: payment.amount,
+        status: payment.status,
+        createdAt: payment.createdAt,
+      })
+      .from(payment)
+      .where(eq(payment.userId, ctx.session.user.id))
+      .orderBy(desc(payment.createdAt));
+  }),
 });

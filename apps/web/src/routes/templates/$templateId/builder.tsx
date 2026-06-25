@@ -1,7 +1,7 @@
 import { resolveLocalized } from "@contract-builder/api/constants/template-options";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Check, Loader2, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -12,7 +12,6 @@ import { InteractiveDocumentPreview } from "@/components/template-builder/intera
 import { LogoUpload } from "@/components/template-builder/logo-upload";
 import { TemplateForm } from "@/components/template-builder/template-form";
 import { VersionHistory } from "@/components/template-builder/version-history";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { requireAuth } from "@/lib/auth-guard";
 import type { TemplateVariable } from "@/routes/templates";
@@ -397,27 +396,49 @@ function RouteComponent() {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Header */}
-      <div className="border-border border-b bg-background p-4">
-        <Link
-          className="mb-3 inline-flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground"
-          params={{ templateId }}
-          to="/templates/$templateId"
-        >
-          <ArrowLeft className="size-3.5" />
-          Назад к шаблону
-        </Link>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="font-semibold text-base text-foreground">
-              {localized.title}
-            </h1>
-            <p className="mt-1 max-w-2xl text-muted-foreground text-xs">
-              Заполните данные ниже для создания документа
-            </p>
-          </div>
-          <Badge className="shrink-0 text-sm" variant="secondary">
-            {template.price.toLocaleString("ru-RU")} ₸
-          </Badge>
+      <div className="flex items-center justify-between gap-4 border-border border-b bg-background px-4 py-3">
+        <div className="flex min-w-0 items-center gap-1.5 text-sm">
+          <Link
+            className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+            to="/documents"
+          >
+            Мои документы
+          </Link>
+          <span className="text-muted-foreground">/</span>
+          <span className="truncate font-medium text-foreground">
+            {localized.title}
+          </span>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          {saveMutation.isPending && (
+            <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
+              <Loader2 className="size-4 animate-spin" />
+              Сохранение…
+            </span>
+          )}
+          {!saveMutation.isPending && changedVars.size > 0 && (
+            <Button
+              disabled={!canEdit}
+              onClick={handleSave}
+              size="sm"
+              variant="outline"
+            >
+              Сохранить
+            </Button>
+          )}
+          {!(saveMutation.isPending || changedVars.size > 0) && (
+            <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
+              <Check className="size-4 text-green-600" />
+              Сохранено
+            </span>
+          )}
+          <Button
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            disabled={compileMutation.isPending}
+            onClick={handleDownload}
+          >
+            {compileMutation.isPending ? "Скачивание…" : "Скачать договор"}
+          </Button>
         </div>
       </div>
 
@@ -449,13 +470,8 @@ function RouteComponent() {
         <div className="flex-1 overflow-auto bg-muted/30 p-4">
           <div className="mx-auto h-full max-w-5xl">
             <InteractiveDocumentPreview
-              canSave={canEdit}
               changedVars={changedVars}
-              isDownloading={compileMutation.isPending}
-              isSaving={saveMutation.isPending}
               logo={logo}
-              onDownload={handleDownload}
-              onSave={handleSave}
               onValueChange={handleInlineChange}
               style={documentStyle}
               typstContent={localized.typstContent}
@@ -467,12 +483,13 @@ function RouteComponent() {
 
         {/* Form Sidebar — collapsible */}
         {sidebarOpen && (
-          <div className="w-80 shrink-0 overflow-auto border-border border-l bg-background p-4">
-            <h2 className="mb-2 font-medium text-foreground text-sm">
-              Детали документа
+          <div className="w-96 shrink-0 overflow-auto border-border border-l bg-background p-5">
+            <h2 className="font-semibold text-foreground text-xl leading-tight">
+              {localized.title}
             </h2>
-            <p className="mb-4 text-muted-foreground text-xs">
-              Заполните необходимую информацию для создания документа.
+            <p className="mt-2 mb-5 text-muted-foreground text-sm leading-relaxed">
+              {localized.description ||
+                "Заполните поля — документ слева обновится автоматически."}
             </p>
 
             <LogoUpload logo={logo} onLogoChange={handleLogoChange} />

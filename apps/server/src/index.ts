@@ -5,7 +5,7 @@ import { processRobokassaResult } from "@contract-builder/api/lib/payment-servic
 import { verifySuccessSignature } from "@contract-builder/api/lib/robokassa";
 import { appRouter } from "@contract-builder/api/routers/index";
 import { auth } from "@contract-builder/auth";
-import { env } from "@contract-builder/env/server";
+import { allowedWebOrigins, env } from "@contract-builder/env/server";
 import { trpcServer } from "@hono/trpc-server";
 import { convertToModelMessages, streamText, wrapLanguageModel } from "ai";
 import { Hono } from "hono";
@@ -18,7 +18,7 @@ app.use(logger());
 app.use(
   "/*",
   cors({
-    origin: env.CORS_ORIGIN,
+    origin: allowedWebOrigins,
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     credentials: true,

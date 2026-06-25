@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { CheckCircle2, Download, Loader2, Pencil } from "lucide-react";
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -9,9 +10,16 @@ import { useTRPC } from "@/utils/trpc";
 
 export const Route = createFileRoute("/success/payment")({
   component: PaymentSuccess,
-  validateSearch: (search: Record<string, unknown>): { invId?: number } => ({
-    invId: search.invId ? Number(search.invId) : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { invId?: number } => {
+    // Accept both our normalized `invId` and Robokassa's raw `InvId` (when the
+    // cabinet SuccessURL points straight at the SPA instead of via our server).
+    const raw = search.invId ?? search.InvId;
+    if (raw == null || raw === "") {
+      return { invId: undefined };
+    }
+    const parsed = Number(raw);
+    return { invId: Number.isNaN(parsed) ? undefined : parsed };
+  },
 });
 
 const POLL_INTERVAL_MS = 2000;
@@ -45,6 +53,18 @@ function PaymentSuccess() {
   const templateId = data?.templateId ?? null;
   const isDownload = data?.purpose === "template_download";
   const isSubscription = data?.purpose === "subscription";
+
+  const navigate = useNavigate();
+  // A paid subscription shows its success as a modal on the profile tab.
+  useEffect(() => {
+    if (paid && isSubscription) {
+      navigate({
+        to: "/profile",
+        search: { tab: "subscription", subscribed: true },
+        replace: true,
+      });
+    }
+  }, [paid, isSubscription, navigate]);
 
   const paidHint = isSubscription
     ? t("payment.successSubscriptionHint")

@@ -68,7 +68,9 @@ export async function processRobokassaResult(input: {
     return { status: "amount_mismatch", invId };
   }
   // Only act on the first confirmation — Robokassa may retry the webhook.
-  if (found.status === "pending") {
+  // "expired" is honored too: a 6h-timed-out invoice that is genuinely paid
+  // (late confirmation) should still complete so no real payment is lost.
+  if (found.status === "pending" || found.status === "expired") {
     const paidAt = new Date();
     await db
       .update(payment)

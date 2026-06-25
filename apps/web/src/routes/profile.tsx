@@ -1,26 +1,41 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import {
-  Check,
-  Download,
-  Filter,
-  MoreHorizontal,
-  Plus,
-  Search,
-  X,
-} from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Check, Plus, Settings, User, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { requireAuth } from "@/lib/auth-guard";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
 
 export const Route = createFileRoute("/profile")({
   component: ProfilePage,
+  validateSearch: (
+    search: Record<string, unknown>
+  ): { tab?: ProfileTab; subscribed?: boolean } => ({
+    tab: PROFILE_TABS.find((t) => t.id === search.tab)?.id,
+    subscribed:
+      search.subscribed === true ||
+      search.subscribed === "true" ||
+      search.subscribed === "1",
+  }),
   beforeLoad: async () => {
     const { session, organizations } = await requireAuth();
     return { session, organizations };
@@ -189,8 +204,19 @@ function quotaText(n: number): string {
   return n === -1 ? "∞" : String(n);
 }
 
+function planCta(name: string, isFree: boolean, isCurrent: boolean): string {
+  if (isFree) {
+    return "Ваш тариф";
+  }
+  if (isCurrent) {
+    return "Текущий тариф";
+  }
+  return `Перейти на ${name}`;
+}
+
 function dbPlanToCard(p: DbPlan, currentPlanId: string | null): Plan {
   const isFree = p.priceMonthly === 0;
+  const isCurrent = p.id === currentPlanId;
   return {
     id: p.id,
     name: p.name,
@@ -198,8 +224,8 @@ function dbPlanToCard(p: DbPlan, currentPlanId: string | null): Plan {
     description: p.description,
     price: isFree ? "Бесплатно" : `${p.priceMonthly.toLocaleString("ru-RU")} ₸`,
     period: isFree ? undefined : "/ в месяц",
-    cta: p.id === currentPlanId ? "Ваш тариф" : `Перейти на ${p.name}`,
-    current: p.id === currentPlanId,
+    cta: planCta(p.name, isFree, isCurrent),
+    current: isCurrent,
     quotas: [
       { label: "Скачивание", value: quotaText(p.downloadQuota) },
       { label: "Редактирование", value: quotaText(p.editQuota) },
@@ -208,8 +234,88 @@ function dbPlanToCard(p: DbPlan, currentPlanId: string | null): Plan {
   };
 }
 
-function SubscriptionTab() {
+const MONTHS_RU = [
+  "января",
+  "февраля",
+  "марта",
+  "апреля",
+  "мая",
+  "июня",
+  "июля",
+  "августа",
+  "сентября",
+  "октября",
+  "ноября",
+  "декабря",
+];
+
+function formatPurchaseDate(value: Date | string): string {
+  const d = new Date(value);
+  return `${d.getDate()} ${MONTHS_RU[d.getMonth()]}, ${d.getFullYear()}`;
+}
+
+function formatExpiryFull(value: Date | string): string {
+  const d = new Date(value);
+  return `${d.getDate()} ${MONTHS_RU[d.getMonth()]} ${d.getFullYear()} года`;
+}
+
+function parseQuotaValue(value: string | undefined): number {
+  if (!value || value === NOT_INCLUDED) {
+    return 0;
+  }
+  if (value === "∞") {
+    return -1;
+  }
+  const n = Number.parseInt(value, 10);
+  return Number.isNaN(n) ? 0 : n;
+}
+
+function statusMeta(status: string): { label: string; className: string } {
+  if (status === "paid") {
+    return { label: "Оплачен", className: "text-[#2e6b2e]" };
+  }
+  if (status === "expired") {
+    return { label: "Просрочен", className: "text-destructive" };
+  }
+  if (status === "failed") {
+    return { label: "Не оплачен", className: "text-destructive" };
+  }
+  return { label: "Ожидает оплаты", className: "text-muted-foreground" };
+}
+
+function UsageCard({
+  label,
+  used,
+  quota,
+}: {
+  label: string;
+  used: number;
+  quota: number;
+}) {
+  const unlimited = quota === -1;
+  const pct = unlimited || quota <= 0 ? 0 : Math.min(100, (used / quota) * 100);
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-foreground text-sm">{label}</span>
+        <span className="text-muted-foreground text-sm">
+          {used}/{unlimited ? "∞" : quota}
+        </span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-primary"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
+  const navigate = useNavigate();
   const [period, setPeriod] = useState<(typeof PERIODS)[number]>(PERIODS[0]);
+  const [successOpen, setSuccessOpen] = useState(Boolean(justPaid));
   const trpc = useTRPC();
   const { data: dbPlans = [] } = useQuery(
     trpc.subscriptions.plans.queryOptions()
@@ -217,8 +323,16 @@ function SubscriptionTab() {
   const { data: my } = useQuery(
     trpc.subscriptions.mySubscription.queryOptions()
   );
+  const { data: history = [] } = useQuery(
+    trpc.payments.myHistory.queryOptions()
+  );
+
   const typedPlans = dbPlans as DbPlan[];
   const plans = typedPlans.map((p) => dbPlanToCard(p, my?.planId ?? null));
+  const currentPlan = typedPlans.find((p) => p.id === my?.planId);
+  const checksQuota = parseQuotaValue(
+    currentPlan?.features?.find((f) => f.label === "Проверка документов")?.value
+  );
 
   const checkout = useMutation(
     trpc.payments.createSubscriptionCheckout.mutationOptions({
@@ -233,278 +347,500 @@ function SubscriptionTab() {
   );
 
   return (
-    <section className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="font-semibold text-2xl text-foreground leading-6">
-          Доступные планы
-        </h2>
-        <div className="flex items-center gap-4">
-          <span className="text-foreground text-xs">Период подписки</span>
-          <div className="flex items-center gap-1 rounded-[10px] bg-muted p-1">
-            {PERIODS.map((option) => {
-              const isActive = option === period;
-              return (
-                <button
-                  className={cn(
-                    "rounded-lg px-2 py-1 text-xs transition-colors",
-                    isActive
-                      ? "bg-background text-foreground shadow-sm"
-                      : "border border-border text-foreground hover:bg-background/60"
-                  )}
-                  key={option}
-                  onClick={() => setPeriod(option)}
-                  type="button"
-                >
-                  {option}
-                </button>
-              );
-            })}
-          </div>
+    <section className="flex flex-col gap-6">
+      {/* Current subscription */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-5">
+        <div className="flex flex-col gap-1">
+          <h3 className="font-semibold text-foreground text-lg leading-6">
+            {my?.planName ?? "Без подписки"}
+          </h3>
+          <p className="text-muted-foreground text-sm">
+            {my?.expiresAt
+              ? `Следующее списание ${formatPurchaseDate(my.expiresAt)}`
+              : "Бесплатный тариф — без ограничения по сроку"}
+          </p>
         </div>
+        <Button
+          className={OUTLINE_BTN}
+          onClick={() =>
+            toast.info("Управление подпиской скоро будет доступно")
+          }
+          size="lg"
+          type="button"
+          variant="outline"
+        >
+          <Settings className="size-4" />
+          Управлять подпиской
+        </Button>
       </div>
 
-      {my?.planName && (
-        <div className="rounded-lg border bg-muted/30 px-4 py-3 text-foreground text-sm">
-          Текущий тариф: <span className="font-medium">{my.planName}</span>. В
-          этом месяце осталось — скачивания:{" "}
-          {my.downloadRemaining === -1 ? "∞" : my.downloadRemaining},
-          редактирования: {my.editRemaining === -1 ? "∞" : my.editRemaining}.
+      {/* Usage */}
+      {my && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <UsageCard
+            label="Использовано загрузок"
+            quota={my.downloadQuota}
+            used={my.downloadsUsed}
+          />
+          <UsageCard
+            label="Использовано редактирований"
+            quota={my.editQuota}
+            used={my.editsUsed}
+          />
+          <UsageCard
+            label="Использовано проверок"
+            quota={checksQuota}
+            used={0}
+          />
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {plans.map((plan, i) => {
-          const isFree = typedPlans[i].priceMonthly === 0;
-          const canBuy = !(plan.current || isFree);
-          return (
-            <PlanCard
-              key={plan.id}
-              loading={
-                checkout.isPending && checkout.variables?.planId === plan.id
-              }
-              onSelect={
-                canBuy
-                  ? () =>
-                      checkout.mutate({ planId: plan.id, period: "monthly" })
-                  : undefined
-              }
-              plan={plan}
-            />
-          );
-        })}
-      </div>
-    </section>
-  );
-}
+      {/* Plans */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="font-semibold text-2xl text-foreground leading-6">
+            Доступные планы
+          </h2>
+          <div className="flex items-center gap-4">
+            <span className="text-foreground text-xs">Период подписки</span>
+            <div className="flex items-center gap-1 rounded-[10px] bg-muted p-1">
+              {PERIODS.map((option) => {
+                const isActive = option === period;
+                return (
+                  <button
+                    className={cn(
+                      "rounded-lg px-2 py-1 text-xs transition-colors",
+                      isActive
+                        ? "bg-background text-foreground shadow-sm"
+                        : "border border-border text-foreground hover:bg-background/60"
+                    )}
+                    key={option}
+                    onClick={() => setPeriod(option)}
+                    type="button"
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
-function PlaceholderTab({ title }: { title: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-20">
-      <p className="font-medium text-foreground text-sm">{title}</p>
-      <p className="mt-1 text-muted-foreground text-xs">
-        Раздел скоро появится
-      </p>
-    </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {plans.map((plan, i) => {
+            const isFree = typedPlans[i].priceMonthly === 0;
+            const canBuy = !(plan.current || isFree);
+            return (
+              <PlanCard
+                key={plan.id}
+                loading={
+                  checkout.isPending && checkout.variables?.planId === plan.id
+                }
+                onSelect={
+                  canBuy
+                    ? () =>
+                        checkout.mutate({ planId: plan.id, period: "monthly" })
+                    : undefined
+                }
+                plan={plan}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Purchase history */}
+      {history.length > 0 && (
+        <div className="flex flex-col gap-4">
+          <h2 className="font-semibold text-2xl text-foreground leading-6">
+            История покупок
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
+              <tbody>
+                {history.map((item) => {
+                  const meta = statusMeta(item.status);
+                  const label =
+                    item.description ||
+                    (item.purpose === "subscription" ? "Подписка" : "Договор");
+                  return (
+                    <tr
+                      className="border-border border-b last:border-b-0"
+                      key={item.invId}
+                    >
+                      <td className="py-3 pr-4 text-foreground">{label}</td>
+                      <td className="py-3 pr-4 text-muted-foreground">
+                        {formatPurchaseDate(item.createdAt)}
+                      </td>
+                      <td className="py-3 pr-4 text-foreground">
+                        {item.amount.toLocaleString("ru-RU")} ₸
+                      </td>
+                      <td className={cn("py-3 pr-4", meta.className)}>
+                        {meta.label}
+                      </td>
+                      <td className="py-3 text-right">
+                        <button
+                          className="text-foreground text-sm underline hover:no-underline"
+                          onClick={() => toast.info("Скоро будет доступно")}
+                          type="button"
+                        >
+                          {item.status === "paid" ? "Квитанция" : "Оплатить"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Success modal after a subscription payment */}
+      <Dialog
+        onOpenChange={(open) => {
+          if (!open) {
+            setSuccessOpen(false);
+            navigate({ to: "/profile", search: { tab: "subscription" } });
+          }
+        }}
+        open={successOpen && Boolean(my?.planName)}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <div className="flex flex-col items-center gap-4 py-2 text-center">
+            <span className="flex size-14 items-center justify-center rounded-full bg-[#d6edd6]">
+              <Check className="size-7 text-[#2e6b2e]" />
+            </span>
+            <div className="flex flex-col gap-1.5">
+              <h3 className="font-semibold text-foreground text-lg">
+                Подписка возобновлена!
+              </h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                Тариф «{my?.planName}» активирован.
+                {my?.expiresAt &&
+                  ` Следующее списание — ${formatExpiryFull(my.expiresAt)}.`}
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </section>
   );
 }
 
 interface Requisite {
   id: string;
   name: string;
+  type: string;
   inn: string;
   address: string;
   phone: string;
   email: string;
+  bank: string;
+  iban: string;
+  bik: string;
+  kbe: string;
+  knp: string;
+  signatory: string;
+  position: string;
+  basis: string;
 }
 
-// Static placeholder rows. No DB yet — wire to real data later.
-const REQUISITES_SAMPLE: Requisite[] = [
-  {
-    id: "1",
-    name: "ИП Сейткали А.Б.",
-    inn: "890514300127",
-    address: "г. Астана, пр. Республики, 4…",
-    phone: "+7 702 345 67 89",
-    email: "setkali@mail.ru",
-  },
-  {
-    id: "2",
-    name: "ТОО «Meridian Legal»",
-    inn: "210640013872",
-    address: "г. Алматы, ул. Панфилова, 98",
-    phone: "+7 727 300 11 22",
-    email: "contact@meridian.kz",
-  },
-  {
-    id: "3",
-    name: "Джаксыбеков Нурлан Сери…",
-    inn: "951203401256",
-    address: "г. Шымкент, ул. Байтурсыно…",
-    phone: "+7 747 456 78 90",
-    email: "n.dzhaksybekov@gmail.com",
-  },
-  {
-    id: "4",
-    name: "ИП Воронова М.С.",
-    inn: "880726350089",
-    address: "г. Алматы, мкр. Самал-2, д. 33",
-    phone: "+7 705 567 89 01",
-    email: "voronova.ms@yandex.ru",
-  },
-  {
-    id: "5",
-    name: "АО «Halyk Finance»",
-    inn: "030540002315",
-    address: "г. Алматы, пр. Аль-Фараби,…",
-    phone: "+7 727 259 04 44",
-    email: "legal@halykfinance.kz",
-  },
-  {
-    id: "6",
-    name: "ТОО «Digitas KZ»",
-    inn: "190740018834",
-    address: "г. Астана, ул. Сыганак, 14, оф…",
-    phone: "+7 717 200 33 44",
-    email: "hello@digitas.kz",
-  },
-  {
-    id: "7",
-    name: "ИП Ли Дмитрий Александр…",
-    inn: "910330200467",
-    address: "г. Алматы, ул. Гоголя, 67, кв. 4",
-    phone: "+7 708 678 90 12",
-    email: "d.lee.kz@gmail.com",
-  },
-  {
-    id: "8",
-    name: "ТОО «АгроПартнёр»",
-    inn: "150840025631",
-    address: "г. Костанай, ул. Тарана, 112",
-    phone: "+7 714 252 18 90",
-    email: "agro@partner.kz",
-  },
-  {
-    id: "9",
-    name: "Мусина Айгерим Талгатовна",
-    inn: "000915401389",
-    address: "г. Алматы, ул. Достык, 200, к…",
-    phone: "+7 775 789 01 23",
-    email: "aigerimusina@mail.ru",
-  },
+type RequisiteDraft = Omit<Requisite, "id">;
+
+const EMPTY_DRAFT: RequisiteDraft = {
+  name: "",
+  type: "ТОО",
+  inn: "",
+  address: "",
+  phone: "",
+  email: "",
+  bank: "",
+  iban: "",
+  bik: "",
+  kbe: "",
+  knp: "",
+  signatory: "",
+  position: "",
+  basis: "",
+};
+
+// Editable inputs in the dialog (name/type are rendered separately above them).
+const FORM_FIELDS: {
+  label: string;
+  key: keyof RequisiteDraft;
+  full?: boolean;
+}[] = [
+  { label: "ИИН/БИН", key: "inn" },
+  { label: "Юридический адрес", key: "address", full: true },
+  { label: "Номер телефона", key: "phone" },
+  { label: "Электронная почта", key: "email" },
+  { label: "Банк", key: "bank" },
+  { label: "IBAN", key: "iban" },
+  { label: "БИК", key: "bik" },
+  { label: "КБе", key: "kbe" },
+  { label: "КНП", key: "knp" },
+  { label: "Подписант", key: "signatory", full: true },
+  { label: "Должность", key: "position" },
+  { label: "Действует на основании", key: "basis" },
+];
+
+const REQUISITE_FIELDS: { label: string; key: keyof Requisite }[] = [
+  { label: "ИИН/БИН", key: "inn" },
+  { label: "Юридический адрес", key: "address" },
+  { label: "Номер телефона", key: "phone" },
+  { label: "Электронная почта", key: "email" },
+  { label: "Банк", key: "bank" },
+  { label: "IBAN", key: "iban" },
+  { label: "БИК", key: "bik" },
+  { label: "КБе", key: "kbe" },
+  { label: "КНП", key: "knp" },
+  { label: "Подписант", key: "signatory" },
+  { label: "Должность", key: "position" },
+  { label: "Действует на основании", key: "basis" },
 ];
 
 function RequisitesTab() {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const { data: requisites = [], isLoading } = useQuery(
+    trpc.requisites.list.queryOptions()
+  );
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<RequisiteDraft>(EMPTY_DRAFT);
+
+  const invalidate = () =>
+    queryClient.invalidateQueries(trpc.requisites.list.queryFilter());
+
+  const createMut = useMutation(
+    trpc.requisites.create.mutationOptions({
+      onSuccess: () => {
+        invalidate();
+        toast.success("Реквизиты добавлены");
+        setDialogOpen(false);
+      },
+      onError: (err) => toast.error(err.message),
+    })
+  );
+  const updateMut = useMutation(
+    trpc.requisites.update.mutationOptions({
+      onSuccess: () => {
+        invalidate();
+        toast.success("Сохранено");
+        setDialogOpen(false);
+      },
+      onError: (err) => toast.error(err.message),
+    })
+  );
+  const deleteMut = useMutation(
+    trpc.requisites.delete.mutationOptions({
+      onSuccess: () => {
+        invalidate();
+        toast.success("Удалено");
+        setDialogOpen(false);
+      },
+      onError: (err) => toast.error(err.message),
+    })
+  );
+  const pending =
+    createMut.isPending || updateMut.isPending || deleteMut.isPending;
+
+  const setField = (key: keyof RequisiteDraft, value: string) =>
+    setDraft((prev) => ({ ...prev, [key]: value }));
+
+  const openCreate = () => {
+    setDraft(EMPTY_DRAFT);
+    setEditingId(null);
+    setDialogOpen(true);
+  };
+  const openEdit = (r: (typeof requisites)[number]) => {
+    setDraft({
+      name: r.name,
+      type: r.type,
+      inn: r.inn,
+      address: r.address,
+      phone: r.phone,
+      email: r.email,
+      bank: r.bank,
+      iban: r.iban,
+      bik: r.bik,
+      kbe: r.kbe,
+      knp: r.knp,
+      signatory: r.signatory,
+      position: r.position,
+      basis: r.basis,
+    });
+    setEditingId(r.id);
+    setDialogOpen(true);
+  };
+  const save = () => {
+    if (!draft.name.trim()) {
+      toast.error("Укажите наименование");
+      return;
+    }
+    if (editingId) {
+      updateMut.mutate({ id: editingId, ...draft });
+    } else {
+      createMut.mutate(draft);
+    }
+  };
+
   return (
     <section className="flex flex-col gap-4">
-      {/* Section header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <h2 className="font-semibold text-base text-foreground leading-5">
-            Реквизиты
-          </h2>
-          <p className="text-base text-muted-foreground leading-5">
-            Ваши реквизиты, которые отображаются в договорах.
+      {isLoading && (
+        <p className="py-10 text-center text-muted-foreground text-sm">
+          Загрузка реквизитов…
+        </p>
+      )}
+
+      {!isLoading && requisites.length === 0 && (
+        <div className="flex flex-col items-center justify-center rounded-xl border border-border border-dashed py-16">
+          <p className="font-medium text-foreground text-sm">
+            Реквизитов пока нет
+          </p>
+          <p className="mt-1 text-muted-foreground text-xs">
+            Добавьте реквизиты — они будут подставляться в договоры
           </p>
         </div>
-        <Button
-          className="bg-foreground text-background text-sm hover:bg-foreground/90"
-          size="lg"
-        >
-          <Plus className="size-4" />
-          Добавить реквизиты
-        </Button>
-      </div>
+      )}
 
-      {/* Controls row */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="relative w-[320px]">
-            <Search className="absolute top-1/2 left-2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="h-8 rounded-lg border-[#e5e5e5] pl-8 text-sm"
-              placeholder="Введите наименование или БИН"
-            />
+      {requisites.map((requisite) => (
+        <div
+          className="rounded-xl border border-border bg-card p-5"
+          key={requisite.id}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <h3 className="font-semibold text-foreground text-lg leading-6">
+                {requisite.name}
+              </h3>
+              <span className="rounded-md bg-secondary/40 px-2 py-0.5 font-medium text-secondary-foreground text-xs">
+                {requisite.type}
+              </span>
+            </div>
+            <Button
+              className={OUTLINE_BTN}
+              onClick={() => openEdit(requisite)}
+              size="lg"
+              type="button"
+              variant="outline"
+            >
+              Редактировать
+            </Button>
           </div>
-          <Button
-            className="border-[#d4d4d4] bg-transparent text-foreground text-sm"
-            size="lg"
-            variant="outline"
-          >
-            <Filter className="size-4" />
-            Фильтры
-          </Button>
-        </div>
-        <Button
-          className="border-[#d4d4d4] bg-transparent text-foreground text-sm"
-          size="lg"
-          variant="outline"
-        >
-          <Download className="size-4" />
-          Экспортировать в CSV
-        </Button>
-      </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full min-w-[900px] text-sm">
-          <thead className="border-border border-b bg-muted/40 text-left">
-            <tr>
-              <th className="w-10 px-3 py-3" scope="col">
-                <Checkbox aria-label="Выбрать все" />
-              </th>
-              <th className="px-3 py-3 font-medium text-foreground" scope="col">
-                Наименование
-              </th>
-              <th className="px-3 py-3 font-medium text-foreground" scope="col">
-                ИИН/БИН
-              </th>
-              <th className="px-3 py-3 font-medium text-foreground" scope="col">
-                Юридический адрес
-              </th>
-              <th className="px-3 py-3 font-medium text-foreground" scope="col">
-                Номер телефона
-              </th>
-              <th className="px-3 py-3 font-medium text-foreground" scope="col">
-                Электронная почта
-              </th>
-              <th className="w-14 px-3 py-3" scope="col" />
-            </tr>
-          </thead>
-          <tbody>
-            {REQUISITES_SAMPLE.map((row) => (
-              <tr
-                className="border-border border-b last:border-b-0 hover:bg-muted/30"
-                key={row.id}
-              >
-                <td className="px-3 py-3">
-                  <Checkbox aria-label={`Выбрать ${row.name}`} />
-                </td>
-                <td className="px-3 py-3 text-foreground">{row.name}</td>
-                <td className="px-3 py-3 text-foreground">{row.inn}</td>
-                <td className="px-3 py-3 text-foreground">{row.address}</td>
-                <td className="px-3 py-3 text-foreground">{row.phone}</td>
-                <td className="px-3 py-3">
-                  <a
-                    className="text-foreground underline"
-                    href={`mailto:${row.email}`}
-                  >
-                    {row.email}
-                  </a>
-                </td>
-                <td className="px-3 py-3 text-right">
-                  <button
-                    aria-label="Действия"
-                    className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    type="button"
-                  >
-                    <MoreHorizontal className="size-4" />
-                  </button>
-                </td>
-              </tr>
+          <div className="my-4 h-px w-full bg-border" />
+
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3 lg:grid-cols-4">
+            {REQUISITE_FIELDS.map((field) => (
+              <div className="flex flex-col gap-1" key={field.label}>
+                <span className="font-medium text-foreground text-sm leading-5">
+                  {field.label}
+                </span>
+                <span className="break-words text-muted-foreground text-sm leading-5">
+                  {requisite[field.key] || "—"}
+                </span>
+              </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </div>
+      ))}
+
+      <Button
+        className={cn(OUTLINE_BTN, "w-fit")}
+        onClick={openCreate}
+        size="lg"
+        type="button"
+        variant="outline"
+      >
+        <Plus className="size-4" />
+        Добавить реквизиты
+      </Button>
+
+      <Dialog onOpenChange={setDialogOpen} open={dialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Об организации</DialogTitle>
+          </DialogHeader>
+          <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto py-1">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="rq-name">Наименование</Label>
+              <Input
+                id="rq-name"
+                onChange={(e) => setField("name", e.target.value)}
+                placeholder="ТОО «Название компании»"
+                value={draft.name}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Тип</Label>
+              <Select
+                onValueChange={(value) => setField("type", value)}
+                value={draft.type}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Выберите тип" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ТОО">ТОО</SelectItem>
+                  <SelectItem value="ИП">ИП</SelectItem>
+                  <SelectItem value="АО">АО</SelectItem>
+                  <SelectItem value="Физ. лицо">Физ. лицо</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {FORM_FIELDS.map((field) => (
+                <div
+                  className={cn(
+                    "flex flex-col gap-1.5",
+                    field.full && "sm:col-span-2"
+                  )}
+                  key={field.key}
+                >
+                  <Label htmlFor={`rq-${field.key}`}>{field.label}</Label>
+                  <Input
+                    id={`rq-${field.key}`}
+                    onChange={(e) => setField(field.key, e.target.value)}
+                    value={draft[field.key]}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            {editingId && (
+              <Button
+                className="mr-auto h-9 px-4 text-destructive text-sm hover:bg-destructive/10 hover:text-destructive"
+                disabled={pending}
+                onClick={() => deleteMut.mutate({ id: editingId })}
+                type="button"
+                variant="ghost"
+              >
+                Удалить
+              </Button>
+            )}
+            <Button
+              className="h-9 px-4 text-sm"
+              onClick={() => setDialogOpen(false)}
+              type="button"
+              variant="outline"
+            >
+              Отменить
+            </Button>
+            <Button
+              className={APPLY_BTN}
+              disabled={pending}
+              onClick={save}
+              type="button"
+            >
+              {editingId ? "Сохранить" : "Добавить"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
@@ -585,8 +921,335 @@ function SecurityTab() {
   );
 }
 
+const OUTLINE_BTN = "border-[#d4d4d4] bg-transparent text-foreground text-sm";
+const APPLY_BTN =
+  "h-9 bg-foreground px-4 text-background text-sm hover:bg-foreground/90";
+
+const LANGUAGE_LABELS: Record<string, string> = {
+  ru: "Русский",
+  kk: "Қазақша",
+  en: "English",
+};
+
+type EditField = "name" | "email" | "phone" | "language" | null;
+
+function FieldDialog({
+  open,
+  onClose,
+  title,
+  pending,
+  onApply,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  pending: boolean;
+  onApply: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Dialog onOpenChange={(next) => !next && onClose()} open={open}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-4 py-1">{children}</div>
+        <DialogFooter>
+          <Button
+            className="h-9 px-4 text-sm"
+            onClick={onClose}
+            type="button"
+            variant="outline"
+          >
+            Отменить
+          </Button>
+          <Button
+            className={APPLY_BTN}
+            disabled={pending}
+            onClick={onApply}
+            type="button"
+          >
+            Применить
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PersonalDataTab() {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const { data: me } = useQuery(trpc.account.me.queryOptions());
+
+  const [editing, setEditing] = useState<EditField>(null);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [emailDraft, setEmailDraft] = useState("");
+  const [phoneDraft, setPhoneDraft] = useState("");
+  const [languageDraft, setLanguageDraft] = useState("ru");
+
+  const update = useMutation(
+    trpc.account.updateProfile.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries(trpc.account.me.queryFilter());
+        toast.success("Сохранено");
+        setEditing(null);
+      },
+      onError: (err) => toast.error(err.message),
+    })
+  );
+
+  const openName = () => {
+    const [first, ...rest] = (me?.name ?? "").trim().split(" ");
+    setFirstName(first ?? "");
+    setLastName(rest.join(" "));
+    setEditing("name");
+  };
+  const openEmail = () => {
+    setEmailDraft(me?.email ?? "");
+    setEditing("email");
+  };
+  const openPhone = () => {
+    setPhoneDraft(me?.phoneNumber ?? "");
+    setEditing("phone");
+  };
+  const openLanguage = () => {
+    setLanguageDraft(me?.contractLanguage ?? "ru");
+    setEditing("language");
+  };
+
+  const hasEmail = Boolean(me?.email);
+
+  return (
+    <section className="flex flex-col divide-y divide-border">
+      {/* Фотография профиля */}
+      <div className="flex flex-wrap items-center justify-between gap-4 py-4">
+        <div className="flex min-w-0 flex-1 items-center gap-4">
+          {me?.image ? (
+            <img
+              alt="Аватар"
+              className="size-12 shrink-0 rounded-full object-cover"
+              height={48}
+              src={me.image}
+              width={48}
+            />
+          ) : (
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <User className="size-6" />
+            </span>
+          )}
+          <div className="flex min-w-0 flex-col gap-1">
+            <h3 className="font-semibold text-base text-foreground leading-5">
+              Фотография профиля
+            </h3>
+            <p className="text-base text-muted-foreground leading-5">
+              Ваша аватарка, которая отображается в команде
+            </p>
+          </div>
+        </div>
+        <Button
+          className={OUTLINE_BTN}
+          onClick={() => toast.info("Загрузка фото скоро будет доступна")}
+          size="lg"
+          type="button"
+          variant="outline"
+        >
+          Сменить фото
+        </Button>
+      </div>
+
+      <SecurityRow
+        action={
+          <Button
+            className={OUTLINE_BTN}
+            onClick={openName}
+            size="lg"
+            type="button"
+            variant="outline"
+          >
+            Редактировать
+          </Button>
+        }
+        subtitle={me?.name || "—"}
+        title="Ф.И.О."
+      />
+
+      <SecurityRow
+        action={
+          <Button
+            className={OUTLINE_BTN}
+            onClick={openEmail}
+            size="lg"
+            type="button"
+            variant="outline"
+          >
+            {hasEmail ? "Сменить почту" : "Добавить почту"}
+          </Button>
+        }
+        subtitle={me?.email || "Вы еще не указали электронную почту"}
+        title="Электронная почта"
+      />
+
+      <SecurityRow
+        action={
+          <Button
+            className={OUTLINE_BTN}
+            onClick={openPhone}
+            size="lg"
+            type="button"
+            variant="outline"
+          >
+            Сменить номер
+          </Button>
+        }
+        subtitle={me?.phoneNumber || "Не указан"}
+        title="Номер телефона"
+      />
+
+      <SecurityRow
+        action={
+          <Button
+            className={OUTLINE_BTN}
+            onClick={openLanguage}
+            size="lg"
+            type="button"
+            variant="outline"
+          >
+            Сменить язык
+          </Button>
+        }
+        subtitle={LANGUAGE_LABELS[me?.contractLanguage ?? "ru"]}
+        title="Язык по умолчанию в договорах"
+      />
+
+      {/* Удалить аккаунт */}
+      <div className="flex flex-wrap items-center justify-between gap-4 py-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <h3 className="font-semibold text-base text-destructive leading-5">
+            Удалить аккаунт
+          </h3>
+          <p className="text-base text-muted-foreground leading-5">
+            Полное удаление вашего аккаунта на платформе Zhebe.
+          </p>
+        </div>
+        <Button
+          className="border-destructive/40 bg-transparent text-destructive text-sm hover:bg-destructive/10 hover:text-destructive"
+          size="lg"
+          type="button"
+          variant="outline"
+        >
+          Удалить аккаунт
+        </Button>
+      </div>
+
+      {/* --- Edit dialogs --- */}
+      <FieldDialog
+        onApply={() =>
+          update.mutate({ name: `${firstName} ${lastName}`.trim() })
+        }
+        onClose={() => setEditing(null)}
+        open={editing === "name"}
+        pending={update.isPending}
+        title="Личные данные"
+      >
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="pd-first">Имя</Label>
+          <Input
+            id="pd-first"
+            onChange={(e) => setFirstName(e.target.value)}
+            value={firstName}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="pd-last">Фамилия</Label>
+          <Input
+            id="pd-last"
+            onChange={(e) => setLastName(e.target.value)}
+            value={lastName}
+          />
+        </div>
+      </FieldDialog>
+
+      <FieldDialog
+        onApply={() =>
+          update.mutate({ email: emailDraft.trim() ? emailDraft.trim() : null })
+        }
+        onClose={() => setEditing(null)}
+        open={editing === "email"}
+        pending={update.isPending}
+        title="Электронная почта"
+      >
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="pd-email">Электронная почта</Label>
+          <Input
+            id="pd-email"
+            onChange={(e) => setEmailDraft(e.target.value)}
+            placeholder="you@example.com"
+            type="email"
+            value={emailDraft}
+          />
+        </div>
+      </FieldDialog>
+
+      <FieldDialog
+        onApply={() =>
+          update.mutate({
+            phoneNumber: phoneDraft.trim() ? phoneDraft.trim() : null,
+          })
+        }
+        onClose={() => setEditing(null)}
+        open={editing === "phone"}
+        pending={update.isPending}
+        title="Номер телефона"
+      >
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="pd-phone">Номер телефона</Label>
+          <Input
+            id="pd-phone"
+            onChange={(e) => setPhoneDraft(e.target.value)}
+            placeholder="+7 700 000 00 00"
+            type="tel"
+            value={phoneDraft}
+          />
+        </div>
+      </FieldDialog>
+
+      <FieldDialog
+        onApply={() =>
+          update.mutate({
+            contractLanguage: languageDraft as "ru" | "kk" | "en",
+          })
+        }
+        onClose={() => setEditing(null)}
+        open={editing === "language"}
+        pending={update.isPending}
+        title="Язык по умолчанию в договорах"
+      >
+        <div className="flex flex-col gap-1.5">
+          <Label>Язык</Label>
+          <Select onValueChange={setLanguageDraft} value={languageDraft}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ru">Русский</SelectItem>
+              <SelectItem value="kk">Қазақша</SelectItem>
+              <SelectItem value="en">English</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </FieldDialog>
+    </section>
+  );
+}
+
 function ProfilePage() {
-  const [activeTab, setActiveTab] = useState<ProfileTab>("subscription");
+  const search = Route.useSearch();
+  const [activeTab, setActiveTab] = useState<ProfileTab>(
+    search.tab ?? "personal"
+  );
 
   return (
     <div className="flex h-full flex-col overflow-auto">
@@ -627,8 +1290,10 @@ function ProfilePage() {
 
         {/* Content per active tab */}
         <div className="px-6 py-4">
-          {activeTab === "subscription" && <SubscriptionTab />}
-          {activeTab === "personal" && <PlaceholderTab title="Личные данные" />}
+          {activeTab === "subscription" && (
+            <SubscriptionTab justPaid={search.subscribed} />
+          )}
+          {activeTab === "personal" && <PersonalDataTab />}
           {activeTab === "security" && <SecurityTab />}
           {activeTab === "requisites" && <RequisitesTab />}
         </div>

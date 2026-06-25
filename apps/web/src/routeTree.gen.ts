@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TeamRouteImport } from './routes/team'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
@@ -27,6 +28,7 @@ import { Route as AdminTemplatesRouteImport } from './routes/admin/templates'
 import { Route as AdminSubscriptionsRouteImport } from './routes/admin/subscriptions'
 import { Route as AdminPurchasesRouteImport } from './routes/admin/purchases'
 import { Route as TemplatesTemplateIdIndexRouteImport } from './routes/templates/$templateId/index'
+import { Route as AcceptInvitationInvitationIdIndexRouteImport } from './routes/accept-invitation/$invitationId/index'
 import { Route as TemplatesTemplateIdBuilderRouteImport } from './routes/templates/$templateId/builder'
 
 const TeamRoute = TeamRouteImport.update({
@@ -37,6 +39,11 @@ const TeamRoute = TeamRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -120,6 +127,12 @@ const TemplatesTemplateIdIndexRoute =
     path: '/templates/$templateId/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AcceptInvitationInvitationIdIndexRoute =
+  AcceptInvitationInvitationIdIndexRouteImport.update({
+    id: '/accept-invitation/$invitationId/',
+    path: '/accept-invitation/$invitationId/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const TemplatesTemplateIdBuilderRoute =
   TemplatesTemplateIdBuilderRouteImport.update({
     id: '/templates/$templateId/builder',
@@ -136,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
+  '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
   '/admin/purchases': typeof AdminPurchasesRoute
@@ -146,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/success/payment': typeof SuccessPaymentRoute
   '/templates/': typeof TemplatesIndexRoute
   '/templates/$templateId/builder': typeof TemplatesTemplateIdBuilderRoute
+  '/accept-invitation/$invitationId/': typeof AcceptInvitationInvitationIdIndexRoute
   '/templates/$templateId/': typeof TemplatesTemplateIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -157,6 +172,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
+  '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
   '/admin/purchases': typeof AdminPurchasesRoute
@@ -167,6 +183,7 @@ export interface FileRoutesByTo {
   '/success/payment': typeof SuccessPaymentRoute
   '/templates': typeof TemplatesIndexRoute
   '/templates/$templateId/builder': typeof TemplatesTemplateIdBuilderRoute
+  '/accept-invitation/$invitationId': typeof AcceptInvitationInvitationIdIndexRoute
   '/templates/$templateId': typeof TemplatesTemplateIdIndexRoute
 }
 export interface FileRoutesById {
@@ -179,6 +196,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/profile': typeof ProfileRoute
+  '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/team': typeof TeamRoute
   '/admin/purchases': typeof AdminPurchasesRoute
@@ -189,6 +207,7 @@ export interface FileRoutesById {
   '/success/payment': typeof SuccessPaymentRoute
   '/templates/': typeof TemplatesIndexRoute
   '/templates/$templateId/builder': typeof TemplatesTemplateIdBuilderRoute
+  '/accept-invitation/$invitationId/': typeof AcceptInvitationInvitationIdIndexRoute
   '/templates/$templateId/': typeof TemplatesTemplateIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -202,6 +221,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/profile'
+    | '/register'
     | '/settings'
     | '/team'
     | '/admin/purchases'
@@ -212,6 +232,7 @@ export interface FileRouteTypes {
     | '/success/payment'
     | '/templates/'
     | '/templates/$templateId/builder'
+    | '/accept-invitation/$invitationId/'
     | '/templates/$templateId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -223,6 +244,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/profile'
+    | '/register'
     | '/settings'
     | '/team'
     | '/admin/purchases'
@@ -233,6 +255,7 @@ export interface FileRouteTypes {
     | '/success/payment'
     | '/templates'
     | '/templates/$templateId/builder'
+    | '/accept-invitation/$invitationId'
     | '/templates/$templateId'
   id:
     | '__root__'
@@ -244,6 +267,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/profile'
+    | '/register'
     | '/settings'
     | '/team'
     | '/admin/purchases'
@@ -254,6 +278,7 @@ export interface FileRouteTypes {
     | '/success/payment'
     | '/templates/'
     | '/templates/$templateId/builder'
+    | '/accept-invitation/$invitationId/'
     | '/templates/$templateId/'
   fileRoutesById: FileRoutesById
 }
@@ -266,6 +291,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   ProfileRoute: typeof ProfileRoute
+  RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
   TeamRoute: typeof TeamRoute
   AdminPurchasesRoute: typeof AdminPurchasesRoute
@@ -276,6 +302,7 @@ export interface RootRouteChildren {
   SuccessPaymentRoute: typeof SuccessPaymentRoute
   TemplatesIndexRoute: typeof TemplatesIndexRoute
   TemplatesTemplateIdBuilderRoute: typeof TemplatesTemplateIdBuilderRoute
+  AcceptInvitationInvitationIdIndexRoute: typeof AcceptInvitationInvitationIdIndexRoute
   TemplatesTemplateIdIndexRoute: typeof TemplatesTemplateIdIndexRoute
 }
 
@@ -293,6 +320,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -407,6 +441,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TemplatesTemplateIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/accept-invitation/$invitationId/': {
+      id: '/accept-invitation/$invitationId/'
+      path: '/accept-invitation/$invitationId'
+      fullPath: '/accept-invitation/$invitationId/'
+      preLoaderRoute: typeof AcceptInvitationInvitationIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/templates/$templateId/builder': {
       id: '/templates/$templateId/builder'
       path: '/templates/$templateId/builder'
@@ -426,6 +467,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   ProfileRoute: ProfileRoute,
+  RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
   TeamRoute: TeamRoute,
   AdminPurchasesRoute: AdminPurchasesRoute,
@@ -436,6 +478,8 @@ const rootRouteChildren: RootRouteChildren = {
   SuccessPaymentRoute: SuccessPaymentRoute,
   TemplatesIndexRoute: TemplatesIndexRoute,
   TemplatesTemplateIdBuilderRoute: TemplatesTemplateIdBuilderRoute,
+  AcceptInvitationInvitationIdIndexRoute:
+    AcceptInvitationInvitationIdIndexRoute,
   TemplatesTemplateIdIndexRoute: TemplatesTemplateIdIndexRoute,
 }
 export const routeTree = rootRouteImport

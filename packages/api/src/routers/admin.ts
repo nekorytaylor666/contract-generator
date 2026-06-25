@@ -80,8 +80,8 @@ export const adminRouter = router({
       .orderBy(desc(payment.createdAt))
       .limit(input.pageSize)
       .offset((input.page - 1) * input.pageSize);
-    const [{ total }] = await db.select({ total: count() }).from(payment);
-    return { rows, total };
+    const [totals] = await db.select({ total: count() }).from(payment);
+    return { rows, total: totals?.total ?? 0 };
   }),
 
   // --- Subscription plans (CRUD) ---
@@ -156,8 +156,8 @@ export const adminRouter = router({
         .orderBy(desc(user.createdAt))
         .limit(input.pageSize)
         .offset((input.page - 1) * input.pageSize);
-      const [{ total }] = await db.select({ total: count() }).from(user);
-      return { rows, total };
+      const [totals] = await db.select({ total: count() }).from(user);
+      return { rows, total: totals?.total ?? 0 };
     }),
 
   setUserSubscription: adminProcedure

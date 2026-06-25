@@ -250,10 +250,11 @@ export default function SignUpForm() {
                   callbackURL: `${window.location.origin}/dashboard`,
                 },
                 {
-                  onError: (ctx) =>
+                  onError: (ctx) => {
                     toast.error(
                       ctx.error.message || "Не удалось войти через Google"
-                    ),
+                    );
+                  },
                 }
               )
             }

@@ -2,7 +2,7 @@ import { expo } from "@better-auth/expo";
 import { db } from "@contract-builder/db";
 // biome-ignore lint/performance/noNamespaceImport: drizzle adapter needs the full schema
 import * as schema from "@contract-builder/db/schema/auth";
-import { env } from "@contract-builder/env/server";
+import { allowedWebOrigins, env } from "@contract-builder/env/server";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization, phoneNumber } from "better-auth/plugins";
@@ -24,7 +24,7 @@ export const auth = betterAuth({
 
     schema,
   }),
-  trustedOrigins: [env.CORS_ORIGIN, "mybettertapp://", "exp://"],
+  trustedOrigins: [...allowedWebOrigins, "mybettertapp://", "exp://"],
   emailAndPassword: {
     enabled: true,
   },

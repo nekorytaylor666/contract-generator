@@ -1,10 +1,12 @@
 import { protectedProcedure, publicProcedure, router } from "../index";
+import { accountRouter } from "./account";
 import { adminRouter } from "./admin";
 import { adminTemplatesRouter } from "./admin-templates";
 import { authRouter } from "./auth";
 import { documentsRouter } from "./documents";
 import { onboardingRouter } from "./onboarding";
 import { paymentsRouter } from "./payments";
+import { requisitesRouter } from "./requisites";
 import { subscriptionsRouter } from "./subscriptions";
 import { teamRouter } from "./team";
 import { templatesRouter } from "./templates";
@@ -20,11 +22,13 @@ export const appRouter = router({
     };
   }),
   auth: authRouter,
+  account: accountRouter,
   onboarding: onboardingRouter,
   templates: templatesRouter,
   documents: documentsRouter,
   team: teamRouter,
   payments: paymentsRouter,
+  requisites: requisitesRouter,
   subscriptions: subscriptionsRouter,
   adminTemplates: adminTemplatesRouter,
   admin: adminRouter,

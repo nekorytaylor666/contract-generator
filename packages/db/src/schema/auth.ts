@@ -20,6 +20,8 @@ export const user = pgTable("user", {
     .default(false)
     .notNull(),
   accountType: text("account_type"),
+  // Preferred language for generated contracts (ru | kk | en).
+  contractLanguage: text("contract_language").default("ru"),
   onboardingGoals: jsonb("onboarding_goals").$type<string[]>(),
   onboardingLegals: jsonb("onboarding_legals").$type<string[]>(),
   onboardingIndustries: jsonb("onboarding_industries").$type<string[]>(),

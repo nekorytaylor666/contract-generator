@@ -39,6 +39,12 @@ export function VariableCard({
   onDelete,
 }: VariableCardProps) {
   const [expanded, setExpanded] = useState(false);
+  // Local buffer for the select-options textarea. Storing only the parsed array
+  // and deriving `value` from it would strip the trailing newline the moment you
+  // press Enter — making it impossible to start a new option line.
+  const [optionsText, setOptionsText] = useState(
+    (variable.options ?? []).join("\n")
+  );
 
   const update = <K extends keyof TemplateVariable>(
     key: K,
@@ -198,17 +204,19 @@ export function VariableCard({
               <Textarea
                 className="min-h-20 font-mono text-xs"
                 id={`opt-${variable.name}`}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setOptionsText(raw);
                   update(
                     "options",
-                    e.target.value
+                    raw
                       .split("\n")
                       .map((s) => s.trim())
                       .filter(Boolean)
-                  )
-                }
+                  );
+                }}
                 placeholder="Опция 1&#10;Опция 2"
-                value={(variable.options ?? []).join("\n")}
+                value={optionsText}
               />
             </div>
           )}

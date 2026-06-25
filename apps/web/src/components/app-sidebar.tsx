@@ -6,18 +6,11 @@ import {
   CreditCardIcon,
   FilesIcon,
   FolderOpenIcon,
-  GlobeIcon,
   LogoSignIcon,
   PanelLeftCloseIcon,
   UsersIcon,
 } from "@/components/icons/sidebar-icons";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -31,8 +24,6 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { SUPPORTED_LANGUAGES } from "@/i18n";
-import { cn } from "@/lib/utils";
 import { NavUser } from "./nav-user";
 
 interface NavItem {
@@ -44,7 +35,8 @@ interface NavItem {
 const userNavigation: NavItem[] = [
   { titleKey: "nav.templates", url: "/templates", icon: FolderOpenIcon },
   { titleKey: "nav.documents", url: "/documents", icon: FilesIcon },
-  { titleKey: "nav.team", url: "/team", icon: UsersIcon },
+  // Временно скрыто: команда
+  // { titleKey: "nav.team", url: "/team", icon: UsersIcon },
   { titleKey: "nav.profile", url: "/profile", icon: CircleUserIcon },
 ];
 
@@ -87,7 +79,7 @@ function SidebarToggle() {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const isAdminContext = location.pathname.startsWith("/admin");
   const navigation = isAdminContext ? adminNavigation : userNavigation;
 
@@ -130,34 +122,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="gap-1">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton
-                  className={`h-9 ${COLLAPSED_ICON}`}
-                  tooltip={t("language.label")}
-                >
-                  <GlobeIcon />
-                  <span>{t("language.label")}</span>
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" side="top">
-                {SUPPORTED_LANGUAGES.map((lng) => (
-                  <DropdownMenuItem
-                    className={cn(i18n.language === lng && "bg-muted")}
-                    key={lng}
-                    onSelect={() => {
-                      i18n.changeLanguage(lng).catch(() => undefined);
-                    }}
-                  >
-                    {t(`language.${lng}`)}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
-        </SidebarMenu>
         <NavUser />
       </SidebarFooter>
       <SidebarRail />

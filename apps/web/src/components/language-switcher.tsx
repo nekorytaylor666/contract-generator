@@ -10,7 +10,11 @@ import {
 import { SUPPORTED_LANGUAGES } from "@/i18n";
 import { cn } from "@/lib/utils";
 
-export function LanguageSwitcher() {
+export function LanguageSwitcher({
+  triggerClassName,
+}: {
+  triggerClassName?: string;
+}) {
   const { i18n, t } = useTranslation();
   const current = i18n.language;
 
@@ -18,7 +22,10 @@ export function LanguageSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={t("language.label")}
-        className="rounded-md p-1 text-foreground outline-none hover:bg-muted"
+        className={cn(
+          "rounded-md p-1 text-foreground outline-none hover:bg-muted",
+          triggerClassName
+        )}
       >
         <Globe className="size-4" />
       </DropdownMenuTrigger>

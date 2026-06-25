@@ -1,4 +1,5 @@
 import { db } from "@contract-builder/db";
+import { user } from "@contract-builder/db/schema/auth";
 import { subscriptionPlan } from "@contract-builder/db/schema/subscription";
 import { asc, eq } from "drizzle-orm";
 
@@ -28,9 +29,15 @@ export const subscriptionsRouter = router({
     const userId = ctx.session.user.id;
     const plan = await getEffectivePlan(userId);
     const usage = await getUsage(userId, currentPeriodKey());
+    const [row] = await db
+      .select({ expiresAt: user.subscriptionExpiresAt })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
     return {
       planId: plan?.id ?? null,
       planName: plan?.name ?? null,
+      expiresAt: row?.expiresAt ?? null,
       downloadQuota: plan?.downloadQuota ?? 0,
       editQuota: plan?.editQuota ?? 0,
       downloadsUsed: usage.downloadsUsed,

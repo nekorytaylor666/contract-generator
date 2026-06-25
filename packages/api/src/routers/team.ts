@@ -1,19 +1,34 @@
 import { randomUUID } from "node:crypto";
 import { db } from "@contract-builder/db";
-import { invitation, member, user } from "@contract-builder/db/schema/auth";
+import {
+  invitation,
+  member,
+  organization,
+  user,
+} from "@contract-builder/db/schema/auth";
+import { env } from "@contract-builder/env/server";
 import { TRPCError } from "@trpc/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import {
+  ACCESS_LABELS,
   ACCESS_LEVELS,
   accessLevelToRole,
   canEditDocuments,
   roleToAccessLevel,
 } from "../constants/access";
-import { editorProcedure, orgProcedure, router } from "../index";
+import {
+  editorProcedure,
+  orgProcedure,
+  protectedProcedure,
+  publicProcedure,
+  router,
+} from "../index";
+import { isMailerConfigured, sendTeamInvitationEmail } from "../lib/mailer";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const TRAILING_SLASH_REGEX = /\/$/;
 const accessLevelSchema = z.enum(ACCESS_LEVELS);
 
 /** Loads a member row scoped to the caller's organization, or throws 404. */
@@ -27,6 +42,42 @@ async function loadOrgMember(orgId: string, memberId: string) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Участник не найден" });
   }
   return found;
+}
+
+/**
+ * Emails a pending invitation. Never throws — a delivery failure shouldn't roll
+ * back the invitation (it's already in the team list); returns whether it sent.
+ */
+async function emailInvitation(opts: {
+  invitationId: string;
+  orgId: string;
+  to: string;
+  inviterName: string;
+  accessLevel: (typeof ACCESS_LEVELS)[number];
+}): Promise<boolean> {
+  if (!isMailerConfigured()) {
+    return false;
+  }
+  const [org] = await db
+    .select({ name: organization.name })
+    .from(organization)
+    .where(eq(organization.id, opts.orgId))
+    .limit(1);
+  const base = env.CORS_ORIGIN.replace(TRAILING_SLASH_REGEX, "");
+  try {
+    await sendTeamInvitationEmail({
+      to: opts.to,
+      orgName: org?.name ?? "команда",
+      inviterName: opts.inviterName,
+      roleLabel: ACCESS_LABELS[opts.accessLevel],
+      acceptUrl: `${base}/accept-invitation/${opts.invitationId}`,
+    });
+    return true;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`[mailer] invite email failed: ${message}\n`);
+    return false;
+  }
 }
 
 export const teamRouter = router({
@@ -128,10 +179,10 @@ export const teamRouter = router({
         return { status: "added" as const };
       }
 
-      // Unknown email → pending invitation (surfaced in the team list). No email
-      // is sent: the project has no email provider configured yet.
+      // Unknown email → pending invitation, emailed via SMTP (if configured).
+      const invitationId = randomUUID();
       await db.insert(invitation).values({
-        id: randomUUID(),
+        id: invitationId,
         email: input.email,
         inviterId: ctx.session.user.id,
         organizationId: ctx.orgId,
@@ -139,7 +190,103 @@ export const teamRouter = router({
         status: "pending",
         expiresAt: new Date(Date.now() + INVITE_TTL_MS),
       });
-      return { status: "invited" as const };
+
+      const emailSent = await emailInvitation({
+        invitationId,
+        orgId: ctx.orgId,
+        to: input.email,
+        inviterName:
+          ctx.session.user.name || ctx.session.user.email || "Коллега",
+        accessLevel: input.accessLevel,
+      });
+
+      return { status: "invited" as const, emailSent };
+    }),
+
+  // Public: invite details for the accept page (shown before sign-in too).
+  getInvite: publicProcedure
+    .input(z.object({ invitationId: z.string() }))
+    .query(async ({ input }) => {
+      const [inv] = await db
+        .select({
+          email: invitation.email,
+          role: invitation.role,
+          status: invitation.status,
+          expiresAt: invitation.expiresAt,
+          orgName: organization.name,
+        })
+        .from(invitation)
+        .innerJoin(organization, eq(organization.id, invitation.organizationId))
+        .where(eq(invitation.id, input.invitationId))
+        .limit(1);
+
+      if (!inv) {
+        return null;
+      }
+      return {
+        email: inv.email,
+        orgName: inv.orgName,
+        accessLevel: roleToAccessLevel(inv.role),
+        status: inv.status,
+        expired: inv.expiresAt.getTime() < Date.now(),
+      };
+    }),
+
+  // Accept an invitation: the signed-in user's email must match the invite.
+  acceptInvite: protectedProcedure
+    .input(z.object({ invitationId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const [inv] = await db
+        .select()
+        .from(invitation)
+        .where(eq(invitation.id, input.invitationId))
+        .limit(1);
+
+      if (!inv || inv.status !== "pending") {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Приглашение не найдено или уже использовано",
+        });
+      }
+      if (inv.expiresAt.getTime() < Date.now()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Срок действия приглашения истёк",
+        });
+      }
+      const userEmail = ctx.session.user.email?.toLowerCase();
+      if (!userEmail || userEmail !== inv.email.toLowerCase()) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `Приглашение выписано на ${inv.email}. Войдите под этим адресом.`,
+        });
+      }
+
+      const [existingMember] = await db
+        .select({ id: member.id })
+        .from(member)
+        .where(
+          and(
+            eq(member.userId, ctx.session.user.id),
+            eq(member.organizationId, inv.organizationId)
+          )
+        )
+        .limit(1);
+
+      if (!existingMember) {
+        await db.insert(member).values({
+          id: randomUUID(),
+          userId: ctx.session.user.id,
+          organizationId: inv.organizationId,
+          role: inv.role,
+        });
+      }
+      await db
+        .update(invitation)
+        .set({ status: "accepted" })
+        .where(eq(invitation.id, inv.id));
+
+      return { organizationId: inv.organizationId };
     }),
 
   updateAccess: editorProcedure

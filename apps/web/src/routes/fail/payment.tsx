@@ -6,9 +6,14 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/fail/payment")({
   component: PaymentFail,
-  validateSearch: (search: Record<string, unknown>): { invId?: number } => ({
-    invId: search.invId ? Number(search.invId) : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { invId?: number } => {
+    const raw = search.invId ?? search.InvId;
+    if (raw == null || raw === "") {
+      return { invId: undefined };
+    }
+    const parsed = Number(raw);
+    return { invId: Number.isNaN(parsed) ? undefined : parsed };
+  },
 });
 
 function PaymentFail() {
