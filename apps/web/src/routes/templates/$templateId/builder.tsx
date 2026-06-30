@@ -10,10 +10,10 @@ import {
 } from "@/components/template-builder/document-style-settings";
 import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
 import { LogoUpload } from "@/components/template-builder/logo-upload";
+import { NativeInlinePreview } from "@/components/template-builder/native-inline-preview";
 import {
   isComplexNative,
   isNativeTypst,
-  ServerTypstPreview,
 } from "@/components/template-builder/server-typst-preview";
 import { TemplateForm } from "@/components/template-builder/template-form";
 import { VersionHistory } from "@/components/template-builder/version-history";
@@ -486,9 +486,14 @@ function RouteComponent() {
         <div className="flex-1 overflow-auto bg-muted/30 p-4">
           <div className="mx-auto h-full max-w-5xl">
             {isComplexNative(localized.typstContent) ? (
-              <ServerTypstPreview
+              <NativeInlinePreview
+                changedVars={changedVars}
+                logo={logo}
+                onValueChange={handleInlineChange}
+                style={documentStyle}
                 typstContent={localized.typstContent}
                 values={formValues}
+                variables={variables}
               />
             ) : (
               <InteractiveDocumentPreview

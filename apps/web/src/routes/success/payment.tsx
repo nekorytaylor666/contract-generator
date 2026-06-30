@@ -41,7 +41,7 @@ function PaymentSuccess() {
     trpc.templates.downloadPurchased.mutationOptions({
       onSuccess: (result) => {
         const link = document.createElement("a");
-        link.href = result.pdfDataUrl;
+        link.href = result.dataUrl;
         link.download = result.fileName;
         link.click();
       },

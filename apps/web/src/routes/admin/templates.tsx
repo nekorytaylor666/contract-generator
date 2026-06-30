@@ -13,10 +13,8 @@ import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
-import {
-  isComplexNative,
-  ServerTypstPreview,
-} from "@/components/template-builder/server-typst-preview";
+import { NativeInlinePreview } from "@/components/template-builder/native-inline-preview";
+import { isComplexNative } from "@/components/template-builder/server-typst-preview";
 import { VariableCard } from "@/components/template-builder/variable-card";
 import { CategoryFilter } from "@/components/templates/category-filter";
 import {
@@ -120,7 +118,16 @@ function AdminDocumentPreview({
   variables: TemplateVariable[];
 }) {
   if (isComplexNative(typstContent)) {
-    return <ServerTypstPreview typstContent={typstContent} />;
+    return (
+      <NativeInlinePreview
+        logo={null}
+        onValueChange={noopValueChange}
+        style={defaultPreviewStyle}
+        typstContent={typstContent}
+        values={previewValues}
+        variables={variables}
+      />
+    );
   }
   return (
     <InteractiveDocumentPreview
