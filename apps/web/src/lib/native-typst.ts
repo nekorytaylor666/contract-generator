@@ -8,6 +8,15 @@ const LET_LINE_REGEX =
 const QUOTED_OPTION_REGEX = /"([^"]*)"/g;
 const LINE_COMMENT_REGEX = /\/\/.*$/;
 const STRING_LITERAL_REGEX = /"(?:[^"\\]|\\.)*"/g;
+// `name == "literal"` / `name != "literal"` comparisons reveal a field's options
+// even when the author didn't add a `// "a" | "b"` comment.
+const CONDITION_OPTION_REGEX = /(\w+)\s*[=!]=\s*"([^"]*)"/g;
+// `// @section Заголовок` marks the start of a form group. Fields declared after
+// it (until the next marker) belong to that section. It's a Typst comment, so it
+// doesn't affect the compiled document.
+const SECTION_MARKER_REGEX = /^\/\/\s*@section\s+(.+?)\s*$/;
+// Literals that don't denote select options (empty default, booleans).
+const NON_OPTION_LITERALS = new Set(["", "true", "false"]);
 
 function labelFromName(name: string): string {
   const spaced = name.replace(/_/g, " ").trim();
@@ -122,6 +131,28 @@ function recordLet(
   byName.set(name, buildVariable(name, rawValue, options));
 }
 
+// Collect, per variable name, the distinct string literals it is compared
+// against in conditions — its implied select options.
+function inferOptionsFromConditions(content: string): Map<string, string[]> {
+  const literals = new Map<string, Set<string>>();
+  for (const match of content.matchAll(CONDITION_OPTION_REGEX)) {
+    const [, name, literal] = match;
+    if (NON_OPTION_LITERALS.has(literal)) {
+      continue;
+    }
+    const set = literals.get(name) ?? new Set<string>();
+    set.add(literal);
+    literals.set(name, set);
+  }
+  const result = new Map<string, string[]>();
+  for (const [name, set] of literals) {
+    if (set.size >= 2) {
+      result.set(name, [...set]);
+    }
+  }
+  return result;
+}
+
 export function parseNativeLets(content: string): TemplateVariable[] {
   const byName = new Map<string, TemplateVariable>();
   const lines = content.split("\n");
@@ -138,5 +169,54 @@ export function parseNativeLets(content: string): TemplateVariable[] {
     depth = Math.max(0, depth + depthDelta(line));
   }
 
+  // Upgrade plain-text fields to selects when conditions reveal their options
+  // (an explicit `// "a" | "b"` comment, handled above, stays authoritative).
+  for (const [name, options] of inferOptionsFromConditions(content)) {
+    const existing = byName.get(name);
+    if (existing?.type === "text") {
+      byName.set(name, { ...existing, type: "select", options });
+    }
+  }
+
   return [...byName.values()];
+}
+
+export interface NativeSections {
+  /** Field name → section title (assigned from the preceding `// @section`). */
+  sectionOf: Map<string, string>;
+  /** Section titles in document order. */
+  order: string[];
+}
+
+/**
+ * Reads `// @section Заголовок` markers and maps each top-level `#let` field to
+ * the section it falls under. Used to render the form as collapsible groups.
+ * If a template has no markers, `order` is empty and the form stays flat.
+ */
+export function parseNativeSections(content: string): NativeSections {
+  const sectionOf = new Map<string, string>();
+  const order: string[] = [];
+  const lines = content.split("\n");
+  let depth = 0;
+  let current = "";
+
+  for (const line of lines) {
+    if (depth === 0) {
+      const marker = SECTION_MARKER_REGEX.exec(line.trim());
+      if (marker) {
+        current = marker[1];
+        if (!order.includes(current)) {
+          order.push(current);
+        }
+      } else {
+        const letMatch = LET_LINE_REGEX.exec(line.trim());
+        if (letMatch && !sectionOf.has(letMatch[1])) {
+          sectionOf.set(letMatch[1], current);
+        }
+      }
+    }
+    depth = Math.max(0, depth + depthDelta(line));
+  }
+
+  return { sectionOf, order };
 }

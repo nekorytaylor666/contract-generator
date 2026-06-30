@@ -319,11 +319,16 @@ class Interp {
   scope = new Map<string, Val>();
   values: Record<string, unknown>;
   depth = 0;
+  // Field names actually reached given the current values — config variables
+  // read in evaluated conditions. Combined with the `{{field}}` placeholders
+  // emitted into the output, this is the set of fields relevant right now.
+  reads = new Set<string>();
   constructor(values: Record<string, unknown>) {
     this.values = values;
   }
 
   fieldVal(name: string): Val {
+    this.reads.add(name);
     const raw = this.values[name];
     if (typeof raw === "string") {
       return { k: "str", s: raw };
@@ -975,7 +980,52 @@ class Interp {
     }
     const nl = src.indexOf("\n", j);
     const end = nl === -1 ? src.length : nl;
-    return { raw: src.slice(j, end).trim(), end, openCh: "" };
+    // Strip a trailing `// …` comment so `#let x = "a" // a | b` captures just
+    // the literal (else it's mis-classified as a non-literal and baked into
+    // scope, ignoring the user's value).
+    const raw = stripLineComment(src.slice(j, end)).trim();
+    return { raw, end, openCh: "" };
+  }
+}
+
+// Remove a trailing line comment, respecting string literals.
+function stripLineComment(line: string): string {
+  let inString = false;
+  for (let k = 0; k < line.length; k++) {
+    const ch = line[k];
+    if (ch === '"' && line[k - 1] !== "\\") {
+      inString = !inString;
+    } else if (!inString && ch === "/" && line[k + 1] === "/") {
+      return line.slice(0, k);
+    }
+  }
+  return line;
+}
+
+const FIELD_NAME_RE = /\{\{(\w+)\}\}/g;
+
+export interface InterpretedNative {
+  /** Flat `{{var}}`-format Typst for the current values. */
+  markup: string;
+  /**
+   * Field names relevant for the current values: those rendered as editable
+   * `{{field}}` plus config variables read in evaluated conditions. Fields gated
+   * by an inactive branch are absent — useful to hide them from the form.
+   */
+  fields: string[];
+}
+
+export function interpretNative(
+  source: string,
+  values: Record<string, unknown>
+): InterpretedNative | null {
+  try {
+    const interp = new Interp({ ...values });
+    const markup = interp.evalMarkup(source);
+    const emitted = [...markup.matchAll(FIELD_NAME_RE)].map((m) => m[1]);
+    return { markup, fields: [...new Set([...interp.reads, ...emitted])] };
+  } catch {
+    return null;
   }
 }
 
@@ -983,10 +1033,5 @@ export function interpretNativeToMarkup(
   source: string,
   values: Record<string, unknown>
 ): string | null {
-  try {
-    const interp = new Interp({ ...values });
-    return interp.evalMarkup(source);
-  } catch {
-    return null;
-  }
+  return interpretNative(source, values)?.markup ?? null;
 }

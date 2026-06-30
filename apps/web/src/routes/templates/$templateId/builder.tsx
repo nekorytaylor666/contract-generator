@@ -10,12 +10,12 @@ import {
 } from "@/components/template-builder/document-style-settings";
 import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
 import { LogoUpload } from "@/components/template-builder/logo-upload";
+import { NativeForm } from "@/components/template-builder/native-form";
 import { NativeInlinePreview } from "@/components/template-builder/native-inline-preview";
 import {
   isComplexNative,
   isNativeTypst,
 } from "@/components/template-builder/server-typst-preview";
-import { TemplateForm } from "@/components/template-builder/template-form";
 import { VersionHistory } from "@/components/template-builder/version-history";
 import { Button } from "@/components/ui/button";
 import { requireAuth } from "@/lib/auth-guard";
@@ -522,12 +522,14 @@ function RouteComponent() {
 
             <LogoUpload logo={logo} onLogoChange={handleLogoChange} />
 
-            <TemplateForm
+            <NativeForm
               formApiRef={formApiRef}
               initialValues={initialValues ?? undefined}
               isSubmitting={compileMutation.isPending}
               key={formKey}
               onValuesChange={handleValuesChange}
+              typstContent={localized.typstContent}
+              values={formValues}
               variables={variables}
             />
 

@@ -1,9 +1,53 @@
 import { useForm } from "@tanstack/react-form";
-import { useRef, useSyncExternalStore } from "react";
+import { ChevronDown } from "lucide-react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { TemplateVariable } from "@/routes/templates";
 import { VariableField } from "./variable-field";
+
+export interface FieldGroup {
+  title: string;
+  names: string[];
+}
+
+// A collapsible form section so the client isn't faced with every field at once.
+function FormSection({
+  title,
+  count,
+  defaultOpen,
+  children,
+}: {
+  title: string;
+  count: number;
+  defaultOpen: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <button
+        className="flex w-full items-center justify-between gap-2 bg-muted/40 px-3 py-2.5 text-left transition-colors hover:bg-muted/70"
+        onClick={() => setOpen((value) => !value)}
+        type="button"
+      >
+        <span className="font-medium text-foreground text-sm">{title}</span>
+        <span className="flex items-center gap-2 text-muted-foreground text-xs">
+          {count}
+          <ChevronDown
+            className={cn("size-4 transition-transform", open && "rotate-180")}
+          />
+        </span>
+      </button>
+      {open && (
+        <div className="flex flex-col gap-4 border-border border-t px-3 py-3">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function isVariableVisible(
   variable: TemplateVariable,
@@ -41,6 +85,9 @@ interface TemplateFormProps {
   isSubmitting?: boolean;
   initialValues?: Record<string, unknown>;
   formApiRef?: React.RefObject<FormApi | null>;
+  // When provided, fields are rendered in collapsible sections in this order
+  // instead of a flat list.
+  groups?: FieldGroup[];
 }
 
 function buildDefaultValues(
@@ -160,6 +207,7 @@ export function TemplateForm({
   isSubmitting,
   initialValues,
   formApiRef,
+  groups,
 }: TemplateFormProps) {
   const onValuesChangeRef = useRef(onValuesChange);
   onValuesChangeRef.current = onValuesChange;
@@ -190,6 +238,28 @@ export function TemplateForm({
     };
   }
 
+  const renderField = (variable: TemplateVariable) =>
+    variable.dependsOn ? (
+      <ConditionalField
+        form={form}
+        key={variable.name}
+        renderField={() => (
+          <form.Field name={variable.name}>
+            {(field) => <VariableField field={field} variable={variable} />}
+          </form.Field>
+        )}
+        variable={variable}
+      />
+    ) : (
+      <form.Field key={variable.name} name={variable.name}>
+        {(field) => <VariableField field={field} variable={variable} />}
+      </form.Field>
+    );
+
+  const byName = new Map(
+    variables.map((variable) => [variable.name, variable])
+  );
+
   return (
     <form
       className="flex flex-col gap-4"
@@ -199,24 +269,21 @@ export function TemplateForm({
         form.handleSubmit();
       }}
     >
-      {variables.map((variable) =>
-        variable.dependsOn ? (
-          <ConditionalField
-            form={form}
-            key={variable.name}
-            renderField={() => (
-              <form.Field name={variable.name}>
-                {(field) => <VariableField field={field} variable={variable} />}
-              </form.Field>
-            )}
-            variable={variable}
-          />
-        ) : (
-          <form.Field key={variable.name} name={variable.name}>
-            {(field) => <VariableField field={field} variable={variable} />}
-          </form.Field>
-        )
-      )}
+      {groups
+        ? groups.map((group, index) => (
+            <FormSection
+              count={group.names.length}
+              defaultOpen={index === 0}
+              key={group.title}
+              title={group.title}
+            >
+              {group.names
+                .map((name) => byName.get(name))
+                .filter((variable) => variable !== undefined)
+                .map((variable) => renderField(variable))}
+            </FormSection>
+          ))
+        : variables.map((variable) => renderField(variable))}
 
       {onSubmit && (
         <form.Subscribe>
