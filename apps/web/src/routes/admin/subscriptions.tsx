@@ -36,6 +36,7 @@ interface PlanRow {
   name: string;
   description: string;
   priceMonthly: number;
+  priceQuarterly: number | null;
   priceYearly: number | null;
   discountLabel: string | null;
   downloadQuota: number;
@@ -200,6 +201,7 @@ const EMPTY_PLAN = {
   name: "",
   description: "",
   priceMonthly: "0",
+  priceQuarterly: "",
   priceYearly: "",
   discountLabel: "",
   downloadQuota: "0",
@@ -215,6 +217,8 @@ function planToForm(plan: PlanRow) {
     name: plan.name,
     description: plan.description,
     priceMonthly: String(plan.priceMonthly),
+    priceQuarterly:
+      plan.priceQuarterly == null ? "" : String(plan.priceQuarterly),
     priceYearly: plan.priceYearly == null ? "" : String(plan.priceYearly),
     discountLabel: plan.discountLabel ?? "",
     downloadQuota: String(plan.downloadQuota),
@@ -261,6 +265,7 @@ function PlanDialog({
       name: form.name,
       description: form.description,
       priceMonthly: Number(form.priceMonthly) || 0,
+      priceQuarterly: form.priceQuarterly ? Number(form.priceQuarterly) : null,
       priceYearly: form.priceYearly ? Number(form.priceYearly) : null,
       discountLabel: form.discountLabel || null,
       downloadQuota: Number(form.downloadQuota) || 0,
@@ -330,6 +335,32 @@ function PlanDialog({
                 }
                 placeholder="-20%"
                 value={form.discountLabel}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label htmlFor="plan-price-q">Цена/квартал (₸)</Label>
+              <Input
+                id="plan-price-q"
+                onChange={(e) =>
+                  setForm({ ...form, priceQuarterly: e.target.value })
+                }
+                placeholder="пусто = мес × 3"
+                type="number"
+                value={form.priceQuarterly}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="plan-price-y">Цена/год (₸)</Label>
+              <Input
+                id="plan-price-y"
+                onChange={(e) =>
+                  setForm({ ...form, priceYearly: e.target.value })
+                }
+                placeholder="пусто = мес × 12"
+                type="number"
+                value={form.priceYearly}
               />
             </div>
           </div>

@@ -1,12 +1,16 @@
 import { exec } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { readFile, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { db } from "@contract-builder/db";
+import { user } from "@contract-builder/db/schema/auth";
 import { payment } from "@contract-builder/db/schema/payment";
 import {
+  type LocaleContent,
   template,
   templateBookmark,
   templateVersion,
@@ -36,6 +40,81 @@ const typstCompiler = NodeCompiler.create();
 const DATE_ISO_REGEX = /^\d{4}-\d{2}-\d{2}/;
 const DATA_URL_PREFIX_REGEX = /^data:image\/\w+;base64,/;
 
+// How many leading blocks of a document to expose as a free teaser. Splitting on
+// blank lines keeps blocks (paragraphs, grids) intact so the client typst parser
+// still renders cleanly; the rest never leaves the server for unpaid users.
+const PREVIEW_TEASER_BLOCKS = 6;
+const BLANK_LINE_REGEX = /\n\s*\n/;
+
+function truncateTypstForPreview(typst: string): string {
+  if (!typst) {
+    return typst;
+  }
+  const blocks = typst.split(BLANK_LINE_REGEX);
+  if (blocks.length <= PREVIEW_TEASER_BLOCKS) {
+    const keep = Math.max(1, Math.ceil(blocks.length / 2));
+    return blocks.slice(0, keep).join("\n\n");
+  }
+  return blocks.slice(0, PREVIEW_TEASER_BLOCKS).join("\n\n");
+}
+
+function truncateLocalizedForPreview(
+  localized: Record<string, LocaleContent>
+): Record<string, LocaleContent> {
+  const out: Record<string, LocaleContent> = {};
+  for (const [locale, content] of Object.entries(localized)) {
+    out[locale] =
+      typeof content.typstContent === "string"
+        ? {
+            ...content,
+            typstContent: truncateTypstForPreview(content.typstContent),
+          }
+        : content;
+  }
+  return out;
+}
+
+// Whether `userId` may see the full document (vs. a truncated teaser): free
+// templates, anything they've purchased, or an active subscription.
+async function canSeeFullTemplate(
+  userId: string | undefined,
+  tpl: { id: string; price: number }
+): Promise<boolean> {
+  if (tpl.price === 0) {
+    return true;
+  }
+  if (!userId) {
+    return false;
+  }
+  const [paid] = await db
+    .select({ id: payment.id })
+    .from(payment)
+    .where(
+      and(
+        eq(payment.userId, userId),
+        eq(payment.templateId, tpl.id),
+        eq(payment.status, "paid")
+      )
+    )
+    .limit(1);
+  if (paid) {
+    return true;
+  }
+  const [sub] = await db
+    .select({
+      isAdmin: user.isAdmin,
+      planId: user.subscriptionPlanId,
+      expiresAt: user.subscriptionExpiresAt,
+    })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+  if (sub?.isAdmin) {
+    return true;
+  }
+  return Boolean(sub?.planId && (!sub.expiresAt || sub.expiresAt > new Date()));
+}
+
 function formatValue(value: unknown): string | null {
   if (value === undefined || value === null) {
     return null;
@@ -49,14 +128,73 @@ function formatValue(value: unknown): string | null {
   return String(value);
 }
 
+const LET_NAME_REGEX = /^\w+$/;
+
+// Formats a value for a native Typst `#let` binding: quoted string for text,
+// raw literal for boolean/number. Empty/missing → null so the template keeps
+// its own default (placeholder via #fill).
+function formatLetValue(value: unknown): string | null {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+  if (typeof value === "number") {
+    return String(value);
+  }
+  return JSON.stringify(formatValue(value) ?? String(value));
+}
+
+// Native Typst templates declare fillable fields as top-level `#let name = ""`.
+// Rewrites those bindings with the user's values — the #let analog of
+// replaceVariables (which only substitutes {{var}} tokens). Only simple-literal
+// bindings (string/bool/number) are touched, so functions/arrays/blocks are
+// left intact.
+function applyNativeLetValues(
+  typstContent: string,
+  values: Record<string, unknown>
+): string {
+  let result = typstContent;
+  for (const [name, value] of Object.entries(values)) {
+    if (!LET_NAME_REGEX.test(name)) {
+      continue;
+    }
+    const formatted = formatLetValue(value);
+    if (formatted === null) {
+      continue;
+    }
+    const re = new RegExp(
+      `(#let\\s+${name}\\s*=\\s*)("(?:[^"\\\\]|\\\\.)*"|true|false|-?\\d+(?:\\.\\d+)?)`,
+      "g"
+    );
+    result = result.replace(re, (_match, prefix) => `${prefix}${formatted}`);
+  }
+  return result;
+}
+
 function replaceVariables(
   typstContent: string,
-  variables: Record<string, unknown>
+  variables: Record<string, unknown>,
+  templateVars: TemplateVariable[] = []
 ): string {
+  const booleanVars = new Set(
+    templateVars.filter((v) => v.type === "boolean").map((v) => v.name)
+  );
+
   return typstContent.replace(
     /\{\{(\w+)\}\}/g,
     (match, varName, offset: number) => {
       const formatted = formatValue(variables[varName]);
+
+      // Booleans drive `#if {{var}}` (Typst code mode), so they must always
+      // resolve to a literal true/false. The styled gray placeholder used for
+      // unfilled fields is invalid in code position and breaks compilation
+      // (e.g. on download where no values are supplied).
+      if (booleanVars.has(varName)) {
+        return formatted ?? "false";
+      }
+
       if (formatted !== null) {
         return formatted;
       }
@@ -282,6 +420,61 @@ async function compileTypst(
   }
 }
 
+// DOCX export: Typst → HTML (experimental HTML export) → Pandoc → DOCX. Page
+// layout (margins, alignment, page header/logo) is dropped by HTML export; the
+// document text/structure is preserved, which is what an editable .docx needs.
+// Pandoc reference doc that styles the DOCX to resemble the PDF (Times New Roman
+// 11pt, justified body, centered/black headings, A4 with 2cm margins). Falls
+// back to pandoc defaults if the asset can't be resolved.
+const REFERENCE_DOCX = (() => {
+  try {
+    return fileURLToPath(new URL("../assets/reference.docx", import.meta.url));
+  } catch {
+    return "";
+  }
+})();
+
+// Drop document metadata (else pandoc emits a stray title heading from <title>).
+const DOC_META_REGEX = /#set document\([^)]*\)\s*/g;
+// Typst HTML export drops `#align`, losing the visible centered title. Convert
+// the `#align(center)[#text(..., weight: "bold")[TITLE]]` pattern into a real
+// heading (`= TITLE`) so it survives and we can style/center it via the
+// reference doc (it becomes <h2> → Word "Heading 2").
+const CENTERED_TITLE_REGEX =
+  /#align\(center\)\[\s*#text\([^\]]*?weight:\s*"bold"[^\]]*?\)\[([^\]]*?)\]\s*\]/g;
+
+function preprocessForDocx(typstContent: string): string {
+  return typstContent
+    .replace(DOC_META_REGEX, "")
+    .replace(CENTERED_TITLE_REGEX, "= $1");
+}
+
+async function compileTypstToDocx(typstContent: string): Promise<Buffer> {
+  const id = randomUUID();
+  const inputPath = join(tmpdir(), `${id}.typ`);
+  const htmlPath = join(tmpdir(), `${id}.html`);
+  const docxPath = join(tmpdir(), `${id}.docx`);
+  const files = [inputPath, htmlPath, docxPath];
+
+  const refFlag =
+    REFERENCE_DOCX && existsSync(REFERENCE_DOCX)
+      ? `--reference-doc="${REFERENCE_DOCX}" `
+      : "";
+
+  try {
+    await writeFile(inputPath, preprocessForDocx(typstContent), "utf-8");
+    await execAsync(
+      `typst compile --format html --features html "${inputPath}" "${htmlPath}"`
+    );
+    await execAsync(
+      `pandoc "${htmlPath}" -f html -t docx ${refFlag}-o "${docxPath}"`
+    );
+    return await readFile(docxPath);
+  } finally {
+    await cleanupFiles(files);
+  }
+}
+
 async function compileTypstToVector(
   typstContent: string,
   options?: CompileOptions
@@ -432,7 +625,7 @@ export const templatesRouter = router({
 
   getById: publicProcedure
     .input(z.object({ id: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const [found] = await db
         .select()
         .from(template)
@@ -446,7 +639,18 @@ export const templatesRouter = router({
         });
       }
 
-      return found;
+      // Paywall: unpaid users only get a truncated teaser. The full document
+      // text never reaches the client, so a CSS un-blur reveals nothing extra.
+      const fullAccess = await canSeeFullTemplate(ctx.session?.user.id, found);
+      if (fullAccess) {
+        return { ...found, previewLimited: false };
+      }
+      return {
+        ...found,
+        typstContent: truncateTypstForPreview(found.typstContent),
+        localizedContent: truncateLocalizedForPreview(found.localizedContent),
+        previewLimited: true,
+      };
     }),
 
   // Template ids the current user has bookmarked ("сохранёнки").
@@ -503,7 +707,10 @@ export const templatesRouter = router({
     .mutation(async ({ input }) => {
       const templateVars = input.variables as TemplateVariable[];
       const vars = computeDerivedVariables(input.values, templateVars);
-      const processedContent = replaceVariables(input.typstContent, vars);
+      const processedContent = applyNativeLetValues(
+        replaceVariables(input.typstContent, vars, templateVars),
+        vars
+      );
       try {
         const vectorBuffer = await compileTypstToVector(processedContent, {
           logoBase64: input.logo,
@@ -548,7 +755,7 @@ export const templatesRouter = router({
       const templateVars = (source.variables ?? []) as TemplateVariable[];
       const vars = computeDerivedVariables(input.variables, templateVars);
 
-      const processedContent =
+      const substituted =
         changedSet.size > 0
           ? replaceVariablesWithHighlight(
               source.typstContent,
@@ -556,7 +763,8 @@ export const templatesRouter = router({
               changedSet,
               templateVars
             )
-          : replaceVariables(source.typstContent, vars);
+          : replaceVariables(source.typstContent, vars, templateVars);
+      const processedContent = applyNativeLetValues(substituted, vars);
 
       try {
         const vectorBuffer = await compileTypstToVector(processedContent, {
@@ -600,7 +808,10 @@ export const templatesRouter = router({
 
       const templateVars = (source.variables ?? []) as TemplateVariable[];
       const vars = computeDerivedVariables(input.variables, templateVars);
-      const processedContent = replaceVariables(source.typstContent, vars);
+      const processedContent = applyNativeLetValues(
+        replaceVariables(source.typstContent, vars, templateVars),
+        vars
+      );
 
       try {
         const pdf = await compileTypst(processedContent, {
@@ -630,7 +841,13 @@ export const templatesRouter = router({
    * the preview).
    */
   downloadPurchased: protectedProcedure
-    .input(z.object({ templateId: z.string(), locale: z.string().optional() }))
+    .input(
+      z.object({
+        templateId: z.string(),
+        locale: z.string().optional(),
+        format: z.enum(["pdf", "docx"]).default("pdf"),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const [tpl] = await db
         .select({
@@ -639,6 +856,7 @@ export const templatesRouter = router({
           typstContent: template.typstContent,
           localizedContent: template.localizedContent,
           downloadPrice: template.downloadPrice,
+          variables: template.variables,
         })
         .from(template)
         .where(eq(template.id, input.templateId))
@@ -685,20 +903,32 @@ export const templatesRouter = router({
         tpl.localizedContent,
         input.locale
       );
-      const processedContent = replaceVariables(resolved.typstContent, {});
+      const processedContent = replaceVariables(
+        resolved.typstContent,
+        {},
+        (tpl.variables ?? []) as TemplateVariable[]
+      );
       try {
+        if (input.format === "docx") {
+          const docx = await compileTypstToDocx(processedContent);
+          return {
+            dataUrl: `data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,${docx.toString("base64")}`,
+            fileName: `${resolved.title}.docx`,
+          };
+        }
         const pdf = await compileTypst(processedContent);
         return {
-          pdfDataUrl: `data:application/pdf;base64,${pdf.toString("base64")}`,
+          dataUrl: `data:application/pdf;base64,${pdf.toString("base64")}`,
           fileName: `${resolved.title}.pdf`,
         };
       } catch (error) {
+        const fmt = input.format.toUpperCase();
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
             error instanceof Error
-              ? `Failed to compile PDF: ${error.message}`
-              : "Failed to compile PDF",
+              ? `Failed to compile ${fmt}: ${error.message}`
+              : `Failed to compile ${fmt}`,
         });
       }
     }),

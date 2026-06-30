@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { authClient } from "@/lib/auth-client";
 import { requireSession } from "@/lib/auth-guard";
+import { looksLikePhone } from "@/lib/display-name";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
 
@@ -137,13 +138,19 @@ function OnboardingComponent() {
   const ensureOrganizationAndGo = useCallback(async () => {
     const { data: orgs } = await authClient.organization.list();
     if (!orgs || orgs.length === 0) {
-      const slug = (session?.user.name || "org")
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
+      // Phone-only signups have user.name = the raw phone; don't name the org
+      // after it. Fall back to a generic workspace name (and a safe slug base).
+      const rawName = session?.user.name;
+      const orgName =
+        rawName && !looksLikePhone(rawName) ? rawName : "Мои документы";
+      const slugBase =
+        orgName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "") || "org";
       const result = await authClient.organization.create({
-        name: session?.user.name || "My Organization",
-        slug: `${slug}-${Date.now()}`,
+        name: orgName,
+        slug: `${slugBase}-${Date.now()}`,
       });
       if (result.error) {
         toast.error(result.error.message || "Не удалось создать организацию");

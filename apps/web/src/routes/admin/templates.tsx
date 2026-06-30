@@ -13,6 +13,10 @@ import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
+import {
+  isNativeTypst,
+  ServerTypstPreview,
+} from "@/components/template-builder/server-typst-preview";
 import { VariableCard } from "@/components/template-builder/variable-card";
 import { CategoryFilter } from "@/components/templates/category-filter";
 import {
@@ -103,6 +107,32 @@ const EMPTY_FORM: FormState = {
 
 const noopValueChange = () => undefined;
 const defaultPreviewStyle = { font: "", preset: "comfortable" };
+
+// Native Typst (#let/functions) compiles server-side; the `{{var}}` format uses
+// the interactive client parser.
+function AdminDocumentPreview({
+  typstContent,
+  previewValues,
+  variables,
+}: {
+  typstContent: string;
+  previewValues: Record<string, unknown>;
+  variables: TemplateVariable[];
+}) {
+  if (isNativeTypst(typstContent)) {
+    return <ServerTypstPreview typstContent={typstContent} />;
+  }
+  return (
+    <InteractiveDocumentPreview
+      logo={null}
+      onValueChange={noopValueChange}
+      style={defaultPreviewStyle}
+      typstContent={typstContent}
+      values={previewValues}
+      variables={variables}
+    />
+  );
+}
 
 const EMPTY_LOCALE_FORM: LocaleForm = {
   title: "",
@@ -733,12 +763,9 @@ function AdminTemplatesPage() {
                   }`}
                 >
                   {activeContent.typstContent ? (
-                    <InteractiveDocumentPreview
-                      logo={null}
-                      onValueChange={noopValueChange}
-                      style={defaultPreviewStyle}
+                    <AdminDocumentPreview
+                      previewValues={previewValues}
                       typstContent={activeContent.typstContent}
-                      values={previewValues}
                       variables={previewVariablesClean}
                     />
                   ) : (

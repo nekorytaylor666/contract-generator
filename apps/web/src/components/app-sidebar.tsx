@@ -6,7 +6,6 @@ import {
   CreditCardIcon,
   FilesIcon,
   FolderOpenIcon,
-  LogoSignIcon,
   PanelLeftCloseIcon,
   UsersIcon,
 } from "@/components/icons/sidebar-icons";
@@ -24,6 +23,7 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { ZhebeLogo } from "@/components/zhebe-logo";
 import { NavUser } from "./nav-user";
 
 interface NavItem {
@@ -89,9 +89,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <Link
           aria-label={isAdminContext ? "ZHEBE · Админка" : "ZHEBE"}
           className="text-sidebar-foreground group-data-[collapsible=icon]:hidden"
-          to={isAdminContext ? "/admin/templates" : "/templates"}
+          to={isAdminContext ? "/admin/templates" : "/"}
         >
-          <LogoSignIcon className="h-4 w-[15px]" />
+          <ZhebeLogo className="h-5 w-auto" />
         </Link>
         <SidebarToggle />
       </SidebarHeader>

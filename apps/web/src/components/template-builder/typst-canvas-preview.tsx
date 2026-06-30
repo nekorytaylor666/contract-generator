@@ -83,6 +83,26 @@ function sanitizeRenderedPages(container: HTMLElement) {
   }
 }
 
+// Render server-compiled Typst vector data into `container`. Shared by the
+// canvas preview and the lightweight server-rendered preview used for native
+// Typst templates. Returns the rendered page count.
+export async function renderTypstVector(
+  container: HTMLElement,
+  data: string
+): Promise<number> {
+  const { renderer } = await getRenderer();
+  container.innerHTML = "";
+  await renderer.renderToCanvas({
+    container,
+    pixelPerPt: getPixelPerPt(),
+    backgroundColor: "#ffffff",
+    format: "vector",
+    artifactContent: decodeBase64(data),
+  });
+  sanitizeRenderedPages(container);
+  return container.querySelectorAll("canvas").length;
+}
+
 export function TypstCanvasPreview({
   vectorData,
   isLoading,

@@ -128,7 +128,7 @@ export const paymentsRouter = router({
     .input(
       z.object({
         planId: z.string().min(1),
-        period: z.enum(["monthly", "yearly"]).default("monthly"),
+        period: z.enum(["monthly", "quarterly", "yearly"]).default("monthly"),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -140,6 +140,7 @@ export const paymentsRouter = router({
           id: subscriptionPlan.id,
           name: subscriptionPlan.name,
           priceMonthly: subscriptionPlan.priceMonthly,
+          priceQuarterly: subscriptionPlan.priceQuarterly,
           priceYearly: subscriptionPlan.priceYearly,
           isActive: subscriptionPlan.isActive,
         })
@@ -151,10 +152,15 @@ export const paymentsRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Тариф не найден" });
       }
 
-      const amount =
-        input.period === "yearly"
-          ? (plan.priceYearly ?? plan.priceMonthly * 12)
-          : plan.priceMonthly;
+      let amount = plan.priceMonthly;
+      let periodLabel = "месяц";
+      if (input.period === "yearly") {
+        amount = plan.priceYearly ?? plan.priceMonthly * 12;
+        periodLabel = "год";
+      } else if (input.period === "quarterly") {
+        amount = plan.priceQuarterly ?? plan.priceMonthly * 3;
+        periodLabel = "квартал";
+      }
       if (amount <= 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -162,7 +168,6 @@ export const paymentsRouter = router({
         });
       }
 
-      const periodLabel = input.period === "yearly" ? "год" : "месяц";
       const description = `Подписка: ${plan.name} (${periodLabel})`;
       const [created] = await db
         .insert(payment)

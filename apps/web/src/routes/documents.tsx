@@ -11,6 +11,7 @@ import {
   type SearchSuggestion,
   SearchWithSuggestions,
 } from "@/components/search-with-suggestions";
+import { TemplateCard } from "@/components/template-card";
 import { CategoryFilter } from "@/components/templates/category-filter";
 import { DocumentTypeFilter } from "@/components/templates/document-type-filter";
 import {
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth-client";
 import { requireAuth } from "@/lib/auth-guard";
+import { looksLikePhone } from "@/lib/display-name";
 import { fuzzySearch } from "@/lib/fuzzy-search";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
@@ -157,7 +159,32 @@ function RouteComponent() {
   );
 
   const { data: activeOrg } = authClient.useActiveOrganization();
-  const orgName = activeOrg?.name ?? t("nav.documents");
+  // Phone-only accounts have an org named after the phone number — show a
+  // generic title instead of leaking the number.
+  const orgName =
+    activeOrg?.name && !looksLikePhone(activeOrg.name)
+      ? activeOrg.name
+      : t("nav.documents");
+
+  // Saved templates the user bookmarked — shown in the "Сохранённые" tab. They
+  // aren't documents/purchases; the user can just open and view them.
+  const { data: allTemplates = [] } = useQuery(
+    trpc.templates.list.queryOptions({})
+  );
+  const { data: bookmarks = [] } = useQuery(
+    trpc.templates.myBookmarks.queryOptions()
+  );
+  const savedTemplates = useMemo(() => {
+    const ids = new Set(bookmarks);
+    let list = allTemplates.filter((tpl) => ids.has(tpl.id));
+    if (searchQuery.trim()) {
+      list = fuzzySearch(searchQuery, list, (tpl) => [
+        tpl.title,
+        tpl.description,
+      ]).map((r) => r.item);
+    }
+    return list;
+  }, [allTemplates, bookmarks, searchQuery]);
 
   return (
     <div className="flex h-full flex-col overflow-auto">
@@ -225,71 +252,81 @@ function RouteComponent() {
           value={searchQuery}
         />
 
-        {/* Filters + sort — same controls as the templates catalogue */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <CategoryFilter
-              onChange={setSelectedCategories}
-              selected={selectedCategories}
-            />
-            <DocumentTypeFilter
-              onChange={setSelectedDocTypes}
-              selected={selectedDocTypes}
-            />
+        {/* Filters + sort — document filters only (hidden on the saved tab) */}
+        {tab !== "saved" && (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <CategoryFilter
+                onChange={setSelectedCategories}
+                selected={selectedCategories}
+              />
+              <DocumentTypeFilter
+                onChange={setSelectedDocTypes}
+                selected={selectedDocTypes}
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#ececec] px-3 text-foreground text-sm outline-none hover:border-foreground/30">
+                  {t("documents.filters.status")}
+                  <ChevronDown className="size-3.5 text-muted-foreground" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <div className="px-2 py-1.5 text-muted-foreground text-xs">
+                    {t("common.soon")}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {hasFilters && (
+                <button
+                  className="px-2 text-muted-foreground text-xs hover:text-foreground"
+                  onClick={resetFilters}
+                  type="button"
+                >
+                  {t("common.reset")}
+                </button>
+              )}
+            </div>
             <DropdownMenu>
-              <DropdownMenuTrigger className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#ececec] px-3 text-foreground text-sm outline-none hover:border-foreground/30">
-                {t("documents.filters.status")}
-                <ChevronDown className="size-3.5 text-muted-foreground" />
+              <DropdownMenuTrigger className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#e5e5e5] py-2 pr-2 pl-3 text-foreground text-sm outline-none hover:border-foreground/30">
+                {t("common.sort")}
+                <ChevronDown className="size-4 text-muted-foreground" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <div className="px-2 py-1.5 text-muted-foreground text-xs">
-                  {t("common.soon")}
-                </div>
+              <DropdownMenuContent align="end" className="min-w-[200px]">
+                {SORT_KEYS.map((key) => (
+                  <DropdownMenuItem
+                    className={cn(
+                      "justify-between",
+                      key === sort && "bg-muted"
+                    )}
+                    key={key}
+                    onSelect={() => setSort(key)}
+                  >
+                    {SORT_LABELS[key]}
+                    {key === sort && <Check className="size-4" />}
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            {hasFilters && (
-              <button
-                className="px-2 text-muted-foreground text-xs hover:text-foreground"
-                onClick={resetFilters}
-                type="button"
-              >
-                {t("common.reset")}
-              </button>
-            )}
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#e5e5e5] py-2 pr-2 pl-3 text-foreground text-sm outline-none hover:border-foreground/30">
-              {t("common.sort")}
-              <ChevronDown className="size-4 text-muted-foreground" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[200px]">
-              {SORT_KEYS.map((key) => (
-                <DropdownMenuItem
-                  className={cn("justify-between", key === sort && "bg-muted")}
-                  key={key}
-                  onSelect={() => setSort(key)}
-                >
-                  {SORT_LABELS[key]}
-                  {key === sort && <Check className="size-4" />}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        )}
 
         {/* Grid */}
-        {renderGrid({
-          documents: pagedDocuments,
-          hasDocuments: documents.length > 0,
-          isLoading,
-          t,
-        })}
-
-        <PaginationControls
-          onPageChange={setPage}
-          page={page}
-          pageCount={pageCount}
-        />
+        {tab === "saved" ? (
+          <SavedTemplatesGrid templates={savedTemplates} />
+        ) : (
+          <>
+            {renderGrid({
+              documents: pagedDocuments,
+              hasDocuments: documents.length > 0,
+              isLoading,
+              t,
+            })}
+            <PaginationControls
+              onPageChange={setPage}
+              page={page}
+              pageCount={pageCount}
+            />
+          </>
+        )}
       </div>
     </div>
   );
@@ -342,6 +379,43 @@ function renderGrid({
           templateTitle={doc.templateTitle}
           title={doc.title}
           updatedAt={doc.updatedAt}
+        />
+      ))}
+    </div>
+  );
+}
+
+interface SavedTemplate {
+  id: string;
+  title: string;
+  description: string | null;
+  price: number;
+}
+
+function SavedTemplatesGrid({ templates }: { templates: SavedTemplate[] }) {
+  if (templates.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <FileText className="mb-3 size-12 text-muted-foreground/30" />
+        <p className="font-medium text-foreground text-sm">
+          Нет сохранённых шаблонов
+        </p>
+        <p className="mt-1 text-muted-foreground text-xs">
+          Сохраняйте шаблоны из каталога — они появятся здесь
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {templates.map((tpl) => (
+        <TemplateCard
+          description={tpl.description}
+          id={tpl.id}
+          key={tpl.id}
+          price={tpl.price}
+          saved
+          title={tpl.title}
         />
       ))}
     </div>

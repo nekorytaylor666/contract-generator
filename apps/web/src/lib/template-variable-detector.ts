@@ -1,3 +1,4 @@
+import { parseNativeLets } from "@/lib/native-typst";
 import type { TemplateVariable } from "@/routes/templates";
 
 interface DetectedVariable {
@@ -20,6 +21,7 @@ const NUMBER_NAME_RE =
 const TEXTAREA_NAME_RE =
   /(text|description|conditions|notes|comment|address)$/i;
 const CAMEL_SPLIT_RE = /([a-z])([A-Z])/g;
+const UNDERSCORE_RE = /_/g;
 const FIRST_CHAR_RE = /^./;
 
 function inferTextLikeType(name: string): TemplateVariable["type"] {
@@ -42,6 +44,16 @@ function inferTextLikeType(name: string): TemplateVariable["type"] {
  *  - text/textarea/date/number → plain `{{x}}` substitution; type guessed from name
  */
 export function detectVariables(typstContent: string): DetectedVariable[] {
+  // Native Typst (#let bindings, no {{var}} placeholders): extract the
+  // top-level `#let name = ""` fields instead.
+  if (!typstContent.includes("{{")) {
+    return parseNativeLets(typstContent).map((v) => ({
+      name: v.name,
+      type: v.type,
+      options: v.options,
+    }));
+  }
+
   const booleans = new Set<string>();
   const selects = new Map<string, Set<string>>();
   const allNames = new Set<string>();
@@ -143,6 +155,7 @@ export function mergeWithDetected(
 function humanizeName(name: string): string {
   // landlordCompanyName → "Landlord Company Name"
   return name
+    .replace(UNDERSCORE_RE, " ")
     .replace(CAMEL_SPLIT_RE, "$1 $2")
     .replace(FIRST_CHAR_RE, (c) => c.toUpperCase());
 }

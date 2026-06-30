@@ -1,9 +1,26 @@
-import { Link } from "@tanstack/react-router";
-import { FileText, type LucideIcon, MoreHorizontal } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
+import {
+  Bookmark,
+  Download,
+  FileText,
+  type LucideIcon,
+  MoreHorizontal,
+  Pencil,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import type { TemplateVariable } from "@/routes/templates/index";
+import { useTRPC } from "@/utils/trpc";
 
 interface TemplateCardProps {
   id: string;
@@ -15,6 +32,8 @@ interface TemplateCardProps {
   /** Price in whole tenge (0 = free). */
   price?: number;
   purchased?: boolean;
+  /** Whether the current user has bookmarked this template. */
+  saved?: boolean;
 }
 
 // "4 999 ₸" — space-grouped tenge, matching the Figma catalogue card.
@@ -30,9 +49,37 @@ export function TemplateCard({
   categoryIcon: CategoryIcon = FileText,
   price = 0,
   purchased = false,
+  saved = false,
 }: TemplateCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const isPaid = price > 0;
+
+  const bookmarkMutation = useMutation(
+    trpc.templates.toggleBookmark.mutationOptions({
+      onSuccess: (res) => {
+        queryClient.invalidateQueries({
+          queryKey: trpc.templates.myBookmarks.queryKey(),
+        });
+        toast.success(res.saved ? "Шаблон сохранён" : "Убрано из сохранённых");
+      },
+      onError: (err) => toast.error(err.message),
+    })
+  );
+
+  const downloadMutation = useMutation(
+    trpc.templates.downloadPurchased.mutationOptions({
+      onSuccess: (result) => {
+        const link = document.createElement("a");
+        link.href = result.dataUrl;
+        link.download = result.fileName;
+        link.click();
+      },
+      onError: (err) => toast.error(err.message),
+    })
+  );
 
   return (
     <Link
@@ -49,12 +96,71 @@ export function TemplateCard({
               {categoryLabel ?? "—"}
             </span>
           </div>
-          <span
-            aria-hidden="true"
-            className="flex size-6 items-center justify-center text-foreground"
-          >
-            <MoreHorizontal className="size-4" />
-          </span>
+          <div className="flex items-center gap-0.5">
+            {/* Saved marker — filled when bookmarked; click toggles. */}
+            <button
+              aria-label={saved ? "Убрать из сохранённых" : "Сохранить шаблон"}
+              className="flex size-6 items-center justify-center rounded-md outline-none hover:bg-muted"
+              disabled={bookmarkMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                bookmarkMutation.mutate({ templateId: id });
+              }}
+              type="button"
+            >
+              <Bookmark
+                className={cn(
+                  "size-4",
+                  saved ? "fill-primary text-primary" : "text-muted-foreground"
+                )}
+              />
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Действия с шаблоном"
+                className="flex size-6 items-center justify-center rounded-md text-foreground outline-none hover:bg-muted"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+              >
+                <MoreHorizontal className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[180px]">
+                <DropdownMenuItem
+                  onSelect={() =>
+                    navigate({
+                      to: "/templates/$templateId/builder",
+                      params: { templateId: id },
+                    })
+                  }
+                >
+                  <Pencil className="size-4" />
+                  {t("templates.edit")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={downloadMutation.isPending}
+                  onSelect={() =>
+                    downloadMutation.mutate({
+                      templateId: id,
+                      locale: i18n.language,
+                    })
+                  }
+                >
+                  <Download className="size-4" />
+                  {t("templates.download")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={bookmarkMutation.isPending}
+                  onSelect={() => bookmarkMutation.mutate({ templateId: id })}
+                >
+                  <Bookmark className={cn("size-4", saved && "fill-current")} />
+                  {saved ? "Убрать из сохранённых" : t("templates.bookmark")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* card-text: title + description */}

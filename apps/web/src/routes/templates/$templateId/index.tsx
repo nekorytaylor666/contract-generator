@@ -1,21 +1,76 @@
 import { resolveLocalized } from "@contract-builder/api/constants/template-options";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Bookmark, Download, FileText } from "lucide-react";
+import {
+  ArrowLeft,
+  Bookmark,
+  ChevronDown,
+  Download,
+  FileText,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
+import {
+  isNativeTypst,
+  ServerTypstPreview,
+} from "@/components/template-builder/server-typst-preview";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { requireAuth } from "@/lib/auth-guard";
+import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
 import type { TemplateVariable } from "../";
 
 // Same style preset the admin uses for in-app previews.
 const PREVIEW_STYLE = { font: "", preset: "default" } as const;
 const noopValueChange = () => undefined;
+
+// Picks the right preview: native Typst (#let/functions) compiles server-side;
+// the `{{var}}` format uses the interactive client parser.
+function PreviewBody({
+  typstContent,
+  previewValues,
+  variables,
+}: {
+  typstContent: string | null | undefined;
+  previewValues: Record<string, unknown>;
+  variables: TemplateVariable[];
+}) {
+  if (!typstContent) {
+    return (
+      <div className="flex h-full items-center justify-center text-center">
+        <div>
+          <FileText className="mx-auto size-16 text-muted-foreground/30" />
+          <p className="mt-3 text-muted-foreground text-sm">
+            У шаблона нет Typst-контента
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (isNativeTypst(typstContent)) {
+    return <ServerTypstPreview typstContent={typstContent} />;
+  }
+  return (
+    <InteractiveDocumentPreview
+      logo={null}
+      onValueChange={noopValueChange}
+      style={PREVIEW_STYLE}
+      typstContent={typstContent}
+      values={previewValues}
+      variables={variables}
+    />
+  );
+}
 
 export const Route = createFileRoute("/templates/$templateId/")({
   component: RouteComponent,
@@ -125,7 +180,7 @@ function RouteComponent() {
     trpc.templates.downloadPurchased.mutationOptions({
       onSuccess: (result) => {
         const link = document.createElement("a");
-        link.href = result.pdfDataUrl;
+        link.href = result.dataUrl;
         link.download = result.fileName;
         link.click();
       },
@@ -184,14 +239,17 @@ function RouteComponent() {
     checkoutMutation.mutate({ templateId, kind: "edit" });
   };
 
-  // Download a finished copy: if already paid (any purchase) or free, fetch the
-  // PDF; otherwise start a download-kind checkout.
-  const handleDownload = () => {
+  const canDownload =
+    hasDownload || template?.downloadPrice === 0 || hasDownloadQuota;
+
+  // Download a finished copy in the chosen format: if already paid (any
+  // purchase) or free, fetch the file; otherwise start a download-kind checkout.
+  const handleDownload = (format: "pdf" | "docx") => {
     if (!template) {
       return;
     }
-    if (hasDownload || template.downloadPrice === 0 || hasDownloadQuota) {
-      downloadMutation.mutate({ templateId, locale: i18n.language });
+    if (canDownload) {
+      downloadMutation.mutate({ templateId, locale: i18n.language, format });
       return;
     }
     checkoutMutation.mutate({ templateId, kind: "download" });
@@ -274,17 +332,28 @@ function RouteComponent() {
                 ? t("templates.bookmarked")
                 : t("templates.bookmark")}
             </button>
-            <button
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#f5f5f5] px-4 font-medium text-[#171717] text-sm transition-colors hover:bg-[#ececec] disabled:opacity-60"
-              disabled={downloadMutation.isPending}
-              onClick={handleDownload}
-              type="button"
-            >
-              <Download className="size-4" />
-              {hasDownload || template.downloadPrice === 0 || hasDownloadQuota
-                ? t("templates.download")
-                : `${t("templates.download")} — ${formatPrice(template.downloadPrice)}`}
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#f5f5f5] px-4 font-medium text-[#171717] text-sm outline-none transition-colors hover:bg-[#ececec] disabled:opacity-60"
+                disabled={downloadMutation.isPending}
+              >
+                <Download className="size-4" />
+                {canDownload
+                  ? t("templates.download")
+                  : `${t("templates.download")} — ${formatPrice(template.downloadPrice)}`}
+                <ChevronDown className="size-4 text-muted-foreground" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[180px]">
+                <DropdownMenuItem onSelect={() => handleDownload("docx")}>
+                  <Download className="size-4" />
+                  Скачать в DocX
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleDownload("pdf")}>
+                  <Download className="size-4" />
+                  Скачать в PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <button
               className="inline-flex h-10 items-center justify-center rounded-lg bg-[#9e1f5a] px-4 font-medium text-[#fafafa] text-sm transition-colors hover:bg-[#8b1a50] disabled:opacity-60"
               disabled={isPaying || createDraftMutation.isPending}
@@ -307,24 +376,35 @@ function RouteComponent() {
             <h2 className="mb-3 font-medium text-foreground text-sm">
               Предпросмотр договора
             </h2>
-            <div className="h-[80vh] overflow-hidden rounded-lg border border-border bg-background">
-              {localized.typstContent ? (
-                <InteractiveDocumentPreview
-                  logo={null}
-                  onValueChange={noopValueChange}
-                  style={PREVIEW_STYLE}
+            <div className="relative">
+              <div
+                className={cn(
+                  "overflow-hidden rounded-lg border border-border bg-background",
+                  template.previewLimited ? "max-h-[460px]" : "h-[80vh]"
+                )}
+              >
+                <PreviewBody
+                  previewValues={previewValues}
                   typstContent={localized.typstContent}
-                  values={previewValues}
                   variables={variables}
                 />
-              ) : (
-                <div className="flex h-full items-center justify-center text-center">
-                  <div>
-                    <FileText className="mx-auto size-16 text-muted-foreground/30" />
-                    <p className="mt-3 text-muted-foreground text-sm">
-                      У шаблона нет Typst-контента
-                    </p>
-                  </div>
+              </div>
+              {/* Paywall: the rest of the document is not sent to the client —
+                  this overlay just fades/blurs the truncated tail + sells access. */}
+              {template.previewLimited && (
+                <div className="absolute inset-x-0 bottom-0 flex flex-col items-center justify-end gap-3 rounded-b-lg bg-gradient-to-t from-background via-background/95 to-transparent px-6 pt-24 pb-6 text-center backdrop-blur-[2px]">
+                  <p className="max-w-sm font-medium text-foreground text-sm">
+                    Это предпросмотр — показана только часть документа. Купите
+                    шаблон, чтобы увидеть его целиком.
+                  </p>
+                  <button
+                    className="inline-flex h-10 items-center justify-center rounded-lg bg-[#9e1f5a] px-4 font-medium text-[#fafafa] text-sm transition-colors hover:bg-[#8b1a50] disabled:opacity-60"
+                    disabled={isPaying || createDraftMutation.isPending}
+                    onClick={handleEdit}
+                    type="button"
+                  >
+                    Получить полный доступ — {formatPrice(template.price)}
+                  </button>
                 </div>
               )}
             </div>

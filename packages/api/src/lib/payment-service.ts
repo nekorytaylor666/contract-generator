@@ -13,6 +13,8 @@ function subscriptionExpiry(from: Date, period: string | null): Date {
   const expiresAt = new Date(from);
   if (period === "yearly") {
     expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+  } else if (period === "quarterly") {
+    expiresAt.setMonth(expiresAt.getMonth() + 3);
   } else {
     expiresAt.setMonth(expiresAt.getMonth() + 1);
   }

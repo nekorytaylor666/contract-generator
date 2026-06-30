@@ -10,10 +10,15 @@ import {
 } from "@/components/template-builder/document-style-settings";
 import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
 import { LogoUpload } from "@/components/template-builder/logo-upload";
+import {
+  isNativeTypst,
+  ServerTypstPreview,
+} from "@/components/template-builder/server-typst-preview";
 import { TemplateForm } from "@/components/template-builder/template-form";
 import { VersionHistory } from "@/components/template-builder/version-history";
 import { Button } from "@/components/ui/button";
 import { requireAuth } from "@/lib/auth-guard";
+import { parseNativeLets } from "@/lib/native-typst";
 import type { TemplateVariable } from "@/routes/templates";
 import { useTRPC } from "@/utils/trpc";
 
@@ -381,7 +386,6 @@ function RouteComponent() {
     );
   }
 
-  const variables = template.variables as TemplateVariable[];
   // Document content for the current UI language (falls back to the default).
   const localized = resolveLocalized(
     {
@@ -392,6 +396,15 @@ function RouteComponent() {
     template.localizedContent,
     i18n.language
   );
+
+  // Native Typst (#let) templates may have no synced variables[] — fall back to
+  // parsing fillable `#let` fields out of the source so they drive the same form
+  // as the {{var}} format. Admin-synced variables take priority.
+  const storedVariables = template.variables as TemplateVariable[];
+  let variables = storedVariables;
+  if (storedVariables.length === 0 && isNativeTypst(localized.typstContent)) {
+    variables = parseNativeLets(localized.typstContent);
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -469,15 +482,22 @@ function RouteComponent() {
         {/* Interactive Document Preview */}
         <div className="flex-1 overflow-auto bg-muted/30 p-4">
           <div className="mx-auto h-full max-w-5xl">
-            <InteractiveDocumentPreview
-              changedVars={changedVars}
-              logo={logo}
-              onValueChange={handleInlineChange}
-              style={documentStyle}
-              typstContent={localized.typstContent}
-              values={formValues}
-              variables={variables}
-            />
+            {isNativeTypst(localized.typstContent) ? (
+              <ServerTypstPreview
+                typstContent={localized.typstContent}
+                values={formValues}
+              />
+            ) : (
+              <InteractiveDocumentPreview
+                changedVars={changedVars}
+                logo={logo}
+                onValueChange={handleInlineChange}
+                style={documentStyle}
+                typstContent={localized.typstContent}
+                values={formValues}
+                variables={variables}
+              />
+            )}
           </div>
         </div>
 

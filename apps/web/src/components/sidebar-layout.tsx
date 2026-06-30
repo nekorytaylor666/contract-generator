@@ -11,9 +11,9 @@ import { useTranslation } from "react-i18next";
 import { CommandSearchProvider } from "@/components/command-search/command-search-context";
 import { CommandSearchDialog } from "@/components/command-search/command-search-dialog";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { TeamAvatarStack } from "@/components/team-avatar-stack";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
+import { looksLikePhone } from "@/lib/display-name";
 
 import { AppSidebar } from "./app-sidebar";
 
@@ -110,19 +110,20 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                 <TitleIcon className="size-4" />
                 {title}
               </span>
-              {isDocuments && activeOrg?.name && (
-                <>
-                  <span className="text-muted-foreground">/</span>
-                  <span className="flex items-center gap-1.5 text-foreground">
-                    <FolderOpen className="size-4 text-muted-foreground" />
-                    {activeOrg.name}
-                  </span>
-                </>
-              )}
+              {isDocuments &&
+                activeOrg?.name &&
+                !looksLikePhone(activeOrg.name) && (
+                  <>
+                    <span className="text-muted-foreground">/</span>
+                    <span className="flex items-center gap-1.5 text-foreground">
+                      <FolderOpen className="size-4 text-muted-foreground" />
+                      {activeOrg.name}
+                    </span>
+                  </>
+                )}
             </div>
             <div className="flex items-center gap-3">
-              {/* Временно скрыто: добавление в команду (ShareAccessMenu) */}
-              {isDocuments && <TeamAvatarStack />}
+              {/* Временно скрыто: команда (TeamAvatarStack + ShareAccessMenu) */}
               <LanguageSwitcher />
             </div>
           </header>

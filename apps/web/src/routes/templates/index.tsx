@@ -347,6 +347,7 @@ function RouteComponent() {
           isLoading,
           templates: pagedTemplates,
           purchasedSet,
+          bookmarkSet,
           t,
         })}
 
@@ -364,6 +365,7 @@ function renderGrid({
   isLoading,
   templates,
   purchasedSet,
+  bookmarkSet,
   t,
 }: {
   isLoading: boolean;
@@ -375,6 +377,7 @@ function renderGrid({
     categories?: string[] | null;
   }>;
   purchasedSet: Set<string>;
+  bookmarkSet: Set<string>;
   t: TFunction;
 }) {
   if (isLoading) {
@@ -409,6 +412,7 @@ function renderGrid({
           key={template.id}
           price={template.price}
           purchased={purchasedSet.has(template.id)}
+          saved={bookmarkSet.has(template.id)}
           title={template.title}
         />
       ))}

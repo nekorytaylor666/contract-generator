@@ -23,6 +23,7 @@ const planInput = z.object({
   name: z.string().min(1),
   description: z.string().default(""),
   priceMonthly: z.number().int().min(0).default(0),
+  priceQuarterly: z.number().int().min(0).nullable().optional(),
   priceYearly: z.number().int().min(0).nullable().optional(),
   discountLabel: z.string().nullable().optional(),
   // -1 = unlimited.

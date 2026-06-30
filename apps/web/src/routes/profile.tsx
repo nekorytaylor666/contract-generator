@@ -43,10 +43,11 @@ export const Route = createFileRoute("/profile")({
 });
 
 const PERIODS = [
-  "Ежемесячно",
-  "Ежеквартально (- 7%)",
-  "Ежегодно (-22%)",
+  { key: "monthly", label: "Ежемесячно", suffix: "/ в месяц" },
+  { key: "quarterly", label: "Ежеквартально (- 7%)", suffix: "/ в квартал" },
+  { key: "yearly", label: "Ежегодно (-22%)", suffix: "/ в год" },
 ] as const;
+type PeriodKey = (typeof PERIODS)[number]["key"];
 
 type ProfileTab = "personal" | "security" | "requisites" | "subscription";
 
@@ -194,6 +195,8 @@ interface DbPlan {
   name: string;
   description: string;
   priceMonthly: number;
+  priceQuarterly: number | null;
+  priceYearly: number | null;
   discountLabel: string | null;
   downloadQuota: number;
   editQuota: number;
@@ -214,16 +217,34 @@ function planCta(name: string, isFree: boolean, isCurrent: boolean): string {
   return `Перейти на ${name}`;
 }
 
-function dbPlanToCard(p: DbPlan, currentPlanId: string | null): Plan {
+// Price for the selected billing period. Quarterly/yearly fall back to the
+// monthly price × 3 / × 12 when an explicit price isn't set (mirrors checkout).
+function priceForPeriod(p: DbPlan, period: PeriodKey): number {
+  if (period === "yearly") {
+    return p.priceYearly ?? p.priceMonthly * 12;
+  }
+  if (period === "quarterly") {
+    return p.priceQuarterly ?? p.priceMonthly * 3;
+  }
+  return p.priceMonthly;
+}
+
+function dbPlanToCard(
+  p: DbPlan,
+  currentPlanId: string | null,
+  period: PeriodKey
+): Plan {
   const isFree = p.priceMonthly === 0;
   const isCurrent = p.id === currentPlanId;
+  const amount = priceForPeriod(p, period);
+  const suffix = PERIODS.find((x) => x.key === period)?.suffix ?? "/ в месяц";
   return {
     id: p.id,
     name: p.name,
     discount: p.discountLabel ?? undefined,
     description: p.description,
-    price: isFree ? "Бесплатно" : `${p.priceMonthly.toLocaleString("ru-RU")} ₸`,
-    period: isFree ? undefined : "/ в месяц",
+    price: isFree ? "Бесплатно" : `${amount.toLocaleString("ru-RU")} ₸`,
+    period: isFree ? undefined : suffix,
     cta: planCta(p.name, isFree, isCurrent),
     current: isCurrent,
     quotas: [
@@ -314,7 +335,7 @@ function UsageCard({
 
 function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
   const navigate = useNavigate();
-  const [period, setPeriod] = useState<(typeof PERIODS)[number]>(PERIODS[0]);
+  const [period, setPeriod] = useState<PeriodKey>("monthly");
   const [successOpen, setSuccessOpen] = useState(Boolean(justPaid));
   const trpc = useTRPC();
   const { data: dbPlans = [] } = useQuery(
@@ -328,7 +349,9 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
   );
 
   const typedPlans = dbPlans as DbPlan[];
-  const plans = typedPlans.map((p) => dbPlanToCard(p, my?.planId ?? null));
+  const plans = typedPlans.map((p) =>
+    dbPlanToCard(p, my?.planId ?? null, period)
+  );
   const currentPlan = typedPlans.find((p) => p.id === my?.planId);
   const checksQuota = parseQuotaValue(
     currentPlan?.features?.find((f) => f.label === "Проверка документов")?.value
@@ -405,7 +428,7 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
             <span className="text-foreground text-xs">Период подписки</span>
             <div className="flex items-center gap-1 rounded-[10px] bg-muted p-1">
               {PERIODS.map((option) => {
-                const isActive = option === period;
+                const isActive = option.key === period;
                 return (
                   <button
                     className={cn(
@@ -414,11 +437,11 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
                         ? "bg-background text-foreground shadow-sm"
                         : "border border-border text-foreground hover:bg-background/60"
                     )}
-                    key={option}
-                    onClick={() => setPeriod(option)}
+                    key={option.key}
+                    onClick={() => setPeriod(option.key)}
                     type="button"
                   >
-                    {option}
+                    {option.label}
                   </button>
                 );
               })}
@@ -438,8 +461,7 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
                 }
                 onSelect={
                   canBuy
-                    ? () =>
-                        checkout.mutate({ planId: plan.id, period: "monthly" })
+                    ? () => checkout.mutate({ planId: plan.id, period })
                     : undefined
                 }
                 plan={plan}

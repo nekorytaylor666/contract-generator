@@ -20,8 +20,10 @@ export const subscriptionPlan = pgTable("subscription_plan", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
-  // Prices in whole tenge (0 = free).
+  // Prices in whole tenge (0 = free). Quarterly/yearly are nullable — when not
+  // set the checkout falls back to monthly × 3 / × 12.
   priceMonthly: integer("price_monthly").notNull().default(0),
+  priceQuarterly: integer("price_quarterly"),
   priceYearly: integer("price_yearly"),
   discountLabel: text("discount_label"),
   // Enforced quotas per calendar month. -1 = unlimited.
