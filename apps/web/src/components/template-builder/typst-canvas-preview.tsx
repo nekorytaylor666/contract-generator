@@ -91,15 +91,27 @@ export async function renderTypstVector(
   data: string
 ): Promise<number> {
   const { renderer } = await getRenderer();
-  container.innerHTML = "";
-  await renderer.renderToCanvas({
-    container,
-    pixelPerPt: getPixelPerPt(),
-    backgroundColor: "#ffffff",
-    format: "vector",
-    artifactContent: decodeBase64(data),
-  });
-  sanitizeRenderedPages(container);
+  // Render into an off-screen staging node first, then swap it in atomically.
+  // Rendering directly into `container` (clearing it first) makes the preview
+  // blank-flash on every keystroke; the swap keeps the old render visible until
+  // the new one is ready.
+  const staging = document.createElement("div");
+  staging.style.cssText = "position:absolute;left:-9999px;top:0;width:100%;";
+  container.appendChild(staging);
+  try {
+    await renderer.renderToCanvas({
+      container: staging,
+      pixelPerPt: getPixelPerPt(),
+      backgroundColor: "#ffffff",
+      format: "vector",
+      artifactContent: decodeBase64(data),
+    });
+    sanitizeRenderedPages(staging);
+    staging.style.cssText = "";
+    container.replaceChildren(...staging.childNodes);
+  } finally {
+    staging.remove();
+  }
   return container.querySelectorAll("canvas").length;
 }
 

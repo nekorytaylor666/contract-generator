@@ -100,9 +100,30 @@ function buildVariable(
  * `#let name = ""` bindings — as `TemplateVariable`s so they plug into the same
  * form/values machinery as the `{{var}}` format.
  */
+function recordLet(
+  byName: Map<string, TemplateVariable>,
+  name: string,
+  rawValue: string,
+  sameLineComment: string | undefined,
+  nextLine: string | undefined
+): void {
+  const nextComment = nextLine?.startsWith("//")
+    ? nextLine.slice(2).trim()
+    : undefined;
+  const options =
+    parseOptionsComment(sameLineComment) ?? parseOptionsComment(nextComment);
+  const existing = byName.get(name);
+  // Merge across redeclarations: a select annotation may sit on any occurrence
+  // (e.g. the first `#let landlord_type = "company"` has no comment but a later
+  // one does), so upgrade to select whenever we find the options.
+  if (existing && !(options && existing.type !== "select")) {
+    return;
+  }
+  byName.set(name, buildVariable(name, rawValue, options));
+}
+
 export function parseNativeLets(content: string): TemplateVariable[] {
-  const vars: TemplateVariable[] = [];
-  const seen = new Set<string>();
+  const byName = new Map<string, TemplateVariable>();
   const lines = content.split("\n");
   let depth = 0;
 
@@ -111,22 +132,11 @@ export function parseNativeLets(content: string): TemplateVariable[] {
     if (depth === 0) {
       const match = LET_LINE_REGEX.exec(line.trim());
       if (match) {
-        const [, name, rawValue, sameLineComment] = match;
-        if (!seen.has(name)) {
-          const next = lines[i + 1]?.trim();
-          const nextComment = next?.startsWith("//")
-            ? next.slice(2).trim()
-            : undefined;
-          const options =
-            parseOptionsComment(sameLineComment) ??
-            parseOptionsComment(nextComment);
-          vars.push(buildVariable(name, rawValue, options));
-          seen.add(name);
-        }
+        recordLet(byName, match[1], match[2], match[3], lines[i + 1]?.trim());
       }
     }
     depth = Math.max(0, depth + depthDelta(line));
   }
 
-  return vars;
+  return [...byName.values()];
 }

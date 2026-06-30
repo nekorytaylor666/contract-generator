@@ -14,7 +14,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
 import {
-  isNativeTypst,
+  isComplexNative,
   ServerTypstPreview,
 } from "@/components/template-builder/server-typst-preview";
 import { VariableCard } from "@/components/template-builder/variable-card";
@@ -108,8 +108,8 @@ const EMPTY_FORM: FormState = {
 const noopValueChange = () => undefined;
 const defaultPreviewStyle = { font: "", preset: "comfortable" };
 
-// Native Typst (#let/functions) compiles server-side; the `{{var}}` format uses
-// the interactive client parser.
+// Function/array-heavy native compiles server-side; `{{var}}` and simple linear
+// native (only #let + #fill + #if) use the interactive client parser.
 function AdminDocumentPreview({
   typstContent,
   previewValues,
@@ -119,7 +119,7 @@ function AdminDocumentPreview({
   previewValues: Record<string, unknown>;
   variables: TemplateVariable[];
 }) {
-  if (isNativeTypst(typstContent)) {
+  if (isComplexNative(typstContent)) {
     return <ServerTypstPreview typstContent={typstContent} />;
   }
   return (

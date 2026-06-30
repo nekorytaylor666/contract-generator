@@ -88,3 +88,13 @@ const VAR_PLACEHOLDER_REGEX = /\{\{\w+\}\}/;
 export function isNativeTypst(content: string): boolean {
   return !VAR_PLACEHOLDER_REGEX.test(content);
 }
+
+// Constructs the inline JS parser can't interpret (functions, arrays, blocks,
+// loops). Such native templates render via the real Typst compiler; simpler
+// linear native (only #let + #fill + #if + #align/#grid) gets inline editing.
+const COMPLEX_NATIVE_REGEX =
+  /#let\s+\w+\s*\(|#let\s+\w+\s*=\s*[({]|\.filter\(|\.enumerate\(|#for\s/;
+
+export function isComplexNative(content: string): boolean {
+  return isNativeTypst(content) && COMPLEX_NATIVE_REGEX.test(content);
+}

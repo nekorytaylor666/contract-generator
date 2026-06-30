@@ -11,6 +11,7 @@ import {
 import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
 import { LogoUpload } from "@/components/template-builder/logo-upload";
 import {
+  isComplexNative,
   isNativeTypst,
   ServerTypstPreview,
 } from "@/components/template-builder/server-typst-preview";
@@ -124,7 +125,9 @@ function RouteComponent() {
     if (!template || initialValues || existingDocument) {
       return;
     }
-    const templateVars = template.variables as TemplateVariable[];
+    const stored = template.variables as TemplateVariable[];
+    const templateVars =
+      stored.length > 0 ? stored : parseNativeLets(template.typstContent);
     const defaults: Record<string, unknown> = {};
     for (const v of templateVars) {
       if (v.defaultValue !== undefined) {
@@ -482,7 +485,7 @@ function RouteComponent() {
         {/* Interactive Document Preview */}
         <div className="flex-1 overflow-auto bg-muted/30 p-4">
           <div className="mx-auto h-full max-w-5xl">
-            {isNativeTypst(localized.typstContent) ? (
+            {isComplexNative(localized.typstContent) ? (
               <ServerTypstPreview
                 typstContent={localized.typstContent}
                 values={formValues}

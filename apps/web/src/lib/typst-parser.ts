@@ -81,6 +81,26 @@ function findMatchingParen(src: string, start: number): number {
 
 const CONDITION_STRING_RE = /^"{{(\w+)}}"\s*(==|!=)\s*"([^"]*)"/;
 const CONDITION_BOOLEAN_RE = /^{{(\w+)}}/;
+// Native Typst conditions reference bare #let vars: `name == "value"` / `name`.
+const NATIVE_CONDITION_STRING_RE = /^(\w+)\s*(==|!=)\s*"([^"]*)"/;
+const NATIVE_CONDITION_BOOLEAN_RE = /^(\w+)\s*$/;
+// Bare `#name` reference to a #let value (when not followed by ( or [).
+const BARE_VAR_RE = /^#(\w+)/;
+const RESERVED_WORDS = new Set([
+  "if",
+  "else",
+  "let",
+  "set",
+  "show",
+  "for",
+  "while",
+  "import",
+  "include",
+  "context",
+  "none",
+  "true",
+  "false",
+]);
 const GRID_COLUMNS_RE = /columns:\s*\(([^)]+)\)/;
 const GRID_CELL_RE = /align\(\w+\)\[/g;
 const SET_PROP_RE = /^#set\s+(\w+)\((.+)\)\s*$/;
@@ -102,6 +122,20 @@ function parseCondition(expr: string): AnyCondition {
   const boolMatch = CONDITION_BOOLEAN_RE.exec(expr.trim());
   if (boolMatch) {
     return { variable: boolMatch[1], operator: "boolean" };
+  }
+  // Native: `name == "value"` / `name != "value"`
+  const nativeStr = NATIVE_CONDITION_STRING_RE.exec(expr.trim());
+  if (nativeStr) {
+    return {
+      variable: nativeStr[1],
+      operator: nativeStr[2] as "==" | "!=",
+      value: nativeStr[3],
+    };
+  }
+  // Native boolean: bare `name`
+  const nativeBool = NATIVE_CONDITION_BOOLEAN_RE.exec(expr.trim());
+  if (nativeBool) {
+    return { variable: nativeBool[1], operator: "boolean" };
   }
   // Fallback — treat as boolean with raw name
   return { variable: expr.trim(), operator: "boolean" };
@@ -141,6 +175,20 @@ function parseInline(src: string): TypstNode[] {
         const name = src.slice(i + 2, end);
         nodes.push({ type: "variable", name });
         i = end + 2;
+        continue;
+      }
+    }
+
+    // Native fillable field: #fill(name, placeholder: "...") → editable variable
+    if (src.startsWith("#fill(", i)) {
+      const parenEnd = findMatchingParen(src, i + 5);
+      if (parenEnd !== -1) {
+        flush(buf);
+        buf = "";
+        const args = src.slice(i + 6, parenEnd);
+        const name = args.split(",")[0].trim();
+        nodes.push({ type: "variable", name });
+        i = parenEnd + 1;
         continue;
       }
     }
@@ -244,6 +292,25 @@ function parseInline(src: string): TypstNode[] {
       nodes.push(condNode.node);
       i = condNode.end;
       continue;
+    }
+
+    // Bare #let value reference: #name (not a function call/content block)
+    if (src[i] === "#") {
+      const bareMatch = BARE_VAR_RE.exec(src.slice(i));
+      if (bareMatch) {
+        const after = src[i + bareMatch[0].length];
+        if (
+          after !== "(" &&
+          after !== "[" &&
+          !RESERVED_WORDS.has(bareMatch[1])
+        ) {
+          flush(buf);
+          buf = "";
+          nodes.push({ type: "variable", name: bareMatch[1] });
+          i += bareMatch[0].length;
+          continue;
+        }
+      }
     }
 
     buf += src[i];
@@ -504,6 +571,13 @@ export function parseTypstTemplate(source: string): {
 
     // Comments
     if (trimmed.startsWith("//")) {
+      i++;
+      continue;
+    }
+
+    // Native #let declarations: not printed (their defaults feed the form).
+    // (Complex/multi-line lets route to the server renderer, not here.)
+    if (trimmed.startsWith("#let ")) {
       i++;
       continue;
     }
