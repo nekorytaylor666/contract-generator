@@ -13,9 +13,10 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
+import { NativeInlinePreview } from "@/components/template-builder/native-inline-preview";
 import {
+  isComplexNative,
   isNativeTypst,
-  ServerTypstPreview,
 } from "@/components/template-builder/server-typst-preview";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,8 +35,9 @@ import type { TemplateVariable } from "../";
 const PREVIEW_STYLE = { font: "", preset: "default" } as const;
 const noopValueChange = () => undefined;
 
-// Picks the right preview: native Typst (#let/functions) compiles server-side;
-// the `{{var}}` format uses the interactive client parser.
+// Picks the right preview. Everything renders client-side (read-only): complex
+// native templates go through the interpreter-backed inline preview, the rest
+// through the interactive `{{var}}` parser. No server Typst compile here.
 function PreviewBody({
   typstContent,
   previewValues,
@@ -57,8 +59,21 @@ function PreviewBody({
       </div>
     );
   }
-  if (isNativeTypst(typstContent)) {
-    return <ServerTypstPreview typstContent={typstContent} />;
+  // Complex native templates (#let functions, loops) render via the client
+  // interpreter — same engine as the builder — instead of the server Typst
+  // compiler, so a preview always shows even if the source has quirks the real
+  // compiler rejects. Read-only here: value changes are a no-op.
+  if (isNativeTypst(typstContent) && isComplexNative(typstContent)) {
+    return (
+      <NativeInlinePreview
+        logo={null}
+        onValueChange={noopValueChange}
+        style={PREVIEW_STYLE}
+        typstContent={typstContent}
+        values={previewValues}
+        variables={variables}
+      />
+    );
   }
   return (
     <InteractiveDocumentPreview

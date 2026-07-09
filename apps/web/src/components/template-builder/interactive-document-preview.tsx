@@ -59,6 +59,35 @@ function scrollIntoContainer(el: HTMLElement, container: HTMLElement | null) {
   container.scrollTo({ top: targetScroll, behavior: "smooth" });
 }
 
+// Concatenated text + field names of a highlight's content — its identity for
+// the remount key below.
+function plainText(nodes: TypstNode[]): string {
+  let out = "";
+  for (const node of nodes) {
+    if (node.type === "text") {
+      out += node.content;
+    } else if (node.type === "variable") {
+      out += node.name;
+    } else if ("children" in node && Array.isArray(node.children)) {
+      out += plainText(node.children);
+    }
+  }
+  return out;
+}
+
+// djb2 — short stable key suffix from the highlight content.
+const HASH_SEED = 5381;
+const HASH_MULTIPLIER = 33;
+const HASH_MODULUS = 4_294_967_296; // 2^32
+
+function hashText(text: string): number {
+  let hash = HASH_SEED;
+  for (const ch of text) {
+    hash = (hash * HASH_MULTIPLIER + ch.charCodeAt(0)) % HASH_MODULUS;
+  }
+  return hash;
+}
+
 function HighlightedBlock({
   children,
   scrollContainerRef,
@@ -190,6 +219,21 @@ function renderInlineNode(
     case "strong":
       return (
         <strong key={key}>{renderChildren(node.children, key, ctx)}</strong>
+      );
+
+    case "highlight":
+      // Key by content: successive select switches often put a *new* highlight
+      // at the *same* tree position. With a positional key React reuses the
+      // span, so the one-shot fade animation and mount-time scroll never
+      // re-fire after the first change. A content hash forces a remount.
+      return (
+        <HighlightedBlock
+          hasScrolledRef={ctx.hasScrolledRef}
+          key={`${key}-hl${hashText(plainText(node.children))}`}
+          scrollContainerRef={ctx.scrollContainerRef}
+        >
+          {renderChildren(node.children, key, ctx)}
+        </HighlightedBlock>
       );
 
     case "styledText": {
@@ -420,11 +464,14 @@ export function InteractiveDocumentPreview({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hasScrolledRef = useRef(false);
 
-  // Reset scroll flag when changedVars changes so the first element scrolls
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally re-run when changedVars identity changes
+  // Reset scroll flag when the highlight changes so the first element scrolls.
+  // `typstContent` is included because native previews signal a structural
+  // change (and inject `#hl` highlights) by producing new markup, not by
+  // changing `changedVars`.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally re-run when changedVars/markup identity changes
   useEffect(() => {
     hasScrolledRef.current = false;
-  }, [changedVars]);
+  }, [changedVars, typstContent]);
 
   const ctx: RenderContext = {
     variableMap,

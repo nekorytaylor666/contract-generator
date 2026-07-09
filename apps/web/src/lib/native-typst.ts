@@ -11,10 +11,18 @@ const STRING_LITERAL_REGEX = /"(?:[^"\\]|\\.)*"/g;
 // `name == "literal"` / `name != "literal"` comparisons reveal a field's options
 // even when the author didn't add a `// "a" | "b"` comment.
 const CONDITION_OPTION_REGEX = /(\w+)\s*[=!]=\s*"([^"]*)"/g;
-// `// @section Заголовок` marks the start of a form group. Fields declared after
-// it (until the next marker) belong to that section. It's a Typst comment, so it
-// doesn't affect the compiled document.
+// `// @section Заголовок :: Описание` marks the start of a form section;
+// `// @subsection Заголовок` starts a sub-block inside it. Fields declared after
+// a marker (until the next one) belong to that block. These are Typst comments,
+// so they don't affect the compiled document.
 const SECTION_MARKER_REGEX = /^\/\/\s*@section\s+(.+?)\s*$/;
+const SUBSECTION_MARKER_REGEX = /^\/\/\s*@subsection\s+(.+?)\s*$/;
+// `// @hint текст` on a field's `#let` line (or the line below) attaches helper
+// text to that field. The `//` is already stripped before this runs, so it
+// matches the bare `@hint …` payload.
+const HINT_MARKER_REGEX = /^@hint\s+(.+)$/;
+// Strip manual numbering ("1. Стороны" → "Стороны") — numbers are auto-assigned.
+const LEADING_NUMBER_REGEX = /^\d+(?:\.\d+)*[.)]?\s+/;
 // Literals that don't denote select options (empty default, booleans).
 const NON_OPTION_LITERALS = new Set(["", "true", "false"]);
 
@@ -36,6 +44,8 @@ function unquote(raw: string): string {
 
 // Options for a select come from a pipe-separated comment on the same line or
 // the line directly below: `// "a" | "b" | "c"` or `// a | b` or `//a|b`.
+// An option may carry a description after `::` (`// a :: описание | b :: …`),
+// stripped here and read separately by parseOptionDescriptions.
 function parseOptionsComment(comment: string | undefined): string[] | null {
   if (!comment?.includes("|")) {
     return null;
@@ -46,9 +56,44 @@ function parseOptionsComment(comment: string | undefined): string[] | null {
   }
   const bare = comment
     .split("|")
-    .map((part) => part.trim())
+    .map((part) => part.split("::")[0].trim())
     .filter(Boolean);
   return bare.length >= 2 ? bare : null;
+}
+
+// `// office :: Административная деятельность | trade :: Розничная продажа`
+// → { office: "Административная деятельность", trade: "Розничная продажа" }.
+// Descriptions render under each radio-card title. Options without `::` are
+// simply absent from the map.
+function parseOptionDescriptions(
+  comment: string | undefined
+): Record<string, string> | null {
+  if (!(comment?.includes("::") && comment.includes("|"))) {
+    return null;
+  }
+  const map: Record<string, string> = {};
+  for (const segment of comment.split("|")) {
+    const idx = segment.indexOf("::");
+    if (idx === -1) {
+      continue;
+    }
+    const option = unquote(segment.slice(0, idx).trim());
+    const description = segment.slice(idx + 2).trim();
+    if (option && description) {
+      map[option] = description;
+    }
+  }
+  return Object.keys(map).length > 0 ? map : null;
+}
+
+// Helper text for a field comes from a `// @hint …` comment on the same line or
+// the line directly below the `#let`.
+function parseHintComment(comment: string | undefined): string | null {
+  if (!comment) {
+    return null;
+  }
+  const match = HINT_MARKER_REGEX.exec(comment.trim());
+  return match ? match[1].trim() : null;
 }
 
 // Net bracket depth a line adds, ignoring brackets inside strings/comments.
@@ -70,11 +115,14 @@ function depthDelta(line: string): number {
 function buildVariable(
   name: string,
   rawValue: string,
-  options: string[] | null
+  options: string[] | null,
+  hint: string | null,
+  descriptions: Record<string, string> | null
 ): TemplateVariable {
   const label = labelFromName(name);
+  let variable: TemplateVariable;
   if (options) {
-    return {
+    variable = {
       name,
       type: "select",
       label,
@@ -82,26 +130,32 @@ function buildVariable(
       options,
       defaultValue: unquote(rawValue),
     };
-  }
-  if (rawValue === "true" || rawValue === "false") {
-    return {
+    if (descriptions) {
+      variable.optionDescriptions = descriptions;
+    }
+  } else if (rawValue === "true" || rawValue === "false") {
+    variable = {
       name,
       type: "boolean",
       label,
       required: false,
       defaultValue: rawValue === "true",
     };
-  }
-  if (rawValue.startsWith('"')) {
-    return {
+  } else if (rawValue.startsWith('"')) {
+    variable = {
       name,
       type: "text",
       label,
       required: false,
       defaultValue: unquote(rawValue),
     };
+  } else {
+    variable = { name, type: "number", label, required: false };
   }
-  return { name, type: "number", label, required: false };
+  if (hint) {
+    variable.hint = hint;
+  }
+  return variable;
 }
 
 /**
@@ -121,14 +175,34 @@ function recordLet(
     : undefined;
   const options =
     parseOptionsComment(sameLineComment) ?? parseOptionsComment(nextComment);
+  const hint =
+    parseHintComment(sameLineComment) ?? parseHintComment(nextComment);
+  const descriptions =
+    parseOptionDescriptions(sameLineComment) ??
+    parseOptionDescriptions(nextComment);
   const existing = byName.get(name);
-  // Merge across redeclarations: a select annotation may sit on any occurrence
-  // (e.g. the first `#let landlord_type = "company"` has no comment but a later
-  // one does), so upgrade to select whenever we find the options.
-  if (existing && !(options && existing.type !== "select")) {
-    return;
+  // Merge across redeclarations: a select annotation or a `// @hint` may sit on
+  // any occurrence (e.g. the first `#let landlord_type = "company"` has no
+  // comment but a later one does), so upgrade to select / backfill the hint
+  // whenever we find them.
+  if (existing) {
+    if (existing.hint === undefined && hint) {
+      existing.hint = hint;
+    }
+    if (!(options && existing.type !== "select")) {
+      return;
+    }
   }
-  byName.set(name, buildVariable(name, rawValue, options));
+  byName.set(
+    name,
+    buildVariable(
+      name,
+      rawValue,
+      options,
+      hint ?? existing?.hint,
+      descriptions ?? existing?.optionDescriptions ?? null
+    )
+  );
 }
 
 // Collect, per variable name, the distinct string literals it is compared
@@ -181,42 +255,86 @@ export function parseNativeLets(content: string): TemplateVariable[] {
   return [...byName.values()];
 }
 
-export interface NativeSections {
-  /** Field name → section title (assigned from the preceding `// @section`). */
-  sectionOf: Map<string, string>;
-  /** Section titles in document order. */
-  order: string[];
+export interface FormSubsection {
+  title: string;
+  /** Field names in this sub-block, in declaration order. */
+  fields: string[];
+}
+
+export interface FormSection {
+  title: string;
+  description?: string;
+  /** Fields directly under the section header (before any subsection). */
+  fields: string[];
+  subsections: FormSubsection[];
+}
+
+// Fields declared before the first `// @section` land here.
+export const DEFAULT_SECTION_TITLE = "Основные данные";
+
+function newSection(rawTitle: string): FormSection {
+  const [title, description] = rawTitle.split("::").map((part) => part.trim());
+  return {
+    title: title.replace(LEADING_NUMBER_REGEX, ""),
+    description: description || undefined,
+    fields: [],
+    subsections: [],
+  };
 }
 
 /**
- * Reads `// @section Заголовок` markers and maps each top-level `#let` field to
- * the section it falls under. Used to render the form as collapsible groups.
- * If a template has no markers, `order` is empty and the form stays flat.
+ * Reads `// @section Заголовок :: Описание` / `// @subsection Заголовок`
+ * markers and maps each top-level `#let` field into the section structure the
+ * form renders (numbered headers, descriptions, sub-blocks). Returns an empty
+ * array when the template has no markers — the form then stays flat.
  */
-export function parseNativeSections(content: string): NativeSections {
-  const sectionOf = new Map<string, string>();
-  const order: string[] = [];
+export function parseNativeSections(content: string): FormSection[] {
+  const sections: FormSection[] = [];
   const lines = content.split("\n");
+  // First declaration wins — redeclarations (e.g. `#let landlord_type` repeated
+  // near the requisites block) must not duplicate the field in later sections.
+  const seen = new Set<string>();
   let depth = 0;
-  let current = "";
+  let current: FormSection | null = null;
+  let currentSub: FormSubsection | null = null;
+
+  const ensureSection = (): FormSection => {
+    if (!current) {
+      current = newSection(DEFAULT_SECTION_TITLE);
+      sections.unshift(current);
+    }
+    return current;
+  };
 
   for (const line of lines) {
     if (depth === 0) {
-      const marker = SECTION_MARKER_REGEX.exec(line.trim());
-      if (marker) {
-        current = marker[1];
-        if (!order.includes(current)) {
-          order.push(current);
-        }
-      } else {
-        const letMatch = LET_LINE_REGEX.exec(line.trim());
-        if (letMatch && !sectionOf.has(letMatch[1])) {
-          sectionOf.set(letMatch[1], current);
-        }
+      const trimmed = line.trim();
+      const sectionMarker = SECTION_MARKER_REGEX.exec(trimmed);
+      const subMarker = SUBSECTION_MARKER_REGEX.exec(trimmed);
+      const letMatch = LET_LINE_REGEX.exec(trimmed);
+      if (sectionMarker && !subMarker) {
+        current = newSection(sectionMarker[1]);
+        currentSub = null;
+        sections.push(current);
+      } else if (subMarker) {
+        currentSub = {
+          title: subMarker[1].replace(LEADING_NUMBER_REGEX, ""),
+          fields: [],
+        };
+        ensureSection().subsections.push(currentSub);
+      } else if (letMatch && !seen.has(letMatch[1])) {
+        seen.add(letMatch[1]);
+        const target = currentSub ?? ensureSection();
+        target.fields.push(letMatch[1]);
       }
     }
     depth = Math.max(0, depth + depthDelta(line));
   }
 
-  return { sectionOf, order };
+  // No markers at all → flat form.
+  const onlyImplicit =
+    sections.length === 1 &&
+    sections[0].title === DEFAULT_SECTION_TITLE &&
+    sections[0].subsections.length === 0;
+  return onlyImplicit ? [] : sections;
 }

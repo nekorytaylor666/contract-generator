@@ -4,7 +4,10 @@ import "./i18n";
 import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { installDevErrorOverlay } from "./dev-error-overlay";
 import { getRouter } from "./router";
+
+installDevErrorOverlay();
 
 const router = getRouter();
 

@@ -12,6 +12,7 @@ import { InteractiveDocumentPreview } from "@/components/template-builder/intera
 import { LogoUpload } from "@/components/template-builder/logo-upload";
 import { NativeForm } from "@/components/template-builder/native-form";
 import { NativeInlinePreview } from "@/components/template-builder/native-inline-preview";
+import { PreviewErrorBoundary } from "@/components/template-builder/preview-error-boundary";
 import {
   isComplexNative,
   isNativeTypst,
@@ -64,7 +65,9 @@ function RouteComponent() {
   const [changedVars, setChangedVars] = useState<Set<string>>(new Set());
   const latestValuesRef = useRef<Record<string, unknown> | null>(null);
   const isInlineUpdateRef = useRef(false);
-  const highlightTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined
+  );
   const formApiRef = useRef<{
     setFieldValue: (name: string, value: unknown) => void;
     getValues: () => Record<string, unknown>;
@@ -485,27 +488,29 @@ function RouteComponent() {
         {/* Interactive Document Preview */}
         <div className="flex-1 overflow-auto bg-muted/30 p-4">
           <div className="mx-auto h-full max-w-5xl">
-            {isComplexNative(localized.typstContent) ? (
-              <NativeInlinePreview
-                changedVars={changedVars}
-                logo={logo}
-                onValueChange={handleInlineChange}
-                style={documentStyle}
-                typstContent={localized.typstContent}
-                values={formValues}
-                variables={variables}
-              />
-            ) : (
-              <InteractiveDocumentPreview
-                changedVars={changedVars}
-                logo={logo}
-                onValueChange={handleInlineChange}
-                style={documentStyle}
-                typstContent={localized.typstContent}
-                values={formValues}
-                variables={variables}
-              />
-            )}
+            <PreviewErrorBoundary>
+              {isComplexNative(localized.typstContent) ? (
+                <NativeInlinePreview
+                  changedVars={changedVars}
+                  logo={logo}
+                  onValueChange={handleInlineChange}
+                  style={documentStyle}
+                  typstContent={localized.typstContent}
+                  values={formValues}
+                  variables={variables}
+                />
+              ) : (
+                <InteractiveDocumentPreview
+                  changedVars={changedVars}
+                  logo={logo}
+                  onValueChange={handleInlineChange}
+                  style={documentStyle}
+                  typstContent={localized.typstContent}
+                  values={formValues}
+                  variables={variables}
+                />
+              )}
+            </PreviewErrorBoundary>
           </div>
         </div>
 
@@ -522,16 +527,18 @@ function RouteComponent() {
 
             <LogoUpload logo={logo} onLogoChange={handleLogoChange} />
 
-            <NativeForm
-              formApiRef={formApiRef}
-              initialValues={initialValues ?? undefined}
-              isSubmitting={compileMutation.isPending}
-              key={formKey}
-              onValuesChange={handleValuesChange}
-              typstContent={localized.typstContent}
-              values={formValues}
-              variables={variables}
-            />
+            <PreviewErrorBoundary>
+              <NativeForm
+                formApiRef={formApiRef}
+                initialValues={initialValues ?? undefined}
+                isSubmitting={compileMutation.isPending}
+                key={formKey}
+                onValuesChange={handleValuesChange}
+                typstContent={localized.typstContent}
+                values={formValues}
+                variables={variables}
+              />
+            </PreviewErrorBoundary>
 
             {documentId && (
               <div className="mt-4">

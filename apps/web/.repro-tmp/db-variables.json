@@ -1,0 +1,633 @@
+[
+  {
+    "name": "contract_number",
+    "type": "text",
+    "label": "Contract number",
+    "required": false
+  },
+  {
+    "name": "contract_date",
+    "type": "text",
+    "label": "Contract date",
+    "required": false
+  },
+  {
+    "name": "contract_place",
+    "type": "text",
+    "label": "Contract place",
+    "required": false
+  },
+  {
+    "name": "supplier_type",
+    "type": "select",
+    "label": "Supplier type",
+    "options": [
+      "Юридическое лицо",
+      "Индивидуальный предприниматель",
+      "Физическое лицо"
+    ],
+    "required": false
+  },
+  {
+    "name": "supplier_name",
+    "type": "text",
+    "label": "Supplier name",
+    "required": false
+  },
+  {
+    "name": "supplier_representative",
+    "type": "text",
+    "label": "Supplier representative",
+    "required": false
+  },
+  {
+    "name": "supplier_representative_role",
+    "type": "text",
+    "label": "Supplier representative role",
+    "required": false
+  },
+  {
+    "name": "supplier_authority_type",
+    "type": "select",
+    "label": "Supplier authority type",
+    "options": ["Устава", "Доверенности"],
+    "required": false
+  },
+  {
+    "name": "supplier_doc_number",
+    "type": "text",
+    "label": "Supplier doc number",
+    "required": false
+  },
+  {
+    "name": "supplier_doc_date",
+    "type": "text",
+    "label": "Supplier doc date",
+    "required": false
+  },
+  {
+    "name": "supplier_issuing_authority",
+    "type": "text",
+    "label": "Supplier issuing authority",
+    "required": false
+  },
+  {
+    "name": "supplier_req_name",
+    "type": "text",
+    "label": "Supplier req name",
+    "required": false
+  },
+  {
+    "name": "supplier_req_address",
+    "type": "text",
+    "label": "Supplier req address",
+    "required": false
+  },
+  {
+    "name": "supplier_req_phone",
+    "type": "text",
+    "label": "Supplier req phone",
+    "required": false
+  },
+  {
+    "name": "supplier_req_bin",
+    "type": "text",
+    "label": "Supplier req bin",
+    "required": false
+  },
+  {
+    "name": "supplier_req_iik",
+    "type": "text",
+    "label": "Supplier req iik",
+    "required": false
+  },
+  {
+    "name": "supplier_req_iban",
+    "type": "text",
+    "label": "Supplier req iban",
+    "required": false
+  },
+  {
+    "name": "supplier_req_bank_name",
+    "type": "text",
+    "label": "Supplier req bank name",
+    "required": false
+  },
+  {
+    "name": "supplier_req_bik",
+    "type": "text",
+    "label": "Supplier req bik",
+    "required": false
+  },
+  {
+    "name": "supplier_req_kbe",
+    "type": "text",
+    "label": "Supplier req kbe",
+    "required": false
+  },
+  {
+    "name": "supplier_req_position",
+    "type": "text",
+    "label": "Supplier req position",
+    "required": false
+  },
+  {
+    "name": "supplier_req_fio",
+    "type": "text",
+    "label": "Supplier req fio",
+    "required": false
+  },
+  {
+    "name": "buyer_type",
+    "type": "select",
+    "label": "Buyer type",
+    "options": [
+      "Юридическое лицо",
+      "Индивидуальный предприниматель",
+      "Физическое лицо"
+    ],
+    "required": false
+  },
+  {
+    "name": "buyer_name",
+    "type": "text",
+    "label": "Buyer name",
+    "required": false
+  },
+  {
+    "name": "buyer_representative",
+    "type": "text",
+    "label": "Buyer representative",
+    "required": false
+  },
+  {
+    "name": "buyer_representative_role",
+    "type": "text",
+    "label": "Buyer representative role",
+    "required": false
+  },
+  {
+    "name": "buyer_authority_type",
+    "type": "select",
+    "label": "Buyer authority type",
+    "options": ["Устава", "Доверенности"],
+    "required": false
+  },
+  {
+    "name": "buyer_doc_number",
+    "type": "text",
+    "label": "Buyer doc number",
+    "required": false
+  },
+  {
+    "name": "buyer_doc_date",
+    "type": "text",
+    "label": "Buyer doc date",
+    "required": false
+  },
+  {
+    "name": "buyer_issuing_authority",
+    "type": "text",
+    "label": "Buyer issuing authority",
+    "required": false
+  },
+  {
+    "name": "buyer_req_name",
+    "type": "text",
+    "label": "Buyer req name",
+    "required": false
+  },
+  {
+    "name": "buyer_req_address",
+    "type": "text",
+    "label": "Buyer req address",
+    "required": false
+  },
+  {
+    "name": "buyer_req_phone",
+    "type": "text",
+    "label": "Buyer req phone",
+    "required": false
+  },
+  {
+    "name": "buyer_req_bin",
+    "type": "text",
+    "label": "Buyer req bin",
+    "required": false
+  },
+  {
+    "name": "buyer_req_iik",
+    "type": "text",
+    "label": "Buyer req iik",
+    "required": false
+  },
+  {
+    "name": "buyer_req_iban",
+    "type": "text",
+    "label": "Buyer req iban",
+    "required": false
+  },
+  {
+    "name": "buyer_req_bank_name",
+    "type": "text",
+    "label": "Buyer req bank name",
+    "required": false
+  },
+  {
+    "name": "buyer_req_bik",
+    "type": "text",
+    "label": "Buyer req bik",
+    "required": false
+  },
+  {
+    "name": "buyer_req_kbe",
+    "type": "text",
+    "label": "Buyer req kbe",
+    "required": false
+  },
+  {
+    "name": "buyer_req_position",
+    "type": "text",
+    "label": "Buyer req position",
+    "required": false
+  },
+  {
+    "name": "buyer_req_fio",
+    "type": "text",
+    "label": "Buyer req fio",
+    "required": false
+  },
+  {
+    "name": "item_spec_mode",
+    "type": "select",
+    "label": "Item spec mode",
+    "options": ["В приложении", "В тексте договора"],
+    "required": false
+  },
+  {
+    "name": "product_name",
+    "type": "text",
+    "label": "Product name",
+    "required": false
+  },
+  {
+    "name": "appendix_number",
+    "type": "text",
+    "label": "Appendix number",
+    "required": false
+  },
+  {
+    "name": "item_name_inline",
+    "type": "text",
+    "label": "Item name inline",
+    "required": false
+  },
+  {
+    "name": "item_assortment_inline",
+    "type": "text",
+    "label": "Item assortment inline",
+    "required": false
+  },
+  {
+    "name": "item_quantity_inline",
+    "type": "text",
+    "label": "Item quantity inline",
+    "required": false
+  },
+  {
+    "name": "item_unit_inline",
+    "type": "text",
+    "label": "Item unit inline",
+    "required": false
+  },
+  {
+    "name": "total_price",
+    "type": "text",
+    "label": "Total price",
+    "required": false
+  },
+  {
+    "name": "total_price_words",
+    "type": "text",
+    "label": "Total price words",
+    "required": false
+  },
+  {
+    "name": "vat_mode",
+    "type": "select",
+    "label": "Vat mode",
+    "options": ["да", "нет"],
+    "required": false
+  },
+  {
+    "name": "payment_method",
+    "type": "select",
+    "label": "Payment method",
+    "options": ["Безналичный перевод", "Наличный расчет"],
+    "required": false
+  },
+  {
+    "name": "payment_terms_mode",
+    "type": "select",
+    "label": "Payment terms mode",
+    "options": [
+      "100% предоплата",
+      "Аванс с доплатой",
+      "Постоплата по накладной"
+    ],
+    "required": false
+  },
+  {
+    "name": "invoice_required",
+    "type": "boolean",
+    "label": "Invoice required",
+    "required": false
+  },
+  {
+    "name": "prepay_days",
+    "type": "text",
+    "label": "Prepay days",
+    "required": false
+  },
+  {
+    "name": "advance_percent",
+    "type": "text",
+    "label": "Advance percent",
+    "required": false
+  },
+  {
+    "name": "advance_amount",
+    "type": "text",
+    "label": "Advance amount",
+    "required": false
+  },
+  {
+    "name": "advance_days",
+    "type": "text",
+    "label": "Advance days",
+    "required": false
+  },
+  {
+    "name": "advance_remainder_days",
+    "type": "text",
+    "label": "Advance remainder days",
+    "required": false
+  },
+  {
+    "name": "postpay_days",
+    "type": "text",
+    "label": "Postpay days",
+    "required": false
+  },
+  {
+    "name": "price_change_mode",
+    "type": "select",
+    "label": "Price change mode",
+    "options": [
+      "Не допускается",
+      "По соглашению сторон",
+      "В одностороннем порядке"
+    ],
+    "required": false
+  },
+  {
+    "name": "price_change_notice_days",
+    "type": "text",
+    "label": "Price change notice days",
+    "required": false
+  },
+  {
+    "name": "delivery_mode",
+    "type": "select",
+    "label": "Delivery mode",
+    "options": ["Доставка", "Самовывоз"],
+    "required": false
+  },
+  {
+    "name": "transfer_moment_mode_delivery",
+    "type": "select",
+    "label": "Transfer moment mode delivery",
+    "options": [
+      "Подписания накладной",
+      "Передачи товара перевозчику",
+      "Прибытия товара на склад покупателя"
+    ],
+    "required": false
+  },
+  {
+    "name": "transfer_moment_mode_pickup",
+    "type": "select",
+    "label": "Transfer moment mode pickup",
+    "options": [
+      "Подписания накладной",
+      "Прибытия покупателя на склад поставщика"
+    ],
+    "required": false
+  },
+  {
+    "name": "delivery_term",
+    "type": "text",
+    "label": "Delivery term",
+    "required": false
+  },
+  {
+    "name": "delivery_address",
+    "type": "text",
+    "label": "Delivery address",
+    "required": false
+  },
+  {
+    "name": "transport_mode",
+    "type": "select",
+    "label": "Transport mode",
+    "options": ["Указан конкретный вид", "На усмотрение поставщика"],
+    "required": false
+  },
+  {
+    "name": "transport_type",
+    "type": "text",
+    "label": "Transport type",
+    "required": false
+  },
+  {
+    "name": "delivery_cost_payer",
+    "type": "select",
+    "label": "Delivery cost payer",
+    "options": ["Поставщик", "Покупатель"],
+    "required": false
+  },
+  {
+    "name": "pickup_address",
+    "type": "text",
+    "label": "Pickup address",
+    "required": false
+  },
+  {
+    "name": "pickup_term_period",
+    "type": "text",
+    "label": "Pickup term period",
+    "required": false
+  },
+  {
+    "name": "pickup_readiness_mode",
+    "type": "select",
+    "label": "Pickup readiness mode",
+    "options": ["Уведомление поставщика", "Фиксированная дата"],
+    "required": false
+  },
+  {
+    "name": "pickup_readiness_date",
+    "type": "text",
+    "label": "Pickup readiness date",
+    "required": false
+  },
+  {
+    "name": "accompanying_documents",
+    "type": "text",
+    "label": "Accompanying documents",
+    "required": false
+  },
+  {
+    "name": "packaging_mode",
+    "type": "select",
+    "label": "Packaging mode",
+    "options": [
+      "По законодательству РК",
+      "По спецификации",
+      "Без тары и упаковки"
+    ],
+    "required": false
+  },
+  {
+    "name": "packaging_cost_mode",
+    "type": "select",
+    "label": "Packaging cost mode",
+    "options": [
+      "Включена в цену",
+      "Оплачивается дополнительно",
+      "Возвратная тара"
+    ],
+    "required": false
+  },
+  {
+    "name": "returnable_return_days",
+    "type": "text",
+    "label": "Returnable return days",
+    "required": false
+  },
+  {
+    "name": "returnable_penalty_amount",
+    "type": "text",
+    "label": "Returnable penalty amount",
+    "required": false
+  },
+  {
+    "name": "marking_mode",
+    "type": "select",
+    "label": "Marking mode",
+    "options": [
+      "По законодательству РК",
+      "По спецификации",
+      "Маркировка не производится"
+    ],
+    "required": false
+  },
+  {
+    "name": "claims_period_mode",
+    "type": "select",
+    "label": "Claims period mode",
+    "options": ["Раздельно по комплектности и качеству", "По дате обнаружения"],
+    "required": false
+  },
+  {
+    "name": "claims_completeness_days",
+    "type": "text",
+    "label": "Claims completeness days",
+    "required": false
+  },
+  {
+    "name": "claims_discovery_days",
+    "type": "text",
+    "label": "Claims discovery days",
+    "required": false
+  },
+  {
+    "name": "claims_max_days",
+    "type": "text",
+    "label": "Claims max days",
+    "required": false
+  },
+  {
+    "name": "warranty_mode",
+    "type": "select",
+    "label": "Warranty mode",
+    "options": ["Гарантия поставщика", "Гарантия производителя"],
+    "required": false
+  },
+  {
+    "name": "warranty_period",
+    "type": "text",
+    "label": "Warranty period",
+    "required": false
+  },
+  {
+    "name": "warranty_replace_days",
+    "type": "text",
+    "label": "Warranty replace days",
+    "required": false
+  },
+  {
+    "name": "manufacturer_warranty_period",
+    "type": "text",
+    "label": "Manufacturer warranty period",
+    "required": false
+  },
+  {
+    "name": "delivery_penalty_rate",
+    "type": "text",
+    "label": "Delivery penalty rate",
+    "required": false
+  },
+  {
+    "name": "delivery_penalty_cap",
+    "type": "text",
+    "label": "Delivery penalty cap",
+    "required": false
+  },
+  {
+    "name": "late_payment_penalty_rate",
+    "type": "text",
+    "label": "Late payment penalty rate",
+    "required": false
+  },
+  {
+    "name": "late_payment_penalty_cap",
+    "type": "text",
+    "label": "Late payment penalty cap",
+    "required": false
+  },
+  {
+    "name": "termination_notice_period",
+    "type": "text",
+    "label": "Termination notice period",
+    "required": false
+  },
+  {
+    "name": "confidentiality_period_years",
+    "type": "text",
+    "label": "Confidentiality period years",
+    "required": false
+  },
+  {
+    "name": "force_majeure_max_duration",
+    "type": "text",
+    "label": "Force majeure max duration",
+    "required": false
+  },
+  {
+    "name": "force_majeure_notice_days",
+    "type": "text",
+    "label": "Force majeure notice days",
+    "required": false
+  }
+]

@@ -24,160 +24,140 @@
 }
 
 // @section Реквизиты договора
-#let contract_number = "" // @hint Номер договора, если ведёте нумерацию. Можно оставить пустым.
-#let contract_date = "" // @hint Дата заключения, формат ДД.ММ.ГГГГ.
-#let contract_place = "" // @hint Город заключения, например: г. Алматы.
+#let contract_number = ""
+#let contract_date = ""
+#let contract_place = ""
 
 // @section Поставщик
 #let supplier_type = "Юридическое лицо" // Юридическое лицо | Индивидуальный предприниматель | Физическое лицо 
-// @hint Форма поставщика — задаёт текст преамбулы и набор реквизитов.
-#let supplier_name = "" // @hint Полное наименование (ТОО/АО) или ФИО — как в документах.
-#let supplier_representative = "" // @hint ФИО подписанта со стороны поставщика.
-#let supplier_representative_role = "" // @hint Должность подписанта, напр.: Директор.
+#let supplier_name = ""
+#let supplier_representative = ""
+#let supplier_representative_role = ""
 // supplier_authority_type применяется только при supplier_type = "Юридическое лицо".
 #let supplier_authority_type = "Устава" // Устава | Доверенности
-// @hint Основание полномочий представителя (для юрлица).
-#let supplier_doc_number = "" // @hint Номер доверенности/талона, если основание не «Устав».
-#let supplier_doc_date = "" // @hint Дата документа-основания, ДД.ММ.ГГГГ.
-#let supplier_issuing_authority = "" // @hint Кем выдан документ (для ИП — талон/уведомление).
+#let supplier_doc_number = ""
+#let supplier_doc_date = ""
+#let supplier_issuing_authority = ""
 #let supplier_req_name = ""
-#let supplier_req_address = "" // @hint Юридический адрес для блока реквизитов.
-#let supplier_req_phone = "" // @hint Контактный телефон (и факс при наличии).
-#let supplier_req_bin = "" // @hint БИН/ИИН — 12 цифр.
-#let supplier_req_iik = "" // @hint ИИК — 20 знаков, обычно начинается с KZ.
+#let supplier_req_address = ""
+#let supplier_req_phone = ""
+#let supplier_req_bin = ""
+#let supplier_req_iik = ""
 #let supplier_req_iban = ""
-#let supplier_req_bank_name = "" // @hint Наименование обслуживающего банка.
-#let supplier_req_bik = "" // @hint БИК банка — 8 символов.
-#let supplier_req_kbe = "" // @hint КБе — 2 цифры.
+#let supplier_req_bank_name = ""
+#let supplier_req_bik = ""
+#let supplier_req_kbe = ""
 #let supplier_req_position = ""
 #let supplier_req_fio = ""
 
 // @section Покупатель
 #let buyer_type = "Юридическое лицо" // Юридическое лицо | Индивидуальный предприниматель | Физическое лицо
-// @hint Форма покупателя — задаёт текст преамбулы и набор реквизитов.
-#let buyer_name = "" // @hint Полное наименование (ТОО/АО) или ФИО — как в документах.
-#let buyer_representative = "" // @hint ФИО подписанта со стороны покупателя.
-#let buyer_representative_role = "" // @hint Должность подписанта, напр.: Директор.
+#let buyer_name = ""
+#let buyer_representative = ""
+#let buyer_representative_role = ""
 // buyer_authority_type применяется только при buyer_type = "Юридическое лицо".
 #let buyer_authority_type = "Устава" // Устава | Доверенности
-// @hint Основание полномочий представителя (для юрлица).
-#let buyer_doc_number = "" // @hint Номер доверенности/талона, если основание не «Устав».
-#let buyer_doc_date = "" // @hint Дата документа-основания, ДД.ММ.ГГГГ.
-#let buyer_issuing_authority = "" // @hint Кем выдан документ (для ИП — талон/уведомление).
+#let buyer_doc_number = ""
+#let buyer_doc_date = ""
+#let buyer_issuing_authority = ""
 #let buyer_req_name = ""
-#let buyer_req_address = "" // @hint Юридический адрес для блока реквизитов.
-#let buyer_req_phone = "" // @hint Контактный телефон.
-#let buyer_req_bin = "" // @hint БИН/ИИН — 12 цифр.
-#let buyer_req_iik = "" // @hint ИИК — 20 знаков, обычно начинается с KZ.
+#let buyer_req_address = ""
+#let buyer_req_phone = ""
+#let buyer_req_bin = ""
+#let buyer_req_iik = ""
 #let buyer_req_iban = ""
-#let buyer_req_bank_name = "" // @hint Наименование обслуживающего банка.
-#let buyer_req_bik = "" // @hint БИК банка — 8 символов.
-#let buyer_req_kbe = "" // @hint КБе — 2 цифры.
+#let buyer_req_bank_name = ""
+#let buyer_req_bik = ""
+#let buyer_req_kbe = ""
 #let buyer_req_position = ""
 #let buyer_req_fio = ""
 
 // @section Предмет договора
 #let item_spec_mode = "В приложении" // В приложении | В тексте договора
-// @hint Как описан товар: отдельным приложением или прямо в тексте.
-#let product_name = "" // @hint Общее наименование товара (для варианта «В приложении»).
-#let appendix_number = "" // @hint Номер приложения со спецификацией.
-#let item_name_inline = "" // @hint Наименование товара (для варианта «В тексте договора»).
-#let item_assortment_inline = "" // @hint Ассортимент, при наличии.
-#let item_quantity_inline = "" // @hint Количество.
-#let item_unit_inline = "" // @hint Единица измерения, напр.: шт., кг.
+#let product_name = ""
+#let appendix_number = ""
+#let item_name_inline = ""
+#let item_assortment_inline = ""
+#let item_quantity_inline = ""
+#let item_unit_inline = ""
 
 // @section Порядок расчетов
-#let total_price = "" // @hint Общая сумма договора, цифрами, в тенге.
-#let total_price_words = "" // @hint Та же сумма прописью.
+#let total_price = ""
+#let total_price_words = ""
 #let vat_mode = "да" // да | нет
-// @hint Учитывается ли НДС в стоимости товара.
 #let payment_method = "Безналичный перевод" // Безналичный перевод | Наличный расчет
-// @hint Способ оплаты — влияет на формулировки расчётов.
 #let payment_terms_mode = "100% предоплата" // 100% предоплата | Аванс с доплатой | Постоплата по накладной
-// @hint Порядок расчётов — открывает нужные поля сроков ниже.
 // invoice_required актуален только при payment_method = "Безналичный перевод".
-#let invoice_required = false // @hint Оплата по счёту (актуально при безналичном переводе).
-#let prepay_days = "" // @hint Число банковских дней на предоплату.
-#let advance_percent = "" // @hint Размер аванса, в процентах.
-#let advance_amount = "" // @hint Сумма аванса, тенге.
-#let advance_days = "" // @hint Дней на оплату аванса.
-#let advance_remainder_days = "" // @hint Дней на оплату остатка после накладной.
-#let postpay_days = "" // @hint Дней на оплату после подписания накладной.
+#let invoice_required = false
+#let prepay_days = ""
+#let advance_percent = ""
+#let advance_amount = ""
+#let advance_days = ""
+#let advance_remainder_days = ""
+#let postpay_days = ""
 #let price_change_mode = "Не допускается" // Не допускается | По соглашению сторон | В одностороннем порядке
-// @hint Порядок изменения цены товара.
-#let price_change_notice_days = "" // @hint За сколько дней уведомлять об изменении цены.
+#let price_change_notice_days = ""
 
 // @section Условия передачи товара
 #let delivery_mode = "Доставка" // Доставка | Самовывоз
-// @hint Способ получения товара — переключает раздел 3.
 
 // transfer_moment_mode_delivery — только для delivery_mode = "Доставка".
 // При Самовывозе скрывается платформой автоматически.
 #let transfer_moment_mode_delivery = "Подписания накладной" // Подписания накладной | Передачи товара перевозчику | Прибытия товара на склад покупателя
-// @hint Момент перехода обязанности (для доставки).
 
 // transfer_moment_mode_pickup — только для delivery_mode = "Самовывоз".
 // Не содержит "Передачи товара перевозчику" — несовместимая опция отсутствует физически.
 // При Доставке скрывается платформой автоматически.
 #let transfer_moment_mode_pickup = "Подписания накладной" // Подписания накладной | Прибытия покупателя на склад поставщика
-// @hint Момент перехода обязанности (для самовывоза).
 
 // delivery_term используется в п.3.1 И п.3.3 (доставка).
 // Единое поле — исключает дублирование и рассинхронизацию.
-#let delivery_term = "" // @hint Срок поставки, напр.: 10 рабочих дней.
+#let delivery_term = ""
 
 // Момент отсчёта срока поставки вычисляется автоматически из payment_terms_mode:
 //   "100% предоплата"  → "с момента получения предоплаты"
 //   "Аванс с доплатой" → "с момента получения аванса"
 //   "Постоплата..."    → "с момента заключения договора"
-#let delivery_address = "" // @hint Адрес доставки товара.
+#let delivery_address = ""
 #let transport_mode = "Указан конкретный вид" // Указан конкретный вид | На усмотрение поставщика
-// @hint Каким транспортом осуществляется поставка.
-#let transport_type = "" // @hint Вид транспорта (если указывается конкретный).
+#let transport_type = ""
 #let delivery_cost_payer = "Поставщик" // Поставщик | Покупатель
-// @hint Кто несёт расходы на доставку.
-#let pickup_address = "" // @hint Адрес склада поставщика для самовывоза.
+#let pickup_address = ""
 // pickup_term_period отсчитывается от даты готовности товара.
-#let pickup_term_period = "" // @hint Срок выборки товара, напр.: 5 рабочих дней.
+#let pickup_term_period = ""
 #let pickup_readiness_mode = "Уведомление поставщика" // Уведомление поставщика | Фиксированная дата
-// @hint Как определяется готовность товара к отгрузке.
-#let pickup_readiness_date = "" // @hint Дата готовности (для «Фиксированная дата»), ДД.ММ.ГГГГ.
-#let accompanying_documents = "" // @hint Перечень сопроводительных документов.
+#let pickup_readiness_date = ""
+#let accompanying_documents = ""
 #let packaging_mode = "По законодательству РК" // По законодательству РК | По спецификации | Без тары и упаковки
-// @hint Требования к таре и упаковке.
 // packaging_cost_mode игнорируется при packaging_mode = "Без тары и упаковки".
 #let packaging_cost_mode = "Включена в цену" // Включена в цену | Оплачивается дополнительно | Возвратная тара
-// @hint Кто и как оплачивает тару/упаковку.
-#let returnable_return_days = "" // @hint Дней на возврат возвратной тары.
-#let returnable_penalty_amount = "" // @hint Штраф за невозврат тары, тенге за единицу.
+#let returnable_return_days = ""
+#let returnable_penalty_amount = ""
 #let marking_mode = "По законодательству РК" // По законодательству РК | По спецификации | Маркировка не производится
-// @hint Требования к маркировке товара.
 #let claims_period_mode = "Раздельно по комплектности и качеству" // Раздельно по комплектности и качеству | По дате обнаружения
-// @hint Как считаются сроки предъявления претензий.
-#let claims_completeness_days = "" // @hint Дней на претензии по комплектности.
-#let claims_discovery_days = "" // @hint Дней на претензии с даты обнаружения.
-#let claims_max_days = "" // @hint Предельный срок претензий с даты получения.
+#let claims_completeness_days = ""
+#let claims_discovery_days = ""
+#let claims_max_days = ""
 #let warranty_mode = "Гарантия поставщика" // Гарантия поставщика | Гарантия производителя
-// @hint Чья гарантия распространяется на товар.
-#let warranty_period = "" // @hint Срок гарантии поставщика, напр.: 12 месяцев.
-#let warranty_replace_days = "" // @hint Дней на замену/ремонт по гарантии.
-#let manufacturer_warranty_period = "" // @hint Срок гарантии производителя.
+#let warranty_period = ""
+#let warranty_replace_days = ""
+#let manufacturer_warranty_period = ""
 
 // @section Ответственность сторон
-#let delivery_penalty_rate = "" // @hint Неустойка за просрочку поставки, напр.: 0,1% в неделю.
-#let delivery_penalty_cap = "" // @hint Максимум неустойки, напр.: 10% от суммы.
-#let late_payment_penalty_rate = "" // @hint Штраф за просрочку оплаты, % за день.
-#let late_payment_penalty_cap = "" // @hint Максимум штрафа за просрочку оплаты.
+#let delivery_penalty_rate = ""
+#let delivery_penalty_cap = ""
+#let late_payment_penalty_rate = ""
+#let late_payment_penalty_cap = ""
 
 // @section Расторжение договора
-#let termination_notice_period = "" // @hint За какой срок уведомлять о расторжении, напр.: 30 дней.
+#let termination_notice_period = ""
 
 // @section Конфиденциальность
-#let confidentiality_period_years = "" // @hint Срок конфиденциальности после договора, лет.
+#let confidentiality_period_years = ""
 
 // @section Форс-мажор
-#let force_majeure_max_duration = "" // @hint Предельная длительность форс-мажора, напр.: 3 месяца.
-#let force_majeure_notice_days = "" // @hint Дней на уведомление о форс-мажоре.
+#let force_majeure_max_duration = ""
+#let force_majeure_notice_days = ""
 
 
 

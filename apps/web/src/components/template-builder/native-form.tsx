@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 
 import { interpretNative } from "@/lib/native-interpreter";
-import { parseNativeSections } from "@/lib/native-typst";
+import { type FormSection, parseNativeSections } from "@/lib/native-typst";
 import type { TemplateVariable } from "@/routes/templates";
 
 import { isComplexNative } from "./server-typst-preview";
-import { type FieldGroup, TemplateForm } from "./template-form";
+import { TemplateForm } from "./template-form";
 
 interface FormApi {
   setFieldValue: (name: string, value: unknown) => void;
@@ -14,8 +14,28 @@ interface FormApi {
 
 // Field names are `\w+`, so a comma never collides as a separator.
 const FIELD_SEP = ",";
-// Section for fields declared before any `// @section` marker.
-const DEFAULT_SECTION = "Основные данные";
+
+// Keep only fields the current values make reachable; drop blocks that end up
+// empty (a section header still renders if any of its subsections has fields).
+function filterSections(
+  sections: FormSection[],
+  allowed: ReadonlySet<string>
+): FormSection[] {
+  const result: FormSection[] = [];
+  for (const section of sections) {
+    const fields = section.fields.filter((name) => allowed.has(name));
+    const subsections = section.subsections
+      .map((sub) => ({
+        ...sub,
+        fields: sub.fields.filter((name) => allowed.has(name)),
+      }))
+      .filter((sub) => sub.fields.length > 0);
+    if (fields.length > 0 || subsections.length > 0) {
+      result.push({ ...section, fields, subsections });
+    }
+  }
+  return result;
+}
 
 /**
  * Form sidebar for native templates. Two refinements over a flat field list:
@@ -23,8 +43,8 @@ const DEFAULT_SECTION = "Основные данные";
  * 1. For *complex* templates it hides fields gated by an inactive branch — the
  *    interpreter reports which fields are reachable for the current values, so
  *    there's no point asking for fields the document isn't showing.
- * 2. When the template has `// @section` markers, fields are grouped into
- *    collapsible sections (in document order) instead of one long list.
+ * 2. When the template has `// @section` markers, fields render in numbered
+ *    Figma-style sections (with descriptions and `@subsection` sub-blocks).
  */
 export function NativeForm({
   typstContent,
@@ -63,43 +83,26 @@ export function NativeForm({
     return variables.filter((variable) => allowed.has(variable.name));
   }, [variables, reachableKey]);
 
-  const sections = useMemo(
+  const allSections = useMemo(
     () => parseNativeSections(typstContent),
     [typstContent]
   );
 
-  const groups = useMemo<FieldGroup[] | undefined>(() => {
-    if (sections.order.length === 0) {
+  const sections = useMemo<FormSection[] | undefined>(() => {
+    if (allSections.length === 0) {
       return; // no markers → flat form
     }
-    const namesByTitle = new Map<string, string[]>();
-    for (const variable of visibleVariables) {
-      const title = sections.sectionOf.get(variable.name) || DEFAULT_SECTION;
-      const names = namesByTitle.get(title) ?? [];
-      names.push(variable.name);
-      namesByTitle.set(title, names);
-    }
-    const ordered: FieldGroup[] = [];
-    const defaultNames = namesByTitle.get(DEFAULT_SECTION);
-    if (defaultNames) {
-      ordered.push({ title: DEFAULT_SECTION, names: defaultNames });
-    }
-    for (const title of sections.order) {
-      const names = namesByTitle.get(title);
-      if (names && names.length > 0) {
-        ordered.push({ title, names });
-      }
-    }
-    return ordered;
-  }, [visibleVariables, sections]);
+    const allowed = new Set(visibleVariables.map((variable) => variable.name));
+    return filterSections(allSections, allowed);
+  }, [allSections, visibleVariables]);
 
   return (
     <TemplateForm
       formApiRef={formApiRef}
-      groups={groups}
       initialValues={initialValues}
       isSubmitting={isSubmitting}
       onValuesChange={onValuesChange}
+      sections={sections}
       variables={visibleVariables}
     />
   );

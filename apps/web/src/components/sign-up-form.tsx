@@ -389,7 +389,9 @@ function AccountTypeOption({
   return (
     <label
       className={cn(
-        "flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+        // `relative` anchors the `sr-only` radio input here so focusing it on
+        // click can't scroll the page (see variable-field radio cards).
+        "relative flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
         checked
           ? "border-foreground bg-foreground/5 text-foreground"
           : "border-border text-foreground/70 hover:border-foreground/40"

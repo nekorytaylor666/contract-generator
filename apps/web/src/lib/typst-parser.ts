@@ -43,6 +43,7 @@ export type TypstNode =
       children: TypstNode[];
     }
   | { type: "linebreak" }
+  | { type: "highlight"; children: TypstNode[] }
   | { type: "setting"; property: string; raw: string };
 
 // ── Bracket matching ────────────────────────────────────────
@@ -214,6 +215,19 @@ function parseInline(src: string): TypstNode[] {
       const bracketEnd = findMatchingBracket(src, bracketStart);
       const inner = src.slice(bracketStart + 1, bracketEnd);
       nodes.push({ type: "strong", children: parseInline(inner) });
+      i = bracketEnd + 1;
+      continue;
+    }
+
+    // #hl[...] — transient yellow highlight of changed content (injected by the
+    // preview when a select flips a branch; not part of the source template).
+    if (src.startsWith("#hl[", i)) {
+      flush(buf);
+      buf = "";
+      const bracketStart = i + 3; // index of '['
+      const bracketEnd = findMatchingBracket(src, bracketStart);
+      const inner = src.slice(bracketStart + 1, bracketEnd);
+      nodes.push({ type: "highlight", children: parseInline(inner) });
       i = bracketEnd + 1;
       continue;
     }

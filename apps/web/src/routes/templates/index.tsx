@@ -34,9 +34,14 @@ export interface TemplateVariable {
   name: string;
   type: "text" | "textarea" | "date" | "number" | "boolean" | "select";
   label: string;
+  /** Optional helper text shown under the field label (from `// @hint …`). */
+  hint?: string;
   required: boolean;
   defaultValue?: string | number | boolean;
   options?: string[];
+  /** Per-option description shown under the title in radio cards (from
+   * `// option :: описание | …`). Keyed by option value. */
+  optionDescriptions?: Record<string, string>;
   dependsOn?: {
     field: string;
     value?: string | string[] | boolean;
