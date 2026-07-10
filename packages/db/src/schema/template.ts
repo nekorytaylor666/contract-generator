@@ -62,6 +62,14 @@ export const template = pgTable(
     // Contract validity in seconds. NULL = бессрочный.
     validitySeconds: integer("validity_seconds"),
 
+    // Cached "photo" previews of the rendered document (first page, PNG
+    // base64), keyed by locale ("default" when none requested). Generated
+    // lazily by GET /templates/:id/preview.png; cleared when content changes.
+    previewImages: jsonb("preview_images")
+      .$type<Record<string, string>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()

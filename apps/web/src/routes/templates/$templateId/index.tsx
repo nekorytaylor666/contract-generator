@@ -1,4 +1,5 @@
 import { resolveLocalized } from "@contract-builder/api/constants/template-options";
+import { env } from "@contract-builder/env/web";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -84,6 +85,81 @@ function PreviewBody({
       values={previewValues}
       variables={variables}
     />
+  );
+}
+
+// The preview slot shows a server-rendered "photo": a PNG of the document's
+// first page with gray italic placeholder labels — the same look as the live
+// preview, but pixel-identical to the downloaded PDF. If the server can't
+// compile this template, falls back to the in-browser render.
+function PreviewPane({
+  templateId,
+  photoVersion,
+  previewLimited,
+  paid,
+  locale,
+  typstContent,
+  previewValues,
+  variables,
+}: {
+  templateId: string;
+  /** Changes on every template save — busts the browser's day-long image
+   * cache (translation-only edits don't bump currentVersion, so we key on
+   * updatedAt instead). */
+  photoVersion: number;
+  previewLimited: boolean;
+  /** Paid templates always get the bottom-half blur, even for users with
+   * full access — the photo is a teaser; work happens in the builder. */
+  paid: boolean;
+  locale: string;
+  typstContent: string | null | undefined;
+  previewValues: Record<string, unknown>;
+  variables: TemplateVariable[];
+}) {
+  const [photoFailed, setPhotoFailed] = useState(false);
+
+  let heightClass: string | undefined;
+  if (previewLimited) {
+    heightClass = "max-h-[460px]";
+  } else if (photoFailed) {
+    heightClass = "h-[80vh]";
+  }
+
+  const photoSrc = `${env.VITE_SERVER_URL}/templates/${templateId}/preview.png?locale=${locale}&v=${photoVersion}`;
+
+  return (
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-lg border border-border bg-background",
+        heightClass
+      )}
+    >
+      {photoFailed ? (
+        <PreviewBody
+          previewValues={previewValues}
+          typstContent={typstContent}
+          variables={variables}
+        />
+      ) : (
+        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: onError only switches to the client-side fallback render
+        <img
+          alt="Предпросмотр договора"
+          className="aspect-[210/297] w-full object-cover object-top"
+          height={2245}
+          onError={() => setPhotoFailed(true)}
+          src={photoSrc}
+          width={1587}
+        />
+      )}
+      {/* The bottom half of the photo is blurred on paid templates; the top
+          edge of the blur fades in so there's no hard seam. */}
+      {paid && !photoFailed && (
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 bottom-0 h-1/2 backdrop-blur-[6px] [mask-image:linear-gradient(to_bottom,transparent,black_48px)]"
+        />
+      )}
+    </div>
   );
 }
 
@@ -392,18 +468,17 @@ function RouteComponent() {
               Предпросмотр договора
             </h2>
             <div className="relative">
-              <div
-                className={cn(
-                  "overflow-hidden rounded-lg border border-border bg-background",
-                  template.previewLimited ? "max-h-[460px]" : "h-[80vh]"
-                )}
-              >
-                <PreviewBody
-                  previewValues={previewValues}
-                  typstContent={localized.typstContent}
-                  variables={variables}
-                />
-              </div>
+              <PreviewPane
+                key={templateId}
+                locale={i18n.language}
+                paid={template.price > 0}
+                photoVersion={new Date(template.updatedAt).getTime()}
+                previewLimited={template.previewLimited}
+                previewValues={previewValues}
+                templateId={templateId}
+                typstContent={localized.typstContent}
+                variables={variables}
+              />
               {/* Paywall: the rest of the document is not sent to the client —
                   this overlay just fades/blurs the truncated tail + sells access. */}
               {template.previewLimited && (

@@ -173,10 +173,15 @@ function applyNativeLetValues(
   return result;
 }
 
+function defaultPlaceholder(varName: string): string {
+  return `#underline(offset: 2pt, stroke: 0.5pt + rgb("#9CA3AF"))[#text(fill: rgb("#9CA3AF"), size: 0.9em)[${varName}]]`;
+}
+
 function replaceVariables(
   typstContent: string,
   variables: Record<string, unknown>,
-  templateVars: TemplateVariable[] = []
+  templateVars: TemplateVariable[] = [],
+  renderPlaceholder: (varName: string) => string = defaultPlaceholder
 ): string {
   const booleanVars = new Set(
     templateVars.filter((v) => v.type === "boolean").map((v) => v.name)
@@ -206,7 +211,7 @@ function replaceVariables(
         return match;
       }
 
-      return `#underline(offset: 2pt, stroke: 0.5pt + rgb("#9CA3AF"))[#text(fill: rgb("#9CA3AF"), size: 0.9em)[${varName}]]`;
+      return renderPlaceholder(varName);
     }
   );
 }
@@ -214,6 +219,9 @@ function replaceVariables(
 interface TemplateVariable {
   name: string;
   type: "text" | "textarea" | "date" | "number" | "boolean" | "select";
+  label?: string;
+  defaultValue?: string | number | boolean;
+  options?: string[];
   wordForms?: [string, string, string];
 }
 
@@ -507,6 +515,166 @@ async function compileTypstToVector(
   }
 }
 
+// --- Template "photo": a PNG of the rendered first page, shown as the
+// --- catalogue/detail preview. Unfilled fields render as the variable's label
+// --- in gray italic with a dashed underline (same look as the interactive
+// --- preview), so the photo reads as a fillable document.
+
+// 192 ppi ≈ 2x the on-screen size of the preview column — crisp on retina.
+const PHOTO_PPI = 192;
+const PHOTO_LOCALES = new Set(["ru", "kk", "en"]);
+const TYPST_MARKUP_CHARS_REGEX = /[\\#[\]*_`$<>@]/g;
+
+function escapeTypstMarkup(text: string): string {
+  return text.replace(TYPST_MARKUP_CHARS_REGEX, (ch) => `\\${ch}`);
+}
+
+function photoPlaceholder(templateVars: TemplateVariable[]) {
+  const labelByName = new Map(
+    templateVars.map((v) => [v.name, v.label ?? v.name])
+  );
+  return (varName: string) => {
+    const label = escapeTypstMarkup(labelByName.get(varName) ?? varName);
+    return `#underline(offset: 2pt, stroke: (paint: rgb("#9CA3AF"), thickness: 0.5pt, dash: "dashed"))[#text(fill: rgb("#9CA3AF"), style: "italic", size: 0.9em)[${label}]]`;
+  };
+}
+
+// Native templates render unfilled fields through their own `#let fill(...)`
+// helper. For the photo, point each call's placeholder at the variable's label
+// and restyle the canonical empty branch to the same gray dashed-underline
+// look; templates with a custom fill body just keep their own placeholders.
+const NATIVE_FILL_CALL_REGEX =
+  /fill\(\s*(\w+)\s*(?:,\s*placeholder:\s*"[^"]*")?\s*\)/g;
+const NATIVE_FILL_EMPTY_BRANCH = 'if value == "" [#placeholder] else [#value]';
+const NATIVE_FILL_PHOTO_BRANCH =
+  'if value == "" [#underline(offset: 2pt, stroke: (paint: rgb("#9CA3AF"), thickness: 0.5pt, dash: "dashed"))[#text(fill: rgb("#9CA3AF"), style: "italic", size: 0.9em)[#placeholder]]] else [#value]';
+
+function styleNativeFillsForPhoto(
+  typstContent: string,
+  templateVars: TemplateVariable[],
+  filledValues: Record<string, unknown>
+): string {
+  const labelByName = new Map(
+    templateVars.map((v) => [v.name, v.label ?? v.name])
+  );
+  return typstContent
+    .replace(NATIVE_FILL_CALL_REGEX, (match, name: string) => {
+      const label = labelByName.get(name);
+      if (!label || filledValues[name] !== undefined) {
+        return match;
+      }
+      return `fill(${name}, placeholder: ${JSON.stringify(label)})`;
+    })
+    .replace(NATIVE_FILL_EMPTY_BRANCH, NATIVE_FILL_PHOTO_BRANCH);
+}
+
+// Fill structural fields (boolean/select + explicit defaults) so conditional
+// branches render; leave the rest empty so the gray placeholder labels show.
+function buildPhotoValues(
+  templateVars: TemplateVariable[]
+): Record<string, unknown> {
+  const values: Record<string, unknown> = {};
+  for (const v of templateVars) {
+    if (v.defaultValue !== undefined) {
+      values[v.name] = v.defaultValue;
+      continue;
+    }
+    if (v.type === "boolean") {
+      values[v.name] = false;
+    } else if (v.type === "select") {
+      values[v.name] = v.options?.[0] ?? "";
+    }
+  }
+  return values;
+}
+
+async function compileTypstToPng(typstContent: string): Promise<Buffer> {
+  const id = randomUUID();
+  const inputPath = join(tmpdir(), `${id}.typ`);
+  const outputPath = join(tmpdir(), `${id}.png`);
+  const files = [inputPath, outputPath];
+
+  try {
+    await writeFile(inputPath, typstContent, "utf-8");
+    await execAsync(
+      `typst compile --format png --pages 1 --ppi ${PHOTO_PPI} "${inputPath}" "${outputPath}"`
+    );
+    return await readFile(outputPath);
+  } finally {
+    await cleanupFiles(files);
+  }
+}
+
+/**
+ * PNG photo of the template's first page, cached per locale in the
+ * `preview_images` column (admin save clears the cache on content changes).
+ * Returns null when the template is missing or its source fails to compile —
+ * the client then falls back to the in-browser preview.
+ */
+export async function getTemplatePreviewPng(
+  templateId: string,
+  locale?: string
+): Promise<Buffer | null> {
+  const [row] = await db
+    .select()
+    .from(template)
+    .where(eq(template.id, templateId))
+    .limit(1);
+  if (!row) {
+    return null;
+  }
+
+  const key = locale && PHOTO_LOCALES.has(locale) ? locale : "default";
+  const cached = row.previewImages?.[key];
+  if (cached) {
+    return Buffer.from(cached, "base64");
+  }
+
+  const resolved = resolveLocalized(
+    {
+      title: row.title,
+      description: row.description,
+      typstContent: row.typstContent,
+    },
+    row.localizedContent,
+    key === "default" ? undefined : key
+  );
+  const templateVars = (row.variables ?? []) as TemplateVariable[];
+  const values = buildPhotoValues(templateVars);
+  const vars = computeDerivedVariables(values, templateVars);
+  const substituted = replaceVariables(
+    styleNativeFillsForPhoto(resolved.typstContent, templateVars, values),
+    vars,
+    templateVars,
+    photoPlaceholder(templateVars)
+  );
+  const content = applyStyleOverrides(applyNativeLetValues(substituted, vars), {
+    preset: "default",
+  });
+
+  let png: Buffer;
+  try {
+    png = await compileTypstToPng(content);
+  } catch {
+    return null;
+  }
+
+  await db
+    .update(template)
+    .set({
+      previewImages: {
+        ...(row.previewImages ?? {}),
+        [key]: png.toString("base64"),
+      },
+      // Caching the photo isn't a content edit — keep updatedAt intact so the
+      // client's ?v=updatedAt cache key stays stable (else every generation
+      // would bust the browser cache once).
+      updatedAt: row.updatedAt,
+    })
+    .where(eq(template.id, templateId));
+  return png;
+}
+
 export const templatesRouter = router({
   list: publicProcedure
     .input(
@@ -639,14 +807,18 @@ export const templatesRouter = router({
         });
       }
 
+      // The cached photo PNGs are served by /templates/:id/preview.png —
+      // don't ship the heavy base64 blobs in the JSON payload.
+      const { previewImages: _previewImages, ...rest } = found;
+
       // Paywall: unpaid users only get a truncated teaser. The full document
       // text never reaches the client, so a CSS un-blur reveals nothing extra.
       const fullAccess = await canSeeFullTemplate(ctx.session?.user.id, found);
       if (fullAccess) {
-        return { ...found, previewLimited: false };
+        return { ...rest, previewLimited: false };
       }
       return {
-        ...found,
+        ...rest,
         typstContent: truncateTypstForPreview(found.typstContent),
         localizedContent: truncateLocalizedForPreview(found.localizedContent),
         previewLimited: true,

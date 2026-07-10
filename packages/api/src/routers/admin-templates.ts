@@ -52,6 +52,15 @@ const upsertInput = z.object({
     .default({}),
 });
 
+// The cached photo PNGs (served by /templates/:id/preview.png) are heavy
+// base64 blobs — keep them out of admin JSON payloads.
+function withoutPreviewImages<T extends { previewImages?: unknown }>(
+  row: T
+): Omit<T, "previewImages"> {
+  const { previewImages: _previewImages, ...rest } = row;
+  return rest;
+}
+
 async function snapshotVersion(
   templateRow: typeof template.$inferSelect,
   createdBy: string | null,
@@ -70,7 +79,11 @@ async function snapshotVersion(
 
 export const adminTemplatesRouter = router({
   list: adminProcedure.query(async () => {
-    return await db.select().from(template).orderBy(desc(template.updatedAt));
+    const rows = await db
+      .select()
+      .from(template)
+      .orderBy(desc(template.updatedAt));
+    return rows.map(withoutPreviewImages);
   }),
 
   create: adminProcedure.input(upsertInput).mutation(async ({ input, ctx }) => {
@@ -98,7 +111,7 @@ export const adminTemplatesRouter = router({
       });
     }
     await snapshotVersion(created, ctx.session.user.id);
-    return created;
+    return withoutPreviewImages(created);
   }),
 
   update: adminProcedure
@@ -127,20 +140,32 @@ export const adminTemplatesRouter = router({
           JSON.stringify(patch.variables) !==
             JSON.stringify(existing.variables));
 
+      // Anything that changes the rendered document invalidates the cached
+      // photo previews (regenerated lazily by /templates/:id/preview.png).
+      const renderChanged =
+        contentChanged ||
+        (patch.localizedContent !== undefined &&
+          JSON.stringify(patch.localizedContent) !==
+            JSON.stringify(existing.localizedContent));
+
       const nextVersion = contentChanged
         ? existing.currentVersion + 1
         : existing.currentVersion;
 
       const [updated] = await db
         .update(template)
-        .set({ ...patch, currentVersion: nextVersion })
+        .set({
+          ...patch,
+          currentVersion: nextVersion,
+          ...(renderChanged ? { previewImages: {} } : {}),
+        })
         .where(eq(template.id, id))
         .returning();
 
       if (contentChanged && updated) {
         await snapshotVersion(updated, ctx.session.user.id);
       }
-      return updated;
+      return updated ? withoutPreviewImages(updated) : updated;
     }),
 
   delete: adminProcedure

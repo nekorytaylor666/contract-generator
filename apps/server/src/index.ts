@@ -4,6 +4,7 @@ import { createContext } from "@contract-builder/api/context";
 import { processRobokassaResult } from "@contract-builder/api/lib/payment-service";
 import { verifySuccessSignature } from "@contract-builder/api/lib/robokassa";
 import { appRouter } from "@contract-builder/api/routers/index";
+import { getTemplatePreviewPng } from "@contract-builder/api/routers/templates";
 import { auth } from "@contract-builder/auth";
 import { allowedWebOrigins, env } from "@contract-builder/env/server";
 import { trpcServer } from "@hono/trpc-server";
@@ -36,6 +37,23 @@ app.use(
     },
   })
 );
+
+// "Photo" of a template: PNG of the rendered first page with gray placeholder
+// labels. Cached in the DB; regenerated after admin content changes.
+app.get("/templates/:id/preview.png", async (c) => {
+  const png = await getTemplatePreviewPng(
+    c.req.param("id"),
+    c.req.query("locale")
+  );
+  if (!png) {
+    return c.notFound();
+  }
+  c.header("Content-Type", "image/png");
+  // The web app versions the URL (?v=<currentVersion>), so long browser
+  // caching is safe: content edits produce a new URL.
+  c.header("Cache-Control", "public, max-age=86400");
+  return c.body(new Uint8Array(png));
+});
 
 app.post("/ai", async (c) => {
   const body = await c.req.json();
