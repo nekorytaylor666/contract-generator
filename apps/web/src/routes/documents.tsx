@@ -82,10 +82,10 @@ interface DocumentListItem {
 }
 
 function RouteComponent() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const trpc = useTRPC();
   const { data: documents = [], isLoading } = useQuery({
-    ...trpc.documents.list.queryOptions(),
+    ...trpc.documents.list.queryOptions({ locale: i18n.language }),
     refetchOnMount: "always",
   });
   const [searchQuery, setSearchQuery] = useState("");
@@ -169,7 +169,7 @@ function RouteComponent() {
   // Saved templates the user bookmarked — shown in the "Сохранённые" tab. They
   // aren't documents/purchases; the user can just open and view them.
   const { data: allTemplates = [] } = useQuery(
-    trpc.templates.list.queryOptions({})
+    trpc.templates.list.queryOptions({ locale: i18n.language })
   );
   const { data: bookmarks = [] } = useQuery(
     trpc.templates.myBookmarks.queryOptions()

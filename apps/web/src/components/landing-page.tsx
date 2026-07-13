@@ -53,15 +53,15 @@ function ZhebeLogo({ className }: { className?: string }) {
 
 function Navbar() {
   return (
-    <header className="sticky top-0 z-50 bg-primary text-primary-foreground">
+    <header className="sticky top-0 z-50 bg-landing text-landing-foreground">
       <nav className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-6">
         <a aria-label="Zhebe" className="flex flex-1 items-center" href="#top">
-          <ZhebeLogo className="h-8 w-auto text-primary-foreground" />
+          <ZhebeLogo className="h-8 w-auto text-landing-foreground" />
         </a>
         <div className="hidden items-center gap-1 md:flex">
           {NAV_LINKS.map((link) => (
             <a
-              className="rounded-lg px-4 py-2 text-primary-foreground/90 text-sm transition-colors hover:bg-primary-foreground/10"
+              className="rounded-lg px-4 py-2 text-landing-foreground/90 text-sm transition-colors hover:bg-landing-foreground/10"
               href={link.href}
               key={link.href}
             >
@@ -70,17 +70,17 @@ function Navbar() {
           ))}
         </div>
         <div className="flex flex-1 items-center justify-end gap-3">
-          <LanguageSwitcher triggerClassName="text-primary-foreground hover:bg-primary-foreground/10" />
+          <LanguageSwitcher triggerClassName="text-landing-foreground hover:bg-landing-foreground/10" />
           <Button
             asChild
-            className="hidden h-9 border-primary-foreground/40 bg-transparent px-4 text-primary-foreground text-sm hover:bg-primary-foreground/10 sm:inline-flex"
+            className="hidden h-9 border-landing-foreground/40 bg-transparent px-4 text-landing-foreground text-sm hover:bg-landing-foreground/10 sm:inline-flex"
             variant="outline"
           >
             <Link to="/login">Войти</Link>
           </Button>
           <Button
             asChild
-            className="h-9 bg-primary-foreground px-4 text-primary text-sm hover:bg-primary-foreground/90"
+            className="h-9 bg-landing-foreground px-4 text-landing text-sm hover:bg-landing-foreground/90"
           >
             <Link to="/register">Регистрация</Link>
           </Button>
@@ -136,7 +136,7 @@ function HeroFloatingCard() {
 
 function Hero() {
   return (
-    <section className="bg-primary text-primary-foreground" id="top">
+    <section className="bg-landing text-landing-foreground" id="top">
       <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-20 lg:grid-cols-2 lg:py-24">
         <div className="flex flex-col gap-6">
           <span className="font-medium text-[16px]" style={{ color: TAN }}>
@@ -145,7 +145,7 @@ function Hero() {
           <h1 className="font-semibold text-4xl leading-[1.15] tracking-tight sm:text-5xl">
             Договор за пару кликов — доступно и составлено юристами
           </h1>
-          <p className="max-w-md text-primary-foreground/85 leading-relaxed">
+          <p className="max-w-md text-landing-foreground/85 leading-relaxed">
             Каждый шаблон составлен практикующими юристами — так, чтобы интересы
             обеих сторон были защищены. Выберите договор, заполните поля и
             скачайте готовый документ за пару минут.
@@ -153,7 +153,7 @@ function Hero() {
           <div className="flex flex-wrap items-center gap-3 pt-2">
             <Button
               asChild
-              className="h-11 rounded-full border-primary-foreground/60 bg-transparent px-6 text-primary-foreground text-sm hover:bg-primary-foreground/10"
+              className="h-11 rounded-full border-landing-foreground/60 bg-transparent px-6 text-landing-foreground text-sm hover:bg-landing-foreground/10"
               variant="outline"
             >
               <Link to="/register">
@@ -161,7 +161,7 @@ function Hero() {
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
-            <span className="px-3 text-primary-foreground/70 text-sm">
+            <span className="px-3 text-landing-foreground/70 text-sm">
               Без привязки карты
             </span>
           </div>
@@ -248,7 +248,7 @@ function FormMock() {
         <div className="mt-2 space-y-1.5">
           <div className="h-2 w-full rounded bg-muted" />
           <div className="flex gap-1">
-            <span className="rounded-full bg-primary px-2 py-0.5 text-[8px] text-primary-foreground">
+            <span className="rounded-full bg-landing px-2 py-0.5 text-[8px] text-landing-foreground">
               Физ. лицо
             </span>
             <span className="rounded-full border px-2 py-0.5 text-[8px] text-muted-foreground">
@@ -270,7 +270,7 @@ function DownloadMock() {
         <span className="font-medium text-[10px] text-foreground">
           Договор аренды нежилого помещения
         </span>
-        <span className="flex items-center gap-1 rounded bg-primary px-2 py-1 text-[9px] text-primary-foreground">
+        <span className="flex items-center gap-1 rounded bg-landing px-2 py-1 text-[9px] text-landing-foreground">
           <Download className="size-2.5" /> Скачать договор
         </span>
       </div>
@@ -402,7 +402,8 @@ function Library() {
           </div>
           <Button
             asChild
-            className="h-10 shrink-0 bg-primary px-5 text-primary-foreground text-sm hover:bg-primary/90"
+            className="h-10 shrink-0 rounded-full px-5 text-sm"
+            variant="outline"
           >
             <Link to="/register">
               Открыть каталог
@@ -526,7 +527,7 @@ function Pricing() {
               className={cn(
                 "flex flex-col gap-5 rounded-2xl border p-6",
                 plan.highlight
-                  ? "border-primary bg-primary/[0.03] shadow-sm"
+                  ? "border-foreground/40 bg-foreground/[0.02] shadow-sm"
                   : "border-border bg-card"
               )}
               key={plan.name}
@@ -537,7 +538,7 @@ function Pricing() {
                     {plan.name}
                   </h3>
                   {plan.highlight && (
-                    <span className="rounded-full bg-primary px-2 py-0.5 text-primary-foreground text-xs">
+                    <span className="rounded-full bg-foreground px-2 py-0.5 text-background text-xs">
                       Популярный
                     </span>
                   )}
@@ -558,8 +559,7 @@ function Pricing() {
               </div>
               <Button
                 asChild
-                className="h-9 w-full text-sm"
-                variant={plan.highlight ? "default" : "outline"}
+                className="h-9 w-full bg-foreground text-background text-sm hover:bg-foreground/90"
               >
                 <Link to="/register">Выбрать</Link>
               </Button>
@@ -574,7 +574,7 @@ function Pricing() {
                     >
                       <span className="flex items-start gap-1.5 text-foreground">
                         {included ? (
-                          <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                          <Check className="mt-0.5 size-3.5 shrink-0 text-foreground" />
                         ) : (
                           <Minus className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
                         )}
@@ -626,19 +626,19 @@ const CTA_FEATURES: CtaFeature[] = [
 
 function CallToAction() {
   return (
-    <section className="bg-primary text-primary-foreground">
+    <section className="bg-landing text-landing-foreground">
       <div className="mx-auto max-w-6xl px-6 py-20">
         <div className="flex flex-col items-center gap-5 text-center">
           <h2 className="font-semibold text-3xl tracking-tight sm:text-4xl">
             Первый договор — бесплатно
           </h2>
-          <p className="max-w-md text-primary-foreground/80">
+          <p className="max-w-md text-landing-foreground/80">
             Зарегистрируйтесь и получите доступ к каталогу прямо сейчас. Без
             карты, без обязательств.
           </p>
           <Button
             asChild
-            className="h-11 rounded-full bg-primary-foreground px-6 text-primary text-sm hover:bg-primary-foreground/90"
+            className="h-11 rounded-full bg-landing-foreground px-6 text-landing text-sm hover:bg-landing-foreground/90"
           >
             <Link to="/register">
               Начать бесплатно
@@ -651,7 +651,7 @@ function CallToAction() {
             <div className="flex flex-col gap-3" key={feature.title}>
               <feature.icon className="size-7" style={{ color: TAN }} />
               <h3 className="font-medium text-lg">{feature.title}</h3>
-              <p className="text-primary-foreground/75 text-sm leading-relaxed">
+              <p className="text-landing-foreground/75 text-sm leading-relaxed">
                 {feature.desc}
               </p>
             </div>
@@ -775,16 +775,16 @@ const FOOTER_COLUMNS = [
 
 function Footer() {
   return (
-    <footer className="bg-primary text-primary-foreground">
+    <footer className="bg-landing text-landing-foreground">
       <div className="mx-auto max-w-6xl px-6 py-16">
-        <div className="flex flex-col gap-8 border-primary-foreground/15 border-b pb-10 lg:flex-row lg:justify-between">
+        <div className="flex flex-col gap-8 border-landing-foreground/15 border-b pb-10 lg:flex-row lg:justify-between">
           <div className="flex flex-col gap-4">
-            <ZhebeLogo className="h-8 w-auto text-primary-foreground" />
-            <div className="flex flex-wrap gap-x-5 gap-y-2 text-primary-foreground/80 text-sm">
+            <ZhebeLogo className="h-8 w-auto text-landing-foreground" />
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-landing-foreground/80 text-sm">
               {["Решения", "Библиотека договоров", "Блог", "О нас"].map(
                 (item) => (
                   <a
-                    className="hover:text-primary-foreground"
+                    className="hover:text-landing-foreground"
                     href="#top"
                     key={item}
                   >
@@ -797,12 +797,12 @@ function Footer() {
           <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
             {FOOTER_COLUMNS.map((column) => (
               <div className="flex flex-col gap-3" key={column.title}>
-                <span className="font-medium text-primary-foreground text-sm">
+                <span className="font-medium text-landing-foreground text-sm">
                   {column.title}
                 </span>
                 {column.links.map((link) => (
                   <a
-                    className="text-primary-foreground/70 text-xs hover:text-primary-foreground"
+                    className="text-landing-foreground/70 text-xs hover:text-landing-foreground"
                     href="#library"
                     key={link}
                   >
@@ -813,12 +813,12 @@ function Footer() {
             ))}
           </div>
         </div>
-        <div className="flex flex-col items-center justify-between gap-3 pt-6 text-primary-foreground/70 text-xs sm:flex-row">
+        <div className="flex flex-col items-center justify-between gap-3 pt-6 text-landing-foreground/70 text-xs sm:flex-row">
           <div className="flex gap-5">
-            <a className="hover:text-primary-foreground" href="/privacy">
+            <a className="hover:text-landing-foreground" href="/privacy">
               Политика конфиденциальности
             </a>
-            <a className="hover:text-primary-foreground" href="/cookies">
+            <a className="hover:text-landing-foreground" href="/cookies">
               Политика Cookies
             </a>
           </div>

@@ -411,6 +411,12 @@ export interface LocaleContent {
   title?: string;
   description?: string | null;
   typstContent?: string;
+  /**
+   * Per-locale form variables (labels/hints/options match this locale's
+   * typstContent). Empty/absent → the template's default variables are used.
+   * Typed loosely — the client owns the richer TemplateVariable shape.
+   */
+  variables?: unknown[];
 }
 
 interface BaseContent {
@@ -435,4 +441,23 @@ export function resolveLocalized(
     description: override.description || base.description,
     typstContent: override.typstContent || base.typstContent,
   };
+}
+
+/**
+ * Form variables for a locale: the locale's own set when it defines one
+ * (non-empty), otherwise the template's default variables. Locale variables
+ * are honored only alongside the locale's own typst — they are synced against
+ * it, so pairing them with the default typst would mismatch its literals.
+ */
+export function resolveLocalizedVariables<T>(
+  base: T[],
+  localizedContent: Record<string, LocaleContent> | null | undefined,
+  locale: string | null | undefined
+): T[] {
+  const entry = locale ? localizedContent?.[locale] : undefined;
+  const override = entry?.typstContent ? entry.variables : undefined;
+  if (Array.isArray(override) && override.length > 0) {
+    return override as T[];
+  }
+  return base;
 }

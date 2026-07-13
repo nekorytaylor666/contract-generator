@@ -13,6 +13,7 @@ import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
+import { resolveLocalized } from "../constants/template-options";
 import { editorProcedure, orgProcedure, router } from "../index";
 import { consumeQuota } from "../lib/subscription";
 
@@ -28,32 +29,46 @@ async function consumeEditQuotaOrThrow(userId: string) {
 }
 
 export const documentsRouter = router({
-  list: orgProcedure.query(async ({ ctx }) => {
-    const orgId = ctx.orgId;
+  list: orgProcedure
+    .input(z.object({ locale: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const orgId = ctx.orgId;
 
-    const documents = await db
-      .select({
-        id: document.id,
-        title: document.title,
-        templateId: document.templateId,
-        templateTitle: template.title,
-        categories: template.categories,
-        documentType: template.documentType,
-        status: document.status,
-        currentVersion: document.currentVersion,
-        createdBy: document.createdBy,
-        authorName: user.name,
-        createdAt: document.createdAt,
-        updatedAt: document.updatedAt,
-      })
-      .from(document)
-      .leftJoin(template, eq(document.templateId, template.id))
-      .leftJoin(user, eq(document.createdBy, user.id))
-      .where(eq(document.organizationId, orgId))
-      .orderBy(desc(document.updatedAt));
+      const documents = await db
+        .select({
+          id: document.id,
+          title: document.title,
+          templateId: document.templateId,
+          templateTitle: template.title,
+          templateLocalized: template.localizedContent,
+          categories: template.categories,
+          documentType: template.documentType,
+          status: document.status,
+          currentVersion: document.currentVersion,
+          createdBy: document.createdBy,
+          authorName: user.name,
+          createdAt: document.createdAt,
+          updatedAt: document.updatedAt,
+        })
+        .from(document)
+        .leftJoin(template, eq(document.templateId, template.id))
+        .leftJoin(user, eq(document.createdBy, user.id))
+        .where(eq(document.organizationId, orgId))
+        .orderBy(desc(document.updatedAt));
 
-    return documents;
-  }),
+      // Show the template's name in the requested UI language; don't ship the
+      // heavy localizedContent bodies to the client.
+      return documents.map(({ templateLocalized, ...doc }) => ({
+        ...doc,
+        templateTitle: doc.templateTitle
+          ? resolveLocalized(
+              { title: doc.templateTitle, description: null, typstContent: "" },
+              templateLocalized,
+              input?.locale
+            ).title
+          : doc.templateTitle,
+      }));
+    }),
 
   getById: orgProcedure
     .input(z.object({ id: z.string() }))
@@ -84,6 +99,9 @@ export const documentsRouter = router({
         documentId: z.string().optional(),
         templateId: z.string(),
         title: z.string().optional(),
+        // UI language at creation time — a new document is named after the
+        // template's title in that language.
+        locale: z.string().optional(),
         variables: z.record(z.string(), z.unknown()),
         logo: z.string().nullable().optional(),
         style: z
@@ -194,7 +212,13 @@ export const documentsRouter = router({
 
       // Create new document — pin to current latest template version
       const docId = randomUUID();
-      const title = input.title || tmpl.title;
+      const title =
+        input.title ||
+        resolveLocalized(
+          { title: tmpl.title, description: null, typstContent: "" },
+          tmpl.localizedContent,
+          input.locale
+        ).title;
 
       await db.insert(document).values({
         id: docId,

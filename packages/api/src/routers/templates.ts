@@ -30,7 +30,10 @@ import {
   sql,
 } from "drizzle-orm";
 import { z } from "zod";
-import { resolveLocalized } from "../constants/template-options";
+import {
+  resolveLocalized,
+  resolveLocalizedVariables,
+} from "../constants/template-options";
 import { protectedProcedure, publicProcedure, router } from "../index";
 import { consumeQuota } from "../lib/subscription";
 import { pluralize } from "../utils/pluralize";
@@ -639,7 +642,11 @@ export async function getTemplatePreviewPng(
     row.localizedContent,
     key === "default" ? undefined : key
   );
-  const templateVars = (row.variables ?? []) as TemplateVariable[];
+  const templateVars = resolveLocalizedVariables(
+    (row.variables ?? []) as TemplateVariable[],
+    row.localizedContent,
+    key === "default" ? undefined : key
+  );
   const values = buildPhotoValues(templateVars);
   const vars = computeDerivedVariables(values, templateVars);
   const substituted = replaceVariables(
@@ -1078,7 +1085,11 @@ export const templatesRouter = router({
       const processedContent = replaceVariables(
         resolved.typstContent,
         {},
-        (tpl.variables ?? []) as TemplateVariable[]
+        resolveLocalizedVariables(
+          (tpl.variables ?? []) as TemplateVariable[],
+          tpl.localizedContent,
+          input.locale
+        )
       );
       try {
         if (input.format === "docx") {
@@ -1116,7 +1127,21 @@ async function loadTemplateSource(
   templateVersionId?: string,
   locale?: string
 ): Promise<{ title: string; typstContent: string; variables: unknown }> {
-  if (templateVersionId) {
+  const [live] = await db
+    .select()
+    .from(template)
+    .where(eq(template.id, templateId))
+    .limit(1);
+
+  // Localized overrides aren't versioned: when the requested locale has its
+  // own typst, the form was built from the locale's variables, and only the
+  // live localized source matches their literals — a default-language
+  // snapshot would silently fail every `#if` comparison.
+  const hasLocaleOverride = Boolean(
+    locale && live?.localizedContent?.[locale]?.typstContent
+  );
+
+  if (templateVersionId && !hasLocaleOverride) {
     const [version] = await db
       .select({
         typstContent: templateVersion.typstContent,
@@ -1133,11 +1158,6 @@ async function loadTemplateSource(
     // Pinned version was deleted somehow — fall through to live template.
   }
 
-  const [live] = await db
-    .select()
-    .from(template)
-    .where(eq(template.id, templateId))
-    .limit(1);
   if (!live) {
     throw new TRPCError({
       code: "NOT_FOUND",
@@ -1156,6 +1176,12 @@ async function loadTemplateSource(
   return {
     title: resolved.title,
     typstContent: resolved.typstContent,
-    variables: live.variables,
+    // Variables must match the locale's typst (wordForms, date fields, and
+    // option literals differ per language).
+    variables: resolveLocalizedVariables(
+      Array.isArray(live.variables) ? live.variables : [],
+      live.localizedContent,
+      locale
+    ),
   };
 }

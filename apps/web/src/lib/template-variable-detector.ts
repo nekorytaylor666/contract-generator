@@ -5,6 +5,9 @@ interface DetectedVariable {
   name: string;
   type: TemplateVariable["type"];
   options?: string[];
+  optionDescriptions?: Record<string, string>;
+  hint?: string;
+  defaultValue?: TemplateVariable["defaultValue"];
 }
 
 const VAR_RE = /\{\{(\w+)\}\}/g;
@@ -51,6 +54,9 @@ export function detectVariables(typstContent: string): DetectedVariable[] {
       name: v.name,
       type: v.type,
       options: v.options,
+      optionDescriptions: v.optionDescriptions,
+      hint: v.hint,
+      defaultValue: v.defaultValue,
     }));
   }
 
@@ -107,6 +113,61 @@ export interface MergedVariable extends TemplateVariable {
   typeMismatch?: boolean;
 }
 
+function mergeExistingVariable(
+  ev: TemplateVariable,
+  det: DetectedVariable
+): MergedVariable {
+  // Type mismatch flag (e.g. user marked it text, typst uses it as boolean)
+  const typeMismatch =
+    (det.type === "boolean" || det.type === "select") && ev.type !== det.type;
+
+  // For select, union options
+  let options = ev.options;
+  if (ev.type === "select" && det.options && det.options.length > 0) {
+    options = Array.from(new Set([...(ev.options ?? []), ...det.options]));
+  }
+  // Descriptions/hints authored in typst (`// @label`, `// @hint`) are the
+  // source of truth: they win per-key on every sync, so editing the template
+  // updates the stored copy. Card-edited descriptions survive only for options
+  // the typst comments don't cover (e.g. legacy {{var}} templates).
+  const optionDescriptions =
+    ev.type === "select"
+      ? { ...ev.optionDescriptions, ...det.optionDescriptions }
+      : {};
+  // Explicit `undefined` overrides values spread from `ev` (a stale map on a
+  // field whose type changed away from select); JSON serialization drops it.
+  return {
+    ...ev,
+    options,
+    optionDescriptions:
+      Object.keys(optionDescriptions).length > 0
+        ? optionDescriptions
+        : undefined,
+    hint: det.hint ?? ev.hint,
+    // Admin-set default wins; otherwise take the `#let` literal so the fill
+    // form starts from the template's own default, not an empty value.
+    defaultValue: ev.defaultValue ?? det.defaultValue,
+    typeMismatch: typeMismatch || undefined,
+  };
+}
+
+function newFromDetected(det: DetectedVariable): MergedVariable {
+  return {
+    name: det.name,
+    type: det.type,
+    label: humanizeName(det.name),
+    required: false,
+    ...(det.options && det.options.length > 0 ? { options: det.options } : {}),
+    ...(det.optionDescriptions && Object.keys(det.optionDescriptions).length > 0
+      ? { optionDescriptions: det.optionDescriptions }
+      : {}),
+    ...(det.hint ? { hint: det.hint } : {}),
+    ...(det.defaultValue !== undefined
+      ? { defaultValue: det.defaultValue }
+      : {}),
+  };
+}
+
 export function mergeWithDetected(
   existing: TemplateVariable[],
   detected: DetectedVariable[]
@@ -118,36 +179,18 @@ export function mergeWithDetected(
   // Preserve order of existing first
   for (const ev of existing) {
     const det = detectedByName.get(ev.name);
-    if (!det) {
+    if (det) {
+      result.push(mergeExistingVariable(ev, det));
+    } else {
       result.push({ ...ev, unused: true });
-      continue;
     }
-    // Type mismatch flag (e.g. user marked it text, typst uses it as boolean)
-    const typeMismatch =
-      (det.type === "boolean" || det.type === "select") && ev.type !== det.type;
-
-    // For select, union options
-    let options = ev.options;
-    if (ev.type === "select" && det.options && det.options.length > 0) {
-      options = Array.from(new Set([...(ev.options ?? []), ...det.options]));
-    }
-    result.push({ ...ev, options, typeMismatch: typeMismatch || undefined });
   }
 
   // Append newly detected ones
   for (const det of detected) {
-    if (existingByName.has(det.name)) {
-      continue;
+    if (!existingByName.has(det.name)) {
+      result.push(newFromDetected(det));
     }
-    result.push({
-      name: det.name,
-      type: det.type,
-      label: humanizeName(det.name),
-      required: false,
-      ...(det.options && det.options.length > 0
-        ? { options: det.options }
-        : {}),
-    });
   }
   return result;
 }

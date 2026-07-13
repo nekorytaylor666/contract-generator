@@ -1,8 +1,11 @@
-import { resolveLocalized } from "@contract-builder/api/constants/template-options";
+import {
+  resolveLocalized,
+  resolveLocalizedVariables,
+} from "@contract-builder/api/constants/template-options";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Check, Loader2, PanelRightClose, PanelRightOpen } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   type DocumentStyle,
@@ -79,6 +82,20 @@ function RouteComponent() {
     error,
   } = useQuery(trpc.templates.getById.queryOptions({ id: templateId }));
 
+  // Admin-synced variables for the current UI language: a locale with its own
+  // typst carries its own variables (labels/hints/option literals match it).
+  const storedVariables = useMemo<TemplateVariable[]>(
+    () =>
+      template
+        ? resolveLocalizedVariables(
+            template.variables as TemplateVariable[],
+            template.localizedContent,
+            i18n.language
+          )
+        : [],
+    [template, i18n.language]
+  );
+
   // Load existing document if documentId is set
   const { data: existingDocument } = useQuery({
     ...trpc.documents.getById.queryOptions({ id: documentId ?? "" }),
@@ -97,9 +114,8 @@ function RouteComponent() {
     loadedDocIdRef.current = existingDocument.id;
     const rawVars = existingDocument.variables as Record<string, unknown>;
     // Hydrate date strings back to Date objects
-    const templateVars = template.variables as TemplateVariable[];
     const dateFields = new Set(
-      templateVars.filter((v) => v.type === "date").map((v) => v.name)
+      storedVariables.filter((v) => v.type === "date").map((v) => v.name)
     );
     const vars: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(rawVars)) {
@@ -121,16 +137,26 @@ function RouteComponent() {
       setDocumentStyle(style);
     }
     setFormKey((k) => k + 1);
-  }, [existingDocument, template]);
+  }, [existingDocument, template, storedVariables]);
 
-  // Initialize formValues from template defaults when no document is loaded
+  // Initialize formValues from template defaults when no document is loaded.
+  // Once per template id: re-runs (language switch, query refetch) must not
+  // clobber values the user has already typed.
+  const defaultsInitRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!template || initialValues || existingDocument) {
+    if (
+      !template ||
+      initialValues ||
+      existingDocument ||
+      defaultsInitRef.current === template.id
+    ) {
       return;
     }
-    const stored = template.variables as TemplateVariable[];
+    defaultsInitRef.current = template.id;
     const templateVars =
-      stored.length > 0 ? stored : parseNativeLets(template.typstContent);
+      storedVariables.length > 0
+        ? storedVariables
+        : parseNativeLets(template.typstContent);
     const defaults: Record<string, unknown> = {};
     for (const v of templateVars) {
       if (v.defaultValue !== undefined) {
@@ -151,7 +177,7 @@ function RouteComponent() {
     }
     setFormValues(defaults);
     latestValuesRef.current = defaults;
-  }, [template, initialValues, existingDocument]);
+  }, [template, initialValues, existingDocument, storedVariables]);
 
   const triggerHighlight = useCallback((names: Set<string>) => {
     if (names.size === 0) {
@@ -277,6 +303,9 @@ function RouteComponent() {
     saveMutation.mutate({
       documentId: documentId ?? undefined,
       templateId,
+      // Names a newly created document after the template's title in the
+      // current UI language.
+      locale: i18n.language,
       variables: latestValuesRef.current,
       logo,
       style: {
@@ -291,6 +320,7 @@ function RouteComponent() {
     logo,
     documentStyle,
     canEdit,
+    i18n.language,
   ]);
 
   const handleLogoChange = useCallback((newLogo: string | null) => {
@@ -308,9 +338,8 @@ function RouteComponent() {
       versionStyle: { font?: string; preset?: string } | null
     ) => {
       // Preview version inline — hydrate dates and set form values
-      const templateVars = (template?.variables ?? []) as TemplateVariable[];
       const dateFields = new Set(
-        templateVars.filter((v) => v.type === "date").map((v) => v.name)
+        storedVariables.filter((v) => v.type === "date").map((v) => v.name)
       );
       const variables: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(rawVariables)) {
@@ -332,7 +361,7 @@ function RouteComponent() {
         });
       }
     },
-    [template?.variables]
+    [storedVariables]
   );
 
   const handleRevert = useCallback(
@@ -341,9 +370,8 @@ function RouteComponent() {
       revertedLogo: string | null,
       revertedStyle: { font?: string; preset?: string } | null
     ) => {
-      const templateVars = (template?.variables ?? []) as TemplateVariable[];
       const dateFields = new Set(
-        templateVars.filter((v) => v.type === "date").map((v) => v.name)
+        storedVariables.filter((v) => v.type === "date").map((v) => v.name)
       );
       const variables: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(rawVariables)) {
@@ -367,7 +395,7 @@ function RouteComponent() {
       }
       setFormKey((k) => k + 1);
     },
-    [template?.variables]
+    [storedVariables]
   );
 
   if (isLoading) {
@@ -406,7 +434,6 @@ function RouteComponent() {
   // Native Typst (#let) templates may have no synced variables[] — fall back to
   // parsing fillable `#let` fields out of the source so they drive the same form
   // as the {{var}} format. Admin-synced variables take priority.
-  const storedVariables = template.variables as TemplateVariable[];
   let variables = storedVariables;
   if (storedVariables.length === 0 && isNativeTypst(localized.typstContent)) {
     variables = parseNativeLets(localized.typstContent);

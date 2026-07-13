@@ -74,6 +74,9 @@ interface LocaleForm {
   title: string;
   description: string;
   typstContent: string;
+  // The locale's own form variables — labels/hints/options in that language.
+  // Empty → the fill form falls back to the shared default variables.
+  variables: TemplateVariable[];
 }
 
 interface FormState {
@@ -145,6 +148,7 @@ const EMPTY_LOCALE_FORM: LocaleForm = {
   title: "",
   description: "",
   typstContent: "",
+  variables: [],
 };
 
 // The title/description/typstContent currently being edited for `activeLocale`.
@@ -157,6 +161,7 @@ function getActiveContent(
       title: form.title,
       description: form.description,
       typstContent: form.typstContent,
+      variables: form.variables,
     };
   }
   return form.localizedContent[activeLocale] ?? EMPTY_LOCALE_FORM;
@@ -166,7 +171,7 @@ function getActiveContent(
 function applyLocaleField(
   prev: FormState,
   activeLocale: "default" | TemplateLocale,
-  field: keyof LocaleForm,
+  field: Exclude<keyof LocaleForm, "variables">,
   value: string
 ): FormState {
   if (activeLocale === "default") {
@@ -201,11 +206,112 @@ function cleanLocalizedContent(
     if (content.typstContent.trim()) {
       entry.typstContent = content.typstContent;
     }
+    if (content.variables.length > 0) {
+      entry.variables = content.variables;
+    }
     if (Object.keys(entry).length > 0) {
       cleaned[locale] = entry;
     }
   }
   return cleaned;
+}
+
+// Variables the active tab edits: the locale's own set when it has one. A
+// locale with its own typst seeds its first sync from the default set minus
+// the language-bound fields (options/descriptions/defaults/hints come from
+// that locale's typst comments); otherwise the default set is shared as-is.
+function resolveActiveStoredVariables(
+  localeForm: LocaleForm | null,
+  baseVariables: TemplateVariable[]
+): TemplateVariable[] {
+  if (!localeForm) {
+    return baseVariables;
+  }
+  if (localeForm.variables.length > 0) {
+    return localeForm.variables;
+  }
+  if (localeForm.typstContent.trim()) {
+    return baseVariables.map(
+      ({
+        options,
+        optionDescriptions,
+        defaultValue,
+        hint,
+        dependsOn,
+        ...keep
+      }) => keep
+    );
+  }
+  return baseVariables;
+}
+
+// The locale entry the active tab edits (null on the default tab) and the
+// typst its variables sync against: the locale's own source when present,
+// otherwise the shared default source.
+function activeLocaleContext(
+  form: FormState,
+  activeLocale: "default" | TemplateLocale
+): { localeForm: LocaleForm | null; activeTypst: string } {
+  if (activeLocale === "default") {
+    return { localeForm: null, activeTypst: form.typstContent };
+  }
+  const localeForm = form.localizedContent[activeLocale] ?? EMPTY_LOCALE_FORM;
+  return {
+    localeForm,
+    activeTypst: localeForm.typstContent.trim()
+      ? localeForm.typstContent
+      : form.typstContent,
+  };
+}
+
+// Strip detector-only metadata (unused/typeMismatch) before persisting.
+function stripFlags(list: MergedVariable[]): TemplateVariable[] {
+  return list.map(({ unused, typeMismatch, ...v }) => v);
+}
+
+// Locale variable sets are re-merged against their own typst on save — same as
+// the default set — so the panel and the persisted state can't diverge even if
+// «Синхронизировать» was never pressed. A locale whose typst was cleared drops
+// its now-orphaned variables (they were synced against the deleted source).
+function buildLocalizedForSave(form: FormState): Record<string, LocaleForm> {
+  const out: Record<string, LocaleForm> = {};
+  for (const [locale, content] of Object.entries(form.localizedContent)) {
+    if (content.typstContent.trim()) {
+      const seed = resolveActiveStoredVariables(content, form.variables);
+      out[locale] = {
+        ...content,
+        variables: stripFlags(
+          mergeWithDetected(seed, detectVariables(content.typstContent))
+        ),
+      };
+    } else {
+      out[locale] = { ...content, variables: [] };
+    }
+  }
+  return out;
+}
+
+// Write a variables list into the set the given tab owns: the shared default
+// list, or the locale's own list inside its localizedContent entry.
+function withVariables(
+  prev: FormState,
+  activeLocale: "default" | TemplateLocale,
+  list: TemplateVariable[]
+): FormState {
+  if (activeLocale === "default") {
+    return { ...prev, variables: list };
+  }
+  return {
+    ...prev,
+    localizedContent: {
+      ...prev.localizedContent,
+      [activeLocale]: {
+        ...EMPTY_LOCALE_FORM,
+        ...prev.localizedContent[activeLocale],
+        variables: list,
+      },
+    },
+  };
 }
 
 function rowToForm(row: TemplateRow): FormState {
@@ -228,6 +334,9 @@ function rowToForm(row: TemplateRow): FormState {
           title: content?.title ?? "",
           description: content?.description ?? "",
           typstContent: content?.typstContent ?? "",
+          variables: Array.isArray(content?.variables)
+            ? (content.variables as TemplateVariable[])
+            : [],
         },
       ])
     ),
@@ -251,8 +360,10 @@ function AdminTemplatesPage() {
 
   const isDefaultLocale = activeLocale === "default";
   const activeContent = getActiveContent(form, activeLocale);
-  const setActiveField = (field: keyof LocaleForm, value: string) =>
-    setForm((prev) => applyLocaleField(prev, activeLocale, field, value));
+  const setActiveField = (
+    field: Exclude<keyof LocaleForm, "variables">,
+    value: string
+  ) => setForm((prev) => applyLocaleField(prev, activeLocale, field, value));
 
   const invalidate = () =>
     queryClient.invalidateQueries({
@@ -311,28 +422,61 @@ function AdminTemplatesPage() {
     setCreating(false);
   };
 
+  // Variables being edited on the current tab. The default tab edits the
+  // shared set; a locale tab edits that locale's own set (stored in its
+  // localizedContent entry). A locale with its own typst seeds its first sync
+  // from the default set minus the language-bound fields — those come from
+  // the locale's typst comments instead.
+  const { localeForm, activeTypst } = activeLocaleContext(form, activeLocale);
+  const activeStoredVariables = useMemo<TemplateVariable[]>(
+    () => resolveActiveStoredVariables(localeForm, form.variables),
+    [localeForm, form.variables]
+  );
+
   // Auto-sync variables with typst content. Result keeps user-edited fields
-  // (label/required/defaultValue/dependsOn) but flags unused/typeMismatch.
+  // (label/required/dependsOn) but flags unused/typeMismatch.
   const mergedVariables: MergedVariable[] = useMemo(() => {
+    const detected = detectVariables(activeTypst);
+    return mergeWithDetected(activeStoredVariables, detected);
+  }, [activeTypst, activeStoredVariables]);
+
+  // The default set always goes into the save payload's `variables`, no matter
+  // which tab is open.
+  const defaultMergedVariables: MergedVariable[] = useMemo(() => {
     const detected = detectVariables(form.typstContent);
     return mergeWithDetected(form.variables, detected);
   }, [form.typstContent, form.variables]);
 
+  // The button lights up whenever the merged view differs from what's stored
+  // for this tab — new names, changed options/hints/labels from typst, or the
+  // first fork of a locale set — not just on new variable names.
+  const syncNeeded = useMemo(
+    () =>
+      JSON.stringify(stripFlags(mergedVariables)) !==
+      JSON.stringify(activeStoredVariables),
+    [mergedVariables, activeStoredVariables]
+  );
+
+  // Write the edited list to the set the current tab owns.
+  const commitVariables = (list: TemplateVariable[]) => {
+    setForm((prev) => withVariables(prev, activeLocale, list));
+  };
+
   const syncVariablesFromTypst = () => {
-    setForm((prev) => ({ ...prev, variables: mergedVariables }));
+    commitVariables(stripFlags(mergedVariables));
     toast.success(`Синхронизировано: ${mergedVariables.length} переменных`);
   };
 
   const handleVariableChange = (index: number, next: TemplateVariable) => {
-    const list = mergedVariables.map(({ unused, typeMismatch, ...v }) => v);
+    const list = stripFlags(mergedVariables);
     list[index] = next;
-    setForm((prev) => ({ ...prev, variables: list }));
+    commitVariables(list);
   };
 
   const handleVariableDelete = (index: number) => {
-    const list = mergedVariables.map(({ unused, typeMismatch, ...v }) => v);
+    const list = stripFlags(mergedVariables);
     list.splice(index, 1);
-    setForm((prev) => ({ ...prev, variables: list }));
+    commitVariables(list);
   };
 
   // Preview values: fill structural fields (select/boolean/number/date) with
@@ -374,25 +518,21 @@ function AdminTemplatesPage() {
   const toggleMaximize = () => setPreviewMaximized((v) => !v);
 
   const addManualVariable = () => {
-    setForm((prev) => ({
-      ...prev,
-      variables: [
-        ...prev.variables,
-        {
-          name: `var${prev.variables.length + 1}`,
-          type: "text",
-          label: "",
-          required: false,
-        },
-      ],
-    }));
+    commitVariables([
+      ...activeStoredVariables,
+      {
+        name: `var${activeStoredVariables.length + 1}`,
+        type: "text",
+        label: "",
+        required: false,
+      },
+    ]);
   };
 
   const handleSubmit = () => {
-    // Strip detector-only metadata before sending
-    const cleanVariables = mergedVariables.map(
-      ({ unused, typeMismatch, ...v }) => v
-    );
+    // Strip detector-only metadata before sending. The shared default set is
+    // saved regardless of which language tab is open.
+    const cleanVariables = stripFlags(defaultMergedVariables);
     const payload = {
       title: form.title,
       description: form.description || null,
@@ -403,7 +543,9 @@ function AdminTemplatesPage() {
       isPublished: form.isPublished,
       categories: form.categories,
       documentType: form.documentType || null,
-      localizedContent: cleanLocalizedContent(form.localizedContent),
+      localizedContent: cleanLocalizedContent(
+        buildLocalizedForSave(form)
+      ) as never,
     };
 
     if (editing) {
@@ -418,7 +560,7 @@ function AdminTemplatesPage() {
 
   const unusedCount = mergedVariables.filter((v) => v.unused).length;
   const newDetectedCount = mergedVariables.filter(
-    (v) => !form.variables.some((existing) => existing.name === v.name)
+    (v) => !activeStoredVariables.some((existing) => existing.name === v.name)
   ).length;
 
   return (
@@ -563,7 +705,8 @@ function AdminTemplatesPage() {
               })}
               {!isDefaultLocale && (
                 <span className="text-muted-foreground text-xs">
-                  Пусто = берётся из «По умолчанию». Переменные общие.
+                  Пусто = берётся из «По умолчанию». Переменные у языка свои —
+                  нажми «Синхронизировать» на этой вкладке.
                 </span>
               )}
             </div>
@@ -709,7 +852,7 @@ function AdminTemplatesPage() {
                     <div className="flex items-center justify-between">
                       <Label>Переменные ({mergedVariables.length})</Label>
                       <Button
-                        disabled={newDetectedCount === 0}
+                        disabled={!syncNeeded}
                         onClick={syncVariablesFromTypst}
                         size="sm"
                         variant="outline"
@@ -733,8 +876,8 @@ function AdminTemplatesPage() {
                       {mergedVariables.map((v, i) => (
                         <VariableCard
                           allVariables={mergedVariables}
-                          // biome-ignore lint/suspicious/noArrayIndexKey: a variable's identity is its position (edits/deletes go by index). Keying by the editable `name` remounts the card on every keystroke — collapsing it and dropping focus.
-                          key={i}
+                          // biome-ignore lint/suspicious/noArrayIndexKey: a variable's identity is its position within a tab (edits/deletes go by index; keying by the editable `name` would remount on every keystroke). The locale prefix remounts cards on tab switch — variable names repeat across locales, and a stale card buffer would leak one language's options into another.
+                          key={`${activeLocale}-${i}`}
                           onChange={(next) => handleVariableChange(i, next)}
                           onDelete={() => handleVariableDelete(i)}
                           variable={v}

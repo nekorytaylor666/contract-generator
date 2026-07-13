@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { splitOptionDescriptor } from "@/lib/native-typst";
 import type { MergedVariable } from "@/lib/template-variable-detector";
 import type { TemplateVariable } from "@/routes/templates";
 
@@ -32,6 +33,16 @@ const TYPE_LABELS: Record<TemplateVariable["type"], string> = {
   select: "Выбор",
 };
 
+// One option per line; a `//` appends the gray per-option comment.
+function formatOptionsText(variable: TemplateVariable): string {
+  return (variable.options ?? [])
+    .map((option) => {
+      const description = variable.optionDescriptions?.[option];
+      return description ? `${option} // ${description}` : option;
+    })
+    .join("\n");
+}
+
 export function VariableCard({
   variable,
   allVariables,
@@ -42,15 +53,49 @@ export function VariableCard({
   // Local buffer for the select-options textarea. Storing only the parsed array
   // and deriving `value` from it would strip the trailing newline the moment you
   // press Enter — making it impossible to start a new option line.
-  const [optionsText, setOptionsText] = useState(
-    (variable.options ?? []).join("\n")
+  const [optionsText, setOptionsText] = useState(() =>
+    formatOptionsText(variable)
   );
+  // Cards are keyed by index in the admin list, so after deleting a variable
+  // this card instance starts showing a different one — re-derive the buffer
+  // instead of leaking the previous variable's options into it.
+  const [optionsTextFor, setOptionsTextFor] = useState(variable.name);
+  if (optionsTextFor !== variable.name) {
+    setOptionsTextFor(variable.name);
+    setOptionsText(formatOptionsText(variable));
+  }
 
   const update = <K extends keyof TemplateVariable>(
     key: K,
     value: TemplateVariable[K]
   ) => {
     onChange({ ...variable, [key]: value });
+  };
+
+  // Each line is `Опция // Комментарий` (or `Опция :: Комментарий`) — the
+  // comment renders as the gray line under the option in the radio cards.
+  const handleOptionsChange = (raw: string) => {
+    setOptionsText(raw);
+    const options: string[] = [];
+    const optionDescriptions: Record<string, string> = {};
+    for (const line of raw.split("\n")) {
+      const { option, description } = splitOptionDescriptor(line);
+      if (!option) {
+        continue;
+      }
+      options.push(option);
+      if (description) {
+        optionDescriptions[option] = description;
+      }
+    }
+    onChange({
+      ...variable,
+      options,
+      optionDescriptions:
+        Object.keys(optionDescriptions).length > 0
+          ? optionDescriptions
+          : undefined,
+    });
   };
 
   const isDangerous = variable.unused || variable.typeMismatch;
@@ -199,23 +244,15 @@ export function VariableCard({
           {variable.type === "select" && (
             <div className="space-y-1">
               <Label className="text-xs" htmlFor={`opt-${variable.name}`}>
-                Опции (по одной на строку)
+                {
+                  "Опции (по одной на строку; комментарий под опцией — после //)"
+                }
               </Label>
               <Textarea
                 className="min-h-20 font-mono text-xs"
                 id={`opt-${variable.name}`}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  setOptionsText(raw);
-                  update(
-                    "options",
-                    raw
-                      .split("\n")
-                      .map((s) => s.trim())
-                      .filter(Boolean)
-                  );
-                }}
-                placeholder="Опция 1&#10;Опция 2"
+                onChange={(e) => handleOptionsChange(e.target.value)}
+                placeholder="Опция 1 // Комментарий&#10;Опция 2"
                 value={optionsText}
               />
             </div>

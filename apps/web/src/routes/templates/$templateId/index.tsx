@@ -1,13 +1,20 @@
-import { resolveLocalized } from "@contract-builder/api/constants/template-options";
+import {
+  CATEGORY_LABEL_BY_SLUG,
+  DOCUMENT_TYPE_LABELS,
+  resolveLocalized,
+  resolveLocalizedVariables,
+} from "@contract-builder/api/constants/template-options";
 import { env } from "@contract-builder/env/web";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
-  ArrowLeft,
   Bookmark,
   ChevronDown,
+  ChevronRight,
+  CircleAlert,
   Download,
   FileText,
+  FolderOpen,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,8 +26,6 @@ import {
   isComplexNative,
   isNativeTypst,
 } from "@/components/template-builder/server-typst-preview";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -163,6 +168,84 @@ function PreviewPane({
   );
 }
 
+// Right-hand info panel shown while browsing a template (bought or not). It
+// sells the template — title, description, audience tags, how many fields it
+// asks for, and when it was last updated — instead of dumping the raw field
+// list, which means nothing to someone who hasn't opened the builder yet.
+function TemplateInfoSidebar({
+  title,
+  description,
+  categories,
+  documentType,
+  updatedAt,
+  fieldCount,
+}: {
+  title: string;
+  description?: string | null;
+  categories: string[];
+  documentType?: string | null;
+  updatedAt: Date | string;
+  fieldCount: number;
+}) {
+  const chips: string[] = [];
+  const docTypeLabel = documentType
+    ? (DOCUMENT_TYPE_LABELS as Record<string, string>)[documentType]
+    : undefined;
+  if (docTypeLabel) {
+    chips.push(docTypeLabel);
+  }
+  for (const slug of categories) {
+    const label = CATEGORY_LABEL_BY_SLUG[slug];
+    if (label) {
+      chips.push(label);
+    }
+  }
+  const updatedLabel = new Intl.DateTimeFormat("ru-RU", {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(updatedAt));
+
+  return (
+    <aside className="flex w-[365px] shrink-0 flex-col gap-4 overflow-auto border-border border-l bg-background p-6">
+      <div className="flex flex-col gap-2">
+        <h2 className="font-semibold text-foreground text-xl leading-tight">
+          {title}
+        </h2>
+        {description && (
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            {description}
+          </p>
+        )}
+      </div>
+
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {chips.map((chip) => (
+            <span
+              className="rounded-full border border-[#d4d4d4] px-2.5 py-1 text-foreground text-sm"
+              key={chip}
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 text-foreground text-sm">
+        <FileText className="size-4 shrink-0 text-muted-foreground" />
+        {fieldCount} полей для заполнения
+      </div>
+
+      <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
+        <CircleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        <p className="text-muted-foreground text-sm leading-snug">
+          Обновлено — {updatedLabel}
+        </p>
+      </div>
+    </aside>
+  );
+}
+
 export const Route = createFileRoute("/templates/$templateId/")({
   component: RouteComponent,
   beforeLoad: async () => {
@@ -174,6 +257,7 @@ export const Route = createFileRoute("/templates/$templateId/")({
 function RouteComponent() {
   const { templateId } = Route.useParams();
   const trpc = useTRPC();
+  const { t, i18n } = useTranslation();
 
   const {
     data: template,
@@ -181,10 +265,16 @@ function RouteComponent() {
     error,
   } = useQuery(trpc.templates.getById.queryOptions({ id: templateId }));
 
-  // Stable variables array per template load.
+  // Stable variables array per template load, resolved for the UI language —
+  // a locale with its own typst carries its own variables.
   const variables = useMemo<TemplateVariable[]>(
-    () => (template?.variables ?? []) as TemplateVariable[],
-    [template]
+    () =>
+      resolveLocalizedVariables(
+        (template?.variables ?? []) as TemplateVariable[],
+        template?.localizedContent,
+        i18n.language
+      ),
+    [template, i18n.language]
   );
 
   // Fill structural fields (select/boolean/number/date) with defaults so
@@ -218,7 +308,6 @@ function RouteComponent() {
     return sample;
   }, [variables]);
 
-  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -388,85 +477,74 @@ function RouteComponent() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="border-border border-b bg-background p-4">
-        <Link
-          className="mb-3 inline-flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground"
-          to="/templates"
-        >
-          <ArrowLeft className="size-3.5" />
-          Назад к шаблонам
-        </Link>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="font-semibold text-base text-foreground">
-              {localized.title}
-            </h1>
-            <div className="mt-1 flex items-center gap-2">
-              <span className="text-muted-foreground text-xs">
-                {variables.length} полей для заполнения
-              </span>
-            </div>
-          </div>
-          {/* Action buttons: Сохранить + Скачать (secondary) + Редактировать */}
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#ececec] px-4 font-medium text-foreground text-sm transition-colors hover:bg-muted disabled:opacity-60"
-              disabled={bookmarkMutation.isPending}
-              onClick={() => bookmarkMutation.mutate({ templateId })}
-              type="button"
+      {/* Header: breadcrumb + actions */}
+      <div className="flex items-center justify-between gap-4 border-border border-b bg-background px-4 py-3">
+        <nav className="flex min-w-0 items-center gap-1 text-sm">
+          <Link
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:text-foreground"
+            to="/templates"
+          >
+            <FolderOpen className="size-4" />
+            Шаблоны
+          </Link>
+          <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/50" />
+          <span className="truncate px-1.5 font-medium text-foreground">
+            {localized.title}
+          </span>
+        </nav>
+        {/* Action buttons: Сохранить + Скачать (secondary) + Редактировать */}
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#ececec] px-4 font-medium text-foreground text-sm transition-colors hover:bg-muted disabled:opacity-60"
+            disabled={bookmarkMutation.isPending}
+            onClick={() => bookmarkMutation.mutate({ templateId })}
+            type="button"
+          >
+            <Bookmark
+              className={isBookmarked ? "size-4 fill-current" : "size-4"}
+            />
+            {isBookmarked ? t("templates.bookmarked") : t("templates.bookmark")}
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#f5f5f5] px-4 font-medium text-[#171717] text-sm outline-none transition-colors hover:bg-[#ececec] disabled:opacity-60"
+              disabled={downloadMutation.isPending}
             >
-              <Bookmark
-                className={isBookmarked ? "size-4 fill-current" : "size-4"}
-              />
-              {isBookmarked
-                ? t("templates.bookmarked")
-                : t("templates.bookmark")}
-            </button>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#f5f5f5] px-4 font-medium text-[#171717] text-sm outline-none transition-colors hover:bg-[#ececec] disabled:opacity-60"
-                disabled={downloadMutation.isPending}
-              >
+              <Download className="size-4" />
+              {canDownload
+                ? t("templates.download")
+                : `${t("templates.download")} — ${formatPrice(template.downloadPrice)}`}
+              <ChevronDown className="size-4 text-muted-foreground" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[180px]">
+              <DropdownMenuItem onSelect={() => handleDownload("docx")}>
                 <Download className="size-4" />
-                {canDownload
-                  ? t("templates.download")
-                  : `${t("templates.download")} — ${formatPrice(template.downloadPrice)}`}
-                <ChevronDown className="size-4 text-muted-foreground" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[180px]">
-                <DropdownMenuItem onSelect={() => handleDownload("docx")}>
-                  <Download className="size-4" />
-                  Скачать в DocX
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleDownload("pdf")}>
-                  <Download className="size-4" />
-                  Скачать в PDF
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <button
-              className="inline-flex h-10 items-center justify-center rounded-lg bg-[#9e1f5a] px-4 font-medium text-[#fafafa] text-sm transition-colors hover:bg-[#8b1a50] disabled:opacity-60"
-              disabled={isPaying || createDraftMutation.isPending}
-              onClick={handleEdit}
-              type="button"
-            >
-              {hasEdit || template.price === 0 || hasEditQuota
-                ? t("templates.edit")
-                : `${t("templates.edit")} — ${formatPrice(template.price)}`}
-            </button>
-          </div>
+                Скачать в DocX
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleDownload("pdf")}>
+                <Download className="size-4" />
+                Скачать в PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button
+            className="inline-flex h-10 items-center justify-center rounded-lg bg-[#9e1f5a] px-4 font-medium text-[#fafafa] text-sm transition-colors hover:bg-[#8b1a50] disabled:opacity-60"
+            disabled={isPaying || createDraftMutation.isPending}
+            onClick={handleEdit}
+            type="button"
+          >
+            {hasEdit || template.price === 0 || hasEditQuota
+              ? t("templates.edit")
+              : `${t("templates.edit")} — ${formatPrice(template.price)}`}
+          </button>
         </div>
       </div>
 
       {/* Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Preview Section */}
-        <div className="flex-1 overflow-auto bg-muted/30 p-4">
+        <div className="flex-1 overflow-auto bg-muted/30 p-6">
           <div className="mx-auto max-w-3xl">
-            <h2 className="mb-3 font-medium text-foreground text-sm">
-              Предпросмотр договора
-            </h2>
             <div className="relative">
               <PreviewPane
                 key={templateId}
@@ -501,53 +579,15 @@ function RouteComponent() {
           </div>
         </div>
 
-        {/* Fields Sidebar */}
-        <div className="w-96 shrink-0 overflow-auto border-border border-l bg-background p-5">
-          <h2 className="font-semibold text-foreground text-xl leading-tight">
-            {localized.title}
-          </h2>
-          {localized.description && (
-            <p className="mt-2 mb-6 text-muted-foreground text-sm leading-relaxed">
-              {localized.description}
-            </p>
-          )}
-          <h3 className="mb-2 font-medium text-foreground text-sm">
-            Необходимая информация
-          </h3>
-          <p className="mb-4 text-muted-foreground text-xs">
-            Эти поля необходимо заполнить при использовании шаблона.
-          </p>
-
-          <div className="space-y-2">
-            {variables.map((field) => (
-              <Card key={field.name} size="sm">
-                <CardHeader className="pb-1">
-                  <CardTitle className="flex items-center gap-1.5">
-                    {field.label}
-                    {field.required && (
-                      <span className="text-destructive">*</span>
-                    )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{field.type}</Badge>
-                    {field.options && (
-                      <span className="text-muted-foreground text-xs">
-                        {field.options.length} options
-                      </span>
-                    )}
-                    {field.defaultValue !== undefined && (
-                      <span className="text-muted-foreground text-xs">
-                        По умолчанию: {String(field.defaultValue)}
-                      </span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
+        {/* Info sidebar (sells the template; no raw field dump) */}
+        <TemplateInfoSidebar
+          categories={template.categories ?? []}
+          description={localized.description}
+          documentType={template.documentType}
+          fieldCount={variables.length}
+          title={localized.title}
+          updatedAt={template.updatedAt}
+        />
       </div>
     </div>
   );

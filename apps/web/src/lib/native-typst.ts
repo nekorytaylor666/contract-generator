@@ -21,6 +21,10 @@ const SUBSECTION_MARKER_REGEX = /^\/\/\s*@subsection\s+(.+?)\s*$/;
 // text to that field. The `//` is already stripped before this runs, so it
 // matches the bare `@hint …` payload.
 const HINT_MARKER_REGEX = /^@hint\s+(.+)$/;
+// `// @label опция :: описание` on the lines ABOVE a `#let` attaches a gray
+// description under that option in the radio cards. One line per option; other
+// comments and blank lines may sit between the labels and the `#let`.
+const LABEL_MARKER_REGEX = /^@label\s+(.+)$/;
 // Strip manual numbering ("1. Стороны" → "Стороны") — numbers are auto-assigned.
 const LEADING_NUMBER_REGEX = /^\d+(?:\.\d+)*[.)]?\s+/;
 // Literals that don't denote select options (empty default, booleans).
@@ -40,6 +44,56 @@ function unquote(raw: string): string {
     }
   }
   return raw;
+}
+
+// Position of the option→description separator in a segment: `::` or `//`,
+// whichever comes first. Both are 2 characters long. -1 when absent.
+function findDescriptionSeparator(segment: string): number {
+  const colonIdx = segment.indexOf("::");
+  const slashIdx = segment.indexOf("//");
+  if (colonIdx === -1) {
+    return slashIdx;
+  }
+  if (slashIdx === -1) {
+    return colonIdx;
+  }
+  return Math.min(colonIdx, slashIdx);
+}
+
+/**
+ * Splits `опция :: описание` / `опция // описание` into its parts. Used by the
+ * `// @label` payload and by the admin options textarea (one option per line).
+ */
+export function splitOptionDescriptor(raw: string): {
+  option: string;
+  description?: string;
+} {
+  const idx = findDescriptionSeparator(raw);
+  if (idx === -1) {
+    return { option: raw.trim() };
+  }
+  const option = raw.slice(0, idx).trim();
+  const description = raw.slice(idx + 2).trim();
+  return description ? { option, description } : { option };
+}
+
+// A `// @label опция :: описание` line (already trimmed) → its parts, or null
+// when the line is not a label marker / has no description.
+function parseLabelMarker(
+  trimmed: string
+): { option: string; description: string } | null {
+  if (!trimmed.startsWith("//")) {
+    return null;
+  }
+  const match = LABEL_MARKER_REGEX.exec(trimmed.slice(2).trim());
+  if (!match) {
+    return null;
+  }
+  const { option, description } = splitOptionDescriptor(match[1]);
+  if (option && description) {
+    return { option: unquote(option), description };
+  }
+  return null;
 }
 
 // Options for a select come from a pipe-separated comment on the same line or
@@ -64,7 +118,8 @@ function parseOptionsComment(comment: string | undefined): string[] | null {
 // `// office :: Административная деятельность | trade :: Розничная продажа`
 // → { office: "Административная деятельность", trade: "Розничная продажа" }.
 // Descriptions render under each radio-card title. Options without `::` are
-// simply absent from the map.
+// simply absent from the map. `// @label` markers are the preferred syntax;
+// this inline form stays for short lists and older templates.
 function parseOptionDescriptions(
   comment: string | undefined
 ): Record<string, string> | null {
@@ -130,9 +185,6 @@ function buildVariable(
       options,
       defaultValue: unquote(rawValue),
     };
-    if (descriptions) {
-      variable.optionDescriptions = descriptions;
-    }
   } else if (rawValue === "true" || rawValue === "false") {
     variable = {
       name,
@@ -155,6 +207,11 @@ function buildVariable(
   if (hint) {
     variable.hint = hint;
   }
+  // Attached even for text fields: conditions may upgrade them to select later
+  // (inferOptionsFromConditions), and the spread there keeps the descriptions.
+  if (descriptions && Object.keys(descriptions).length > 0) {
+    variable.optionDescriptions = descriptions;
+  }
   return variable;
 }
 
@@ -168,26 +225,44 @@ function recordLet(
   name: string,
   rawValue: string,
   sameLineComment: string | undefined,
-  nextLine: string | undefined
+  nextLine: string | undefined,
+  labels: Record<string, string>
 ): void {
-  const nextComment = nextLine?.startsWith("//")
+  const nextPayload = nextLine?.startsWith("//")
     ? nextLine.slice(2).trim()
     : undefined;
+  // `@`-marker comments (`@label`, `@hint`, `@section`, …) are never option
+  // lists: a `@label … | …` for the NEXT field must not be read as this
+  // field's options. parseHintComment self-selects via its `@hint` prefix.
+  const sameComment = sameLineComment?.startsWith("@")
+    ? undefined
+    : sameLineComment;
+  const nextComment = nextPayload?.startsWith("@") ? undefined : nextPayload;
   const options =
-    parseOptionsComment(sameLineComment) ?? parseOptionsComment(nextComment);
+    parseOptionsComment(sameComment) ?? parseOptionsComment(nextComment);
   const hint =
-    parseHintComment(sameLineComment) ?? parseHintComment(nextComment);
-  const descriptions =
-    parseOptionDescriptions(sameLineComment) ??
+    parseHintComment(sameLineComment) ?? parseHintComment(nextPayload);
+  const inline =
+    parseOptionDescriptions(sameComment) ??
     parseOptionDescriptions(nextComment);
   const existing = byName.get(name);
-  // Merge across redeclarations: a select annotation or a `// @hint` may sit on
-  // any occurrence (e.g. the first `#let landlord_type = "company"` has no
-  // comment but a later one does), so upgrade to select / backfill the hint
-  // whenever we find them.
+  // Descriptions merge across sources: `// @label` markers win over inline
+  // `::`, both win over earlier redeclarations.
+  const descriptions = {
+    ...existing?.optionDescriptions,
+    ...inline,
+    ...labels,
+  };
+  // Merge across redeclarations: a select annotation, a `// @hint` or `@label`s
+  // may sit on any occurrence (e.g. the first `#let landlord_type = "company"`
+  // has no comment but a later one does), so upgrade to select / backfill the
+  // hint and descriptions whenever we find them.
   if (existing) {
     if (existing.hint === undefined && hint) {
       existing.hint = hint;
+    }
+    if (Object.keys(descriptions).length > 0) {
+      existing.optionDescriptions = descriptions;
     }
     if (!(options && existing.type !== "select")) {
       return;
@@ -200,7 +275,7 @@ function recordLet(
       rawValue,
       options,
       hint ?? existing?.hint,
-      descriptions ?? existing?.optionDescriptions ?? null
+      Object.keys(descriptions).length > 0 ? descriptions : null
     )
   );
 }
@@ -231,14 +306,34 @@ export function parseNativeLets(content: string): TemplateVariable[] {
   const byName = new Map<string, TemplateVariable>();
   const lines = content.split("\n");
   let depth = 0;
+  // `// @label` lines collect here until the next top-level `#let` consumes
+  // them; other comments and blank lines in between are allowed, any other
+  // content discards the pending block.
+  let pendingLabels: Record<string, string> = {};
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    if (depth === 0) {
-      const match = LET_LINE_REGEX.exec(line.trim());
-      if (match) {
-        recordLet(byName, match[1], match[2], match[3], lines[i + 1]?.trim());
+    const trimmed = line.trim();
+    if (depth !== 0) {
+      pendingLabels = {};
+    } else if (trimmed.startsWith("//")) {
+      const label = parseLabelMarker(trimmed);
+      if (label) {
+        pendingLabels[label.option] = label.description;
       }
+    } else if (trimmed !== "") {
+      const match = LET_LINE_REGEX.exec(trimmed);
+      if (match) {
+        recordLet(
+          byName,
+          match[1],
+          match[2],
+          match[3],
+          lines[i + 1]?.trim(),
+          pendingLabels
+        );
+      }
+      pendingLabels = {};
     }
     depth = Math.max(0, depth + depthDelta(line));
   }

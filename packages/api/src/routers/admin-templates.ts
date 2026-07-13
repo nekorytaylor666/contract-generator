@@ -14,9 +14,12 @@ const variableSchema = z.object({
   name: z.string().min(1),
   type: z.enum(["text", "textarea", "date", "number", "boolean", "select"]),
   label: z.string().min(1),
+  hint: z.string().optional(),
   required: z.boolean(),
   defaultValue: z.union([z.string(), z.number(), z.boolean()]).optional(),
   options: z.array(z.string()).optional(),
+  // Gray helper line under each radio-card option (from `// @label` markers).
+  optionDescriptions: z.record(z.string(), z.string()).optional(),
   dependsOn: z
     .object({
       field: z.string(),
@@ -39,7 +42,8 @@ const upsertInput = z.object({
   // Full ancestor path slugs (group/subcategory/leaf) — see template-options.ts.
   categories: z.array(z.string()).default([]),
   documentType: z.string().nullable().optional(),
-  // Per-locale overrides of title/description/typstContent (kk/ru/en).
+  // Per-locale overrides of title/description/typstContent (kk/ru/en),
+  // plus that locale's own form variables when its typst differs.
   localizedContent: z
     .record(
       z.string(),
@@ -47,6 +51,7 @@ const upsertInput = z.object({
         title: z.string().optional(),
         description: z.string().nullable().optional(),
         typstContent: z.string().optional(),
+        variables: z.array(variableSchema).optional(),
       })
     )
     .default({}),
