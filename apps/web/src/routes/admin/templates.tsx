@@ -144,6 +144,32 @@ function AdminDocumentPreview({
   );
 }
 
+// Save succeeds even when a source doesn't compile with the real Typst — the
+// in-app preview is a lenient interpreter and won't show such errors, so the
+// compiler's verdict from the save response is surfaced here (photo/PDF
+// endpoints would otherwise fail silently later).
+function notifyCompileWarnings(
+  warnings: { locale: string; error: string }[] | undefined
+) {
+  for (const warning of warnings ?? []) {
+    const localeLabel =
+      warning.locale === "default"
+        ? "По умолчанию"
+        : (TEMPLATE_LOCALE_LABELS[warning.locale as TemplateLocale] ??
+          warning.locale);
+    toast.warning(
+      `Настоящий Typst не компилирует версию «${localeLabel}» — фото и скачивание PDF работать не будут`,
+      {
+        // pre-line: the summary is one line per compile error.
+        description: (
+          <span className="whitespace-pre-line">{warning.error}</span>
+        ),
+        duration: 15_000,
+      }
+    );
+  }
+}
+
 const EMPTY_LOCALE_FORM: LocaleForm = {
   title: "",
   description: "",
@@ -372,8 +398,9 @@ function AdminTemplatesPage() {
 
   const createMutation = useMutation(
     trpc.adminTemplates.create.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (result) => {
         toast.success("Шаблон создан");
+        notifyCompileWarnings(result.compileWarnings);
         invalidate();
         closeForm();
       },
@@ -383,8 +410,9 @@ function AdminTemplatesPage() {
 
   const updateMutation = useMutation(
     trpc.adminTemplates.update.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (result) => {
         toast.success("Шаблон обновлён");
+        notifyCompileWarnings(result?.compileWarnings);
         invalidate();
         closeForm();
       },

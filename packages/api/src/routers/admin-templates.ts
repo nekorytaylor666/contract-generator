@@ -9,6 +9,8 @@ import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { adminProcedure, router } from "../index";
+import { checkTypstCompiles } from "../lib/typst-compile-check";
+import { buildPhotoTypstSource } from "./templates";
 
 const variableSchema = z.object({
   name: z.string().min(1),
@@ -56,6 +58,65 @@ const upsertInput = z.object({
     )
     .default({}),
 });
+
+export interface CompileWarning {
+  locale: string;
+  error: string;
+}
+
+type VariableInput = z.infer<typeof variableSchema>;
+
+function countLines(text: string): number {
+  return text.split("\n").length;
+}
+
+// Runs every provided source (base + locale overrides) through the real Typst
+// compiler. The in-app preview is a lenient interpreter, so this is the only
+// signal an admin gets that a source the AI generated won't actually compile.
+// Save still succeeds — the warnings ride along in the mutation response.
+//
+// Each source is compiled exactly as the photo/PDF pipeline will compile it
+// (buildPhotoTypstSource), not raw — raw both false-alarms on legacy
+// `#if {{flag}}` patterns and misses transform-induced failures. The line
+// offset keeps reported line numbers matching the admin's editor (transforms
+// substitute in place; only the style preamble can add lines).
+async function collectCompileWarnings(
+  typstContent: string | undefined,
+  variables: VariableInput[],
+  localizedContent:
+    | Record<
+        string,
+        { typstContent?: string; variables?: VariableInput[] } | undefined
+      >
+    | undefined
+): Promise<CompileWarning[]> {
+  const sources: { locale: string; content: string; vars: VariableInput[] }[] =
+    [];
+  if (typstContent) {
+    sources.push({ locale: "default", content: typstContent, vars: variables });
+  }
+  for (const [locale, entry] of Object.entries(localizedContent ?? {})) {
+    if (entry?.typstContent) {
+      sources.push({
+        locale,
+        content: entry.typstContent,
+        // Same fallback the render path uses: a locale without its own synced
+        // variable set inherits the default one.
+        vars: entry.variables?.length ? entry.variables : variables,
+      });
+    }
+  }
+  const results = await Promise.all(
+    sources.map(async ({ locale, content, vars }) => {
+      const built = buildPhotoTypstSource(content, vars);
+      const error = await checkTypstCompiles(built, {
+        lineOffset: countLines(built) - countLines(content),
+      });
+      return error ? { locale, error } : null;
+    })
+  );
+  return results.filter((w): w is CompileWarning => w !== null);
+}
 
 // The cached photo PNGs (served by /templates/:id/preview.png) are heavy
 // base64 blobs — keep them out of admin JSON payloads.
@@ -116,7 +177,12 @@ export const adminTemplatesRouter = router({
       });
     }
     await snapshotVersion(created, ctx.session.user.id);
-    return withoutPreviewImages(created);
+    const compileWarnings = await collectCompileWarnings(
+      input.typstContent,
+      input.variables,
+      input.localizedContent
+    );
+    return { ...withoutPreviewImages(created), compileWarnings };
   }),
 
   update: adminProcedure
@@ -170,7 +236,15 @@ export const adminTemplatesRouter = router({
       if (contentChanged && updated) {
         await snapshotVersion(updated, ctx.session.user.id);
       }
-      return updated ? withoutPreviewImages(updated) : updated;
+      if (!updated) {
+        return updated;
+      }
+      const compileWarnings = await collectCompileWarnings(
+        patch.typstContent,
+        patch.variables ?? ((existing.variables ?? []) as VariableInput[]),
+        patch.localizedContent
+      );
+      return { ...withoutPreviewImages(updated), compileWarnings };
     }),
 
   delete: adminProcedure

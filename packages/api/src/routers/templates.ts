@@ -219,7 +219,7 @@ function replaceVariables(
   );
 }
 
-interface TemplateVariable {
+export interface TemplateVariable {
   name: string;
   type: "text" | "textarea" | "date" | "number" | "boolean" | "select";
   label?: string;
@@ -609,6 +609,30 @@ async function compileTypstToPng(typstContent: string): Promise<Buffer> {
 }
 
 /**
+ * Builds the exact Typst source the photo pipeline compiles: structural photo
+ * values filled in, native `fill()` calls restyled, style preset applied.
+ * Exported so the admin save validation checks the very source the photo/PDF
+ * endpoints will run — validating the raw source instead gives false alarms
+ * (e.g. legacy `#if {{flag}}` fails raw but compiles after substitution).
+ */
+export function buildPhotoTypstSource(
+  typstContent: string,
+  templateVars: TemplateVariable[]
+): string {
+  const values = buildPhotoValues(templateVars);
+  const vars = computeDerivedVariables(values, templateVars);
+  const substituted = replaceVariables(
+    styleNativeFillsForPhoto(typstContent, templateVars, values),
+    vars,
+    templateVars,
+    photoPlaceholder(templateVars)
+  );
+  return applyStyleOverrides(applyNativeLetValues(substituted, vars), {
+    preset: "default",
+  });
+}
+
+/**
  * PNG photo of the template's first page, cached per locale in the
  * `preview_images` column (admin save clears the cache on content changes).
  * Returns null when the template is missing or its source fails to compile —
@@ -647,22 +671,18 @@ export async function getTemplatePreviewPng(
     row.localizedContent,
     key === "default" ? undefined : key
   );
-  const values = buildPhotoValues(templateVars);
-  const vars = computeDerivedVariables(values, templateVars);
-  const substituted = replaceVariables(
-    styleNativeFillsForPhoto(resolved.typstContent, templateVars, values),
-    vars,
-    templateVars,
-    photoPlaceholder(templateVars)
-  );
-  const content = applyStyleOverrides(applyNativeLetValues(substituted, vars), {
-    preset: "default",
-  });
+  const content = buildPhotoTypstSource(resolved.typstContent, templateVars);
 
   let png: Buffer;
   try {
     png = await compileTypstToPng(content);
-  } catch {
+  } catch (error) {
+    // The endpoint 404s and the client silently falls back to the in-browser
+    // render, so without this log a broken template is invisible server-side.
+    console.error(
+      `preview.png: template ${templateId} (${key}) failed to compile:`,
+      error instanceof Error ? error.message : error
+    );
     return null;
   }
 
