@@ -10,7 +10,7 @@ import { z } from "zod";
 
 import { adminProcedure, router } from "../index";
 import { checkTypstCompiles } from "../lib/typst-compile-check";
-import { buildPhotoTypstSource } from "./templates";
+import { buildPhotoTypstSource, type TemplateVariable } from "./templates";
 
 const variableSchema = z.object({
   name: z.string().min(1),
@@ -30,6 +30,19 @@ const variableSchema = z.object({
       operator: z.enum(["eq", "neq", "in"]).optional(),
     })
     .optional(),
+  wordForms: z.tuple([z.string(), z.string(), z.string()]).optional(),
+});
+
+// Draft-tolerant variant for the live editor compile check: value constraints
+// relaxed (a just-added variable legitimately has an empty label mid-edit) and
+// only the fields buildPhotoTypstSource actually reads are declared — unknown
+// keys (UI flags and the rest) are stripped by zod.
+const draftVariableSchema = z.object({
+  name: z.string().min(1),
+  type: variableSchema.shape.type.optional(),
+  label: z.string().optional(),
+  defaultValue: z.union([z.string(), z.number(), z.boolean()]).optional(),
+  options: z.array(z.string()).optional(),
   wordForms: z.tuple([z.string(), z.string(), z.string()]).optional(),
 });
 
@@ -151,6 +164,34 @@ export const adminTemplatesRouter = router({
       .orderBy(desc(template.updatedAt));
     return rows.map(withoutPreviewImages);
   }),
+
+  // Live editor check: the admin UI calls this (debounced) while the source
+  // is being typed/pasted, so a broken template is visible BEFORE save — the
+  // in-app preview is lenient and renders even sources the real compiler
+  // rejects. Compiles the same transformed source the photo/PDF pipeline runs.
+  // Variables are accepted in draft form (e.g. a just-added one with an empty
+  // label) — the strict save schema would 400 here and kill the live check;
+  // only the fields the compile transform reads are declared.
+  checkCompile: adminProcedure
+    .input(
+      z.object({
+        typstContent: z.string(),
+        variables: z.array(draftVariableSchema).default([]),
+      })
+    )
+    .mutation(async ({ input }) => {
+      if (!input.typstContent.trim()) {
+        return { error: null };
+      }
+      const built = buildPhotoTypstSource(
+        input.typstContent,
+        input.variables as TemplateVariable[]
+      );
+      const error = await checkTypstCompiles(built, {
+        lineOffset: countLines(built) - countLines(input.typstContent),
+      });
+      return { error };
+    }),
 
   create: adminProcedure.input(upsertInput).mutation(async ({ input, ctx }) => {
     const [created] = await db

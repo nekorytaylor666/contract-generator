@@ -10,7 +10,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
 import { NativeInlinePreview } from "@/components/template-builder/native-inline-preview";
@@ -168,6 +168,109 @@ function notifyCompileWarnings(
       }
     );
   }
+}
+
+// Live compile status for the source being edited: debounced run through the
+// REAL Typst compiler. The inline preview is intentionally lenient and renders
+// sources the real compiler rejects, so without this the admin first learns
+// about a broken template from the save warning (or worse, a 404 photo).
+function CompileStatusBanner({
+  typstContent,
+  variables,
+}: {
+  typstContent: string;
+  variables: TemplateVariable[];
+}) {
+  const trpc = useTRPC();
+  // failed = the CHECK itself broke (network/server), not the template.
+  const [checked, setChecked] = useState<{
+    content: string;
+    error: string | null;
+    failed: boolean;
+  } | null>(null);
+  // Guards against out-of-order responses: only the check for the latest
+  // debounced content may publish its result.
+  const latestContentRef = useRef("");
+  const check = useMutation(trpc.adminTemplates.checkCompile.mutationOptions());
+  const { mutate, isPending } = check;
+
+  // Serialized so object identity doesn't retrigger the debounce every render.
+  const variablesKey = JSON.stringify(variables);
+  useEffect(() => {
+    if (!typstContent.trim()) {
+      return;
+    }
+    latestContentRef.current = typstContent;
+    // Verdict (or failure) for this exact content is already known — don't
+    // re-spawn a compile for it (e.g. typing a char and undoing it).
+    if (checked?.content === typstContent) {
+      return;
+    }
+    // One compile in flight at a time: when it settles, isPending flips and
+    // this effect re-runs — if the content moved on, the next check starts.
+    if (isPending) {
+      return;
+    }
+    const id = setTimeout(
+      () =>
+        mutate(
+          { typstContent, variables: JSON.parse(variablesKey) },
+          {
+            onSuccess: (res) => {
+              if (latestContentRef.current === typstContent) {
+                setChecked({
+                  content: typstContent,
+                  error: res.error,
+                  failed: false,
+                });
+              }
+            },
+            onError: () => {
+              if (latestContentRef.current === typstContent) {
+                setChecked({
+                  content: typstContent,
+                  error: null,
+                  failed: true,
+                });
+              }
+            },
+          }
+        ),
+      800
+    );
+    return () => clearTimeout(id);
+  }, [typstContent, variablesKey, checked, isPending, mutate]);
+
+  if (!typstContent.trim()) {
+    return null;
+  }
+  if (checked?.content !== typstContent) {
+    return (
+      <p className="shrink-0 text-muted-foreground text-xs">
+        Проверяю компиляцию…
+      </p>
+    );
+  }
+  if (checked.failed) {
+    return (
+      <p className="shrink-0 text-muted-foreground text-xs">
+        Не удалось проверить компиляцию (ошибка запроса) — проверка выполнится
+        при сохранении.
+      </p>
+    );
+  }
+  if (checked.error) {
+    return (
+      <div className="max-h-40 shrink-0 overflow-auto whitespace-pre-line rounded border border-destructive/40 bg-destructive/10 p-2 text-destructive text-xs">
+        {`Настоящий Typst не компилирует этот исходник — фото и скачивание PDF работать не будут:\n${checked.error}`}
+      </div>
+    );
+  }
+  return (
+    <p className="shrink-0 text-emerald-600 text-xs">
+      ✓ Компилируется настоящим Typst
+    </p>
+  );
 }
 
 const EMPTY_LOCALE_FORM: LocaleForm = {
@@ -872,6 +975,10 @@ function AdminTemplatesPage() {
                       }
                       placeholder="#set page(...)&#10;{{variableName}} ..."
                       value={activeContent.typstContent}
+                    />
+                    <CompileStatusBanner
+                      typstContent={activeContent.typstContent}
+                      variables={mergedVariables}
                     />
                   </div>
 
