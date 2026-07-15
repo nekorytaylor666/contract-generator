@@ -494,10 +494,20 @@ function AdminTemplatesPage() {
     value: string
   ) => setForm((prev) => applyLocaleField(prev, activeLocale, field, value));
 
-  const invalidate = () =>
+  const invalidate = () => {
     queryClient.invalidateQueries({
       queryKey: trpc.adminTemplates.list.queryKey(),
     });
+    // Public pages (catalogue/detail/builder) cache the same templates —
+    // drop them too so an admin switching to the public view in this tab
+    // sees the edit immediately, not a staleTime later.
+    queryClient.invalidateQueries({
+      queryKey: trpc.templates.list.queryKey(),
+    });
+    queryClient.invalidateQueries({
+      queryKey: trpc.templates.getById.queryKey(),
+    });
+  };
 
   const createMutation = useMutation(
     trpc.adminTemplates.create.mutationOptions({

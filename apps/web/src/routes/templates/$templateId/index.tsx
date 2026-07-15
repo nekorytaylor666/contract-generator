@@ -263,7 +263,15 @@ function RouteComponent() {
     data: template,
     isLoading,
     error,
-  } = useQuery(trpc.templates.getById.queryOptions({ id: templateId }));
+  } = useQuery({
+    ...trpc.templates.getById.queryOptions({ id: templateId }),
+    // Admin edits must be visible on the next visit, not a staleTime later:
+    // cached data still paints instantly, but every mount revalidates (which
+    // also refreshes the ?v cache key of the photo). Focus refetch is forced
+    // for the "edit as admin in one window, check as client in another" flow.
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+  });
 
   // Stable variables array per template load, resolved for the UI language —
   // a locale with its own typst carries its own variables.

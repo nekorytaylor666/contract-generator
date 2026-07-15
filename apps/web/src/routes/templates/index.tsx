@@ -209,9 +209,15 @@ function RouteComponent() {
     return input;
   }, [selectedCategories, selectedDocTypes, i18n.language]);
 
-  const { data: templates = [], isLoading } = useQuery(
-    trpc.templates.list.queryOptions(listInput)
-  );
+  const { data: templates = [], isLoading } = useQuery({
+    ...trpc.templates.list.queryOptions(listInput),
+    // Catalogue revalidates on every visit so fresh admin edits (titles,
+    // prices, photos via ?v) show up without a hard reload. Focus refetch is
+    // forced too: "admin edits in one window, checks as client in another"
+    // must not be gated by the global staleTime.
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+  });
 
   const { data: bookmarkIds = [] } = useQuery(
     trpc.templates.myBookmarks.queryOptions()

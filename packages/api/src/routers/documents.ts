@@ -181,13 +181,15 @@ export const documentsRouter = router({
 
         const newVersion = existing.currentVersion + 1;
 
-        // Save version snapshot — pin to the same template version the document
-        // was originally pinned to (don't auto-upgrade on edit).
+        // Save version snapshot — re-pin to the LATEST template version. The
+        // builder renders and downloads the live template, so keeping the
+        // creation-time pin made admin edits invisible in saved documents;
+        // the per-version pin below still records what was live at save time.
         await db.insert(documentVersion).values({
           id: randomUUID(),
           documentId: existing.id,
           version: newVersion,
-          templateVersionId: existing.templateVersionId ?? pinnedVersionId,
+          templateVersionId: pinnedVersionId,
           variables: input.variables,
           logo: input.logo ?? null,
           style: input.style ?? null,
@@ -203,7 +205,7 @@ export const documentsRouter = router({
             style: input.style ?? null,
             currentVersion: newVersion,
             title: input.title ?? existing.title,
-            templateVersionId: existing.templateVersionId ?? pinnedVersionId,
+            templateVersionId: pinnedVersionId,
           })
           .where(eq(document.id, existing.id));
 
@@ -381,6 +383,7 @@ export const documentsRouter = router({
         id: randomUUID(),
         documentId: doc.id,
         version: newVersion,
+        templateVersionId: ver.templateVersionId ?? doc.templateVersionId,
         variables: ver.variables,
         logo: ver.logo,
         style: ver.style,

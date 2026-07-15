@@ -128,7 +128,15 @@ function RouteComponent() {
     data: template,
     isLoading,
     error,
-  } = useQuery(trpc.templates.getById.queryOptions({ id: templateId }));
+  } = useQuery({
+    ...trpc.templates.getById.queryOptions({ id: templateId }),
+    // Fresh template on every builder entry — admin edits (variables,
+    // defaults, prices) must not be served from a stale SPA cache. Focus
+    // refetch is forced so an admin edit in another window shows up as soon
+    // as this one is focused again.
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+  });
 
   // Admin-synced variables for the selected contract language: a locale with
   // its own typst carries its own variables (labels/hints/option literals
@@ -339,9 +347,12 @@ function RouteComponent() {
     if (!latestValuesRef.current) {
       return;
     }
+    // Always compile the LIVE template — the on-screen preview and the form
+    // already render it, so the downloaded PDF must match. Pinning the
+    // document's templateVersionId here served week-old snapshots after every
+    // admin edit ("the template never updates").
     compileMutation.mutate({
       templateId,
-      templateVersionId: existingDocument?.templateVersionId ?? undefined,
       locale: docLocale,
       variables: latestValuesRef.current,
       logo: logo ?? undefined,
@@ -350,14 +361,7 @@ function RouteComponent() {
         preset: documentStyle.preset,
       },
     });
-  }, [
-    templateId,
-    existingDocument?.templateVersionId,
-    compileMutation.mutate,
-    logo,
-    documentStyle,
-    docLocale,
-  ]);
+  }, [templateId, compileMutation.mutate, logo, documentStyle, docLocale]);
 
   const handleSave = useCallback(() => {
     if (!(canEdit && latestValuesRef.current)) {
