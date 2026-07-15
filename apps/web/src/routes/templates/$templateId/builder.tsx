@@ -7,6 +7,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Check, Loader2, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import {
   type DocumentStyle,
   DocumentStyleSettings,
@@ -23,6 +24,7 @@ import {
 import { VersionHistory } from "@/components/template-builder/version-history";
 import { Button } from "@/components/ui/button";
 import { requireAuth } from "@/lib/auth-guard";
+import { remapValuesForLocale } from "@/lib/locale-values";
 import { parseNativeLets } from "@/lib/native-typst";
 import type { TemplateVariable } from "@/routes/templates";
 import { useTRPC } from "@/utils/trpc";
@@ -40,6 +42,49 @@ export const Route = createFileRoute("/templates/$templateId/builder")({
   },
 });
 
+function pluralFields(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) {
+    return "поля";
+  }
+  return "полей";
+}
+
+// The same variable-resolution chain the render path uses: admin-synced
+// per-locale variables, else fillable `#let`s parsed from that locale's typst.
+function variablesForLocale(
+  template: {
+    title: string;
+    description: string | null;
+    typstContent: string;
+    variables?: unknown;
+    localizedContent: Parameters<typeof resolveLocalized>[1];
+  },
+  locale: string
+): TemplateVariable[] {
+  const stored = resolveLocalizedVariables<TemplateVariable>(
+    (template.variables ?? []) as TemplateVariable[],
+    template.localizedContent,
+    locale
+  );
+  if (stored.length > 0) {
+    return stored;
+  }
+  const source = resolveLocalized(
+    {
+      title: template.title,
+      description: template.description,
+      typstContent: template.typstContent,
+    },
+    template.localizedContent,
+    locale
+  );
+  return isNativeTypst(source.typstContent)
+    ? parseNativeLets(source.typstContent)
+    : [];
+}
+
 function RouteComponent() {
   const { templateId } = Route.useParams();
   const { documentId: initialDocumentId } = Route.useSearch();
@@ -50,6 +95,9 @@ function RouteComponent() {
   const { data: myAccess } = useQuery(trpc.team.myAccess.queryOptions());
   const canEdit = myAccess?.canEdit !== false;
   const [logo, setLogo] = useState<string | null>(null);
+  // Contract language — starts from the UI language but is switched
+  // independently via the «Язык договора» select in the toolbar.
+  const [docLocale, setDocLocale] = useState<string>(i18n.language);
   const [documentStyle, setDocumentStyle] = useState<DocumentStyle>({
     font: "New Computer Modern",
     preset: "default",
@@ -82,18 +130,19 @@ function RouteComponent() {
     error,
   } = useQuery(trpc.templates.getById.queryOptions({ id: templateId }));
 
-  // Admin-synced variables for the current UI language: a locale with its own
-  // typst carries its own variables (labels/hints/option literals match it).
+  // Admin-synced variables for the selected contract language: a locale with
+  // its own typst carries its own variables (labels/hints/option literals
+  // match it).
   const storedVariables = useMemo<TemplateVariable[]>(
     () =>
       template
         ? resolveLocalizedVariables(
             template.variables as TemplateVariable[],
             template.localizedContent,
-            i18n.language
+            docLocale
           )
         : [],
-    [template, i18n.language]
+    [template, docLocale]
   );
 
   // Load existing document if documentId is set
@@ -279,7 +328,7 @@ function RouteComponent() {
     compileMutation.mutate({
       templateId,
       templateVersionId: existingDocument?.templateVersionId ?? undefined,
-      locale: i18n.language,
+      locale: docLocale,
       variables: latestValuesRef.current,
       logo: logo ?? undefined,
       style: {
@@ -293,7 +342,7 @@ function RouteComponent() {
     compileMutation.mutate,
     logo,
     documentStyle,
-    i18n.language,
+    docLocale,
   ]);
 
   const handleSave = useCallback(() => {
@@ -304,8 +353,8 @@ function RouteComponent() {
       documentId: documentId ?? undefined,
       templateId,
       // Names a newly created document after the template's title in the
-      // current UI language.
-      locale: i18n.language,
+      // selected contract language.
+      locale: docLocale,
       variables: latestValuesRef.current,
       logo,
       style: {
@@ -320,7 +369,7 @@ function RouteComponent() {
     logo,
     documentStyle,
     canEdit,
-    i18n.language,
+    docLocale,
   ]);
 
   const handleLogoChange = useCallback((newLogo: string | null) => {
@@ -330,6 +379,37 @@ function RouteComponent() {
   const handleStyleChange = useCallback((newStyle: DocumentStyle) => {
     setDocumentStyle(newStyle);
   }, []);
+
+  // Contract-language switch. Values hold locale-bound literals («Юридическое
+  // лицо» ↔ «Заңды тұлға») that the new locale's `#if` conditions compare
+  // byte-for-byte — carry them over instead of keeping the old-locale text,
+  // then remount the form so it picks up the translated values and labels.
+  const handleLocaleChange = useCallback(
+    (nextLocale: string) => {
+      if (!template || nextLocale === docLocale) {
+        return;
+      }
+      const { values, changed } = remapValuesForLocale(
+        latestValuesRef.current ?? formValues,
+        variablesForLocale(template, docLocale),
+        variablesForLocale(template, nextLocale)
+      );
+      setDocLocale(nextLocale);
+      if (changed.size > 0) {
+        setInitialValues(values);
+        setFormValues(values);
+        latestValuesRef.current = values;
+        setFormKey((k) => k + 1);
+        triggerHighlight(changed);
+        // Auto-translation is best-effort — in a legal document the user must
+        // eyeball the substituted literals, so point them at the highlights.
+        toast.info(
+          `Значения ${changed.size} ${pluralFields(changed.size)} переведены под выбранный язык — проверьте подсвеченные поля`
+        );
+      }
+    },
+    [template, docLocale, formValues, triggerHighlight]
+  );
 
   const handlePreviewVersion = useCallback(
     (
@@ -420,7 +500,8 @@ function RouteComponent() {
     );
   }
 
-  // Document content for the current UI language (falls back to the default).
+  // Document content for the selected contract language (falls back to the
+  // default when the template has no override for it).
   const localized = resolveLocalized(
     {
       title: template.title,
@@ -428,7 +509,7 @@ function RouteComponent() {
       typstContent: template.typstContent,
     },
     template.localizedContent,
-    i18n.language
+    docLocale
   );
 
   // Native Typst (#let) templates may have no synced variables[] — fall back to
@@ -491,6 +572,8 @@ function RouteComponent() {
       {/* Toolbar */}
       <div className="flex items-center gap-3 border-border border-b bg-background px-4 py-2">
         <DocumentStyleSettings
+          locale={docLocale}
+          onLocaleChange={handleLocaleChange}
           onStyleChange={handleStyleChange}
           style={documentStyle}
         />

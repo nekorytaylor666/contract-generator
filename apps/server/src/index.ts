@@ -4,7 +4,7 @@ import { createContext } from "@contract-builder/api/context";
 import { processRobokassaResult } from "@contract-builder/api/lib/payment-service";
 import { verifySuccessSignature } from "@contract-builder/api/lib/robokassa";
 import { appRouter } from "@contract-builder/api/routers/index";
-import { getTemplatePreviewPng } from "@contract-builder/api/routers/templates";
+import { getTemplatePreview } from "@contract-builder/api/routers/templates";
 import { auth } from "@contract-builder/auth";
 import { allowedWebOrigins, env } from "@contract-builder/env/server";
 import { trpcServer } from "@hono/trpc-server";
@@ -41,18 +41,23 @@ app.use(
 // "Photo" of a template: PNG of the rendered first page with gray placeholder
 // labels. Cached in the DB; regenerated after admin content changes.
 app.get("/templates/:id/preview.png", async (c) => {
-  const png = await getTemplatePreviewPng(
+  const preview = await getTemplatePreview(
     c.req.param("id"),
     c.req.query("locale")
   );
-  if (!png) {
+  if (!preview) {
     return c.notFound();
   }
-  c.header("Content-Type", "image/png");
-  // The web app versions the URL (?v=<currentVersion>), so long browser
-  // caching is safe: content edits produce a new URL.
+  // The web app versions the URL (?v=<updatedAt>), so long caching is safe:
+  // content edits produce a new URL.
   c.header("Cache-Control", "public, max-age=86400");
-  return c.body(new Uint8Array(png));
+  if (preview.kind === "url") {
+    // Photo lives in Cloudflare Images — browsers cache the redirect and load
+    // the bytes straight from imagedelivery.net's edge.
+    return c.redirect(preview.url, 302);
+  }
+  c.header("Content-Type", "image/png");
+  return c.body(new Uint8Array(preview.png));
 });
 
 app.post("/ai", async (c) => {

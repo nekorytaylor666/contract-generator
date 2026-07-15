@@ -35,6 +35,14 @@ import {
   resolveLocalizedVariables,
 } from "../constants/template-options";
 import { protectedProcedure, publicProcedure, router } from "../index";
+import {
+  cloudflareDeliveryConfigured,
+  cloudflareImagesConfigured,
+  cloudflareImageUrl,
+  deleteCloudflareImage,
+  isCloudflareImageId,
+  uploadCloudflareImage,
+} from "../lib/cloudflare-images";
 import { consumeQuota } from "../lib/subscription";
 import { pluralize } from "../utils/pluralize";
 
@@ -336,6 +344,21 @@ function applyStyleOverrides(
 
   let result = typstContent;
 
+  // Templates without their own `#set text(...)` (most AI-generated ones)
+  // would otherwise compile with raw typst defaults — ragged right edge,
+  // different margins — while the in-app preview renders the preset (justify
+  // etc.). Prepend the preset instead: any `#set` rules the template does
+  // declare come later and win, so this is a pure baseline.
+  if (!result.includes("#set text(")) {
+    const fontPart = style.font ? `font: "${style.font}", ` : "";
+    const header = [
+      `#set text(${fontPart}size: ${preset.fontSize})`,
+      `#set page(margin: ${preset.margin})`,
+      `#set par(leading: ${preset.leading}, spacing: ${preset.spacing}, justify: true)`,
+    ].join("\n");
+    return `${header}\n${result}`;
+  }
+
   if (style.font) {
     result = result.replace(
       SET_TEXT_REGEX,
@@ -632,31 +655,11 @@ export function buildPhotoTypstSource(
   });
 }
 
-/**
- * PNG photo of the template's first page, cached per locale in the
- * `preview_images` column (admin save clears the cache on content changes).
- * Returns null when the template is missing or its source fails to compile —
- * the client then falls back to the in-browser preview.
- */
-export async function getTemplatePreviewPng(
-  templateId: string,
-  locale?: string
+/** Compiles the photo PNG for one locale key; null when the source is broken. */
+async function compileTemplatePhoto(
+  row: typeof template.$inferSelect,
+  key: string
 ): Promise<Buffer | null> {
-  const [row] = await db
-    .select()
-    .from(template)
-    .where(eq(template.id, templateId))
-    .limit(1);
-  if (!row) {
-    return null;
-  }
-
-  const key = locale && PHOTO_LOCALES.has(locale) ? locale : "default";
-  const cached = row.previewImages?.[key];
-  if (cached) {
-    return Buffer.from(cached, "base64");
-  }
-
   const resolved = resolveLocalized(
     {
       title: row.title,
@@ -672,34 +675,186 @@ export async function getTemplatePreviewPng(
     key === "default" ? undefined : key
   );
   const content = buildPhotoTypstSource(resolved.typstContent, templateVars);
-
-  let png: Buffer;
   try {
-    png = await compileTypstToPng(content);
+    return await compileTypstToPng(content);
   } catch (error) {
     // The endpoint 404s and the client silently falls back to the in-browser
     // render, so without this log a broken template is invisible server-side.
     console.error(
-      `preview.png: template ${templateId} (${key}) failed to compile:`,
+      `preview.png: template ${row.id} (${key}) failed to compile:`,
       error instanceof Error ? error.message : error
     );
     return null;
   }
+}
 
-  await db
+/**
+ * Records one preview cache entry with an atomic jsonb merge, guarded by
+ * updatedAt: a concurrent request for another locale must not be clobbered by
+ * this row snapshot, and an admin edit mid-generation (which clears the cache
+ * and deletes the Cloudflare images) must win over this now-stale write.
+ * Setting updatedAt to its own unchanged value stops $onUpdate from bumping
+ * it — caching a photo isn't a content edit, and the client's ?v=updatedAt
+ * cache key must stay stable.
+ */
+async function savePreviewCacheEntry(
+  row: typeof template.$inferSelect,
+  key: string,
+  value: string
+): Promise<"stored" | "conflict"> {
+  const [saved] = await db
     .update(template)
     .set({
-      previewImages: {
-        ...(row.previewImages ?? {}),
-        [key]: png.toString("base64"),
-      },
-      // Caching the photo isn't a content edit — keep updatedAt intact so the
-      // client's ?v=updatedAt cache key stays stable (else every generation
-      // would bust the browser cache once).
+      previewImages: sql`coalesce(${template.previewImages}, '{}'::jsonb) || ${JSON.stringify({ [key]: value })}::jsonb`,
       updatedAt: row.updatedAt,
     })
-    .where(eq(template.id, templateId));
-  return png;
+    .where(and(eq(template.id, row.id), eq(template.updatedAt, row.updatedAt)))
+    .returning({ id: template.id });
+  return saved ? "stored" : "conflict";
+}
+
+/**
+ * Uploads a rendered photo to Cloudflare Images and records its id.
+ * Returns null when the caller should fall back to serving the PNG bytes —
+ * every failure path cleans up its own upload so images don't leak.
+ */
+async function storeCloudflarePreview(
+  row: typeof template.$inferSelect,
+  key: string,
+  png: Buffer
+): Promise<TemplatePreviewResult | null> {
+  let imageId: string;
+  try {
+    imageId = await uploadCloudflareImage(png, {
+      templateId: row.id,
+      locale: key,
+    });
+  } catch (error) {
+    console.error(
+      `preview.png: template ${row.id} (${key}) Cloudflare upload failed:`,
+      error instanceof Error ? error.message : error
+    );
+    return null;
+  }
+  try {
+    const stored = await savePreviewCacheEntry(row, key, imageId);
+    if (stored === "conflict") {
+      // Admin edited the template mid-generation: their cache clear (and
+      // image deletes) win — this render is stale, don't resurrect it.
+      await deleteCloudflareImage(imageId);
+      return null;
+    }
+    return { kind: "url", url: cloudflareImageUrl(imageId) };
+  } catch (error) {
+    console.error(
+      `preview.png: template ${row.id} (${key}) failed to store preview cache:`,
+      error instanceof Error ? error.message : error
+    );
+    await deleteCloudflareImage(imageId);
+    return null;
+  }
+}
+
+export type TemplatePreviewResult =
+  | { kind: "url"; url: string }
+  | { kind: "png"; png: Buffer };
+
+async function generateTemplatePreview(
+  templateId: string,
+  locale?: string
+): Promise<TemplatePreviewResult | null> {
+  const [row] = await db
+    .select()
+    .from(template)
+    .where(eq(template.id, templateId))
+    .limit(1);
+  if (!row) {
+    return null;
+  }
+
+  const key = locale && PHOTO_LOCALES.has(locale) ? locale : "default";
+  const cached = row.previewImages?.[key];
+  // Note: a stored id with the account hash rotated out is deliberately NOT
+  // served — it would redirect to imagedelivery.net/undefined/…; regeneration
+  // below lands on the base64 path instead.
+  if (cached && isCloudflareImageId(cached) && cloudflareDeliveryConfigured()) {
+    return { kind: "url", url: cloudflareImageUrl(cached) };
+  }
+  const legacyPng =
+    cached && !isCloudflareImageId(cached)
+      ? Buffer.from(cached, "base64")
+      : null;
+  const uploadsReady = cloudflareImagesConfigured();
+  if (legacyPng && !uploadsReady) {
+    return { kind: "png", png: legacyPng };
+  }
+
+  // Reuse legacy cached bytes for the Cloudflare upgrade instead of
+  // recompiling — with a broken token this path runs on every request and
+  // must stay cheap (and keep serving the cache).
+  const png = legacyPng ?? (await compileTemplatePhoto(row, key));
+  if (!png) {
+    return null;
+  }
+
+  if (uploadsReady) {
+    const uploaded = await storeCloudflarePreview(row, key, png);
+    if (uploaded) {
+      return uploaded;
+    }
+    // Upload failed but a legacy cache entry exists — keep serving it without
+    // rewriting the row; the upgrade retries on a later request.
+    if (legacyPng) {
+      return { kind: "png", png };
+    }
+  }
+
+  try {
+    await savePreviewCacheEntry(row, key, png.toString("base64"));
+  } catch (error) {
+    console.error(
+      `preview.png: template ${templateId} (${key}) failed to store preview cache:`,
+      error instanceof Error ? error.message : error
+    );
+  }
+  return { kind: "png", png };
+}
+
+// One generation per (template, locale) at a time: concurrent catalogue views
+// after an admin edit would otherwise each run a typst compile + upload and
+// orphan each other's images.
+const inflightPreviews = new Map<
+  string,
+  Promise<TemplatePreviewResult | null>
+>();
+
+/**
+ * Photo of the template's first page for the given locale.
+ *
+ * With Cloudflare Images configured the PNG is uploaded there once and the
+ * `preview_images` column stores just the image id — the endpoint redirects to
+ * imagedelivery.net. Without it (or when the upload fails) the PNG is cached
+ * base64-in-DB and served directly, exactly the old behavior. Legacy base64
+ * cache entries are transparently re-uploaded (from the cached bytes, no
+ * recompile) once Cloudflare is enabled.
+ *
+ * Returns null when the template is missing or its source fails to compile —
+ * the client then falls back to the in-browser preview.
+ */
+export function getTemplatePreview(
+  templateId: string,
+  locale?: string
+): Promise<TemplatePreviewResult | null> {
+  const dedupeKey = `${templateId}:${locale ?? ""}`;
+  const existing = inflightPreviews.get(dedupeKey);
+  if (existing) {
+    return existing;
+  }
+  const pending = generateTemplatePreview(templateId, locale).finally(() => {
+    inflightPreviews.delete(dedupeKey);
+  });
+  inflightPreviews.set(dedupeKey, pending);
+  return pending;
 }
 
 export const templatesRouter = router({
@@ -913,6 +1068,9 @@ export const templatesRouter = router({
       try {
         const vectorBuffer = await compileTypstToVector(processedContent, {
           logoBase64: input.logo,
+          // Baseline preset so set-less templates render justified — same
+          // look as the preview photo and the downloaded PDF.
+          style: { preset: "default" },
         });
         return { vectorData: vectorBuffer.toString("base64") };
       } catch (error) {
@@ -1119,7 +1277,11 @@ export const templatesRouter = router({
             fileName: `${resolved.title}.docx`,
           };
         }
-        const pdf = await compileTypst(processedContent);
+        // Same baseline preset the preview photo uses — a set-less template
+        // must download looking like its catalogue photo (justified, 2cm).
+        const pdf = await compileTypst(processedContent, {
+          style: { preset: "default" },
+        });
         return {
           dataUrl: `data:application/pdf;base64,${pdf.toString("base64")}`,
           fileName: `${resolved.title}.pdf`,

@@ -45,6 +45,14 @@ export const env = createEnv({
       .enum(["true", "false"])
       .default("false")
       .transform((value) => value === "true"),
+    // Cloudflare Images: template preview photos are uploaded there and served
+    // from imagedelivery.net. Optional so the server boots without them — the
+    // photo cache then falls back to base64-in-DB (old behavior). All three of
+    // ACCOUNT_ID / ACCOUNT_HASH / API_TOKEN must be set to enable uploads.
+    CLOUDFLARE_ACCOUNT_ID: z.string().min(1).optional(),
+    CLOUDFLARE_IMAGES_ACCOUNT_HASH: z.string().min(1).optional(),
+    CLOUDFLARE_IMAGES_API_TOKEN: z.string().min(1).optional(),
+    CLOUDFLARE_IMAGES_VARIANT: z.string().min(1).default("public"),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

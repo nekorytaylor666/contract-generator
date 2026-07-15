@@ -9,6 +9,10 @@ import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { adminProcedure, router } from "../index";
+import {
+  deleteCloudflareImage,
+  isCloudflareImageId,
+} from "../lib/cloudflare-images";
 import { checkTypstCompiles } from "../lib/typst-compile-check";
 import { buildPhotoTypstSource, type TemplateVariable } from "./templates";
 
@@ -129,6 +133,19 @@ async function collectCompileWarnings(
     })
   );
   return results.filter((w): w is CompileWarning => w !== null);
+}
+
+// Cached preview photos may live in Cloudflare Images (the cache then stores
+// image ids, not base64) — when a template edit/delete drops the cache, the
+// uploaded images must be deleted too or they pile up in the account.
+function collectCloudflareImageIds(previewImages: unknown): string[] {
+  if (!previewImages || typeof previewImages !== "object") {
+    return [];
+  }
+  return Object.values(previewImages as Record<string, unknown>).filter(
+    (value): value is string =>
+      typeof value === "string" && isCloudflareImageId(value)
+  );
 }
 
 // The cached photo PNGs (served by /templates/:id/preview.png) are heavy
@@ -274,6 +291,13 @@ export const adminTemplatesRouter = router({
         .where(eq(template.id, id))
         .returning();
 
+      if (renderChanged && updated) {
+        await Promise.all(
+          collectCloudflareImageIds(existing.previewImages).map(
+            deleteCloudflareImage
+          )
+        );
+      }
       if (contentChanged && updated) {
         await snapshotVersion(updated, ctx.session.user.id);
       }
@@ -294,13 +318,21 @@ export const adminTemplatesRouter = router({
       const [deleted] = await db
         .delete(template)
         .where(eq(template.id, input.id))
-        .returning({ id: template.id });
+        .returning({
+          id: template.id,
+          previewImages: template.previewImages,
+        });
       if (!deleted) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Template not found",
         });
       }
-      return deleted;
+      await Promise.all(
+        collectCloudflareImageIds(deleted.previewImages).map(
+          deleteCloudflareImage
+        )
+      );
+      return { id: deleted.id };
     }),
 });
