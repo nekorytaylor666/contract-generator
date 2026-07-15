@@ -1,19 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Building2, Trash2 } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
+import { Building2 } from "lucide-react";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 import { requireAuth } from "@/lib/auth-guard";
 
@@ -25,28 +12,12 @@ export const Route = createFileRoute("/settings")({
   },
 });
 
+// Organization deletion is postponed product-wise — the button and its
+// confirm dialog were removed on 15.07.2026 (restore from git history when
+// the flow is ready).
 function SettingsPage() {
   const { data: organizations } = authClient.useListOrganizations();
   const { data: activeOrg } = authClient.useActiveOrganization();
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleDelete = async () => {
-    if (!deletingId) {
-      return;
-    }
-    setIsDeleting(true);
-    try {
-      await authClient.organization.delete({ organizationId: deletingId });
-      toast.success("Организация удалена");
-      setDeletingId(null);
-      window.location.href = "/";
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Не удалось удалить");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   return (
     <div className="flex h-full flex-col overflow-auto">
@@ -84,40 +55,11 @@ function SettingsPage() {
                     <p className="text-muted-foreground text-xs">{org.slug}</p>
                   </div>
                 </div>
-                <Button
-                  onClick={() => setDeletingId(org.id)}
-                  size="sm"
-                  variant="outline"
-                >
-                  <Trash2 className="mr-1.5 size-3.5 text-destructive" />
-                  Удалить
-                </Button>
               </div>
             ))}
           </div>
         </section>
       </div>
-
-      <AlertDialog
-        onOpenChange={(open) => !open && setDeletingId(null)}
-        open={deletingId !== null}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Удалить организацию?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Действие необратимо. Все участники, документы и приглашения этой
-              организации будут удалены.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
-            <AlertDialogAction disabled={isDeleting} onClick={handleDelete}>
-              {isDeleting ? "Удаление..." : "Удалить"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

@@ -31,6 +31,33 @@ interface FieldInstance {
 interface VariableFieldProps {
   variable: TemplateVariable;
   field: FieldInstance;
+  /** Contract language — placeholders must match the localized labels. */
+  locale?: string;
+}
+
+// Lead-in phrasing for auto-generated placeholders, keyed by contract
+// language. Kazakh puts the label first (and keeps its case — it starts the
+// phrase); unknown locales fall back to Russian, the authoring default.
+const PLACEHOLDER_TEXTS: Record<
+  string,
+  { enter: (label: string) => string; choose: (label: string) => string }
+> = {
+  ru: {
+    enter: (label) => `Введите ${label.toLowerCase()}`,
+    choose: (label) => `Выберите ${label.toLowerCase()}`,
+  },
+  kk: {
+    enter: (label) => `${label} енгізіңіз`,
+    choose: (label) => `${label} таңдаңыз`,
+  },
+  en: {
+    enter: (label) => `Enter ${label.toLowerCase()}`,
+    choose: (label) => `Choose ${label.toLowerCase()}`,
+  },
+};
+
+function placeholderTexts(locale: string | undefined) {
+  return PLACEHOLDER_TEXTS[locale ?? "ru"] ?? PLACEHOLDER_TEXTS.ru;
 }
 
 // Option-count thresholds for how a select renders (per Figma):
@@ -207,10 +234,12 @@ function SelectField({
   variable,
   field,
   hasError,
+  locale,
 }: {
   variable: TemplateVariable;
   field: FieldInstance;
   hasError: boolean;
+  locale?: string;
 }) {
   const count = variable.options?.length ?? 0;
   // Options with `::` descriptions always render as rich radio cards (the Figma
@@ -236,7 +265,9 @@ function SelectField({
       value={(field.state.value as string) ?? ""}
     >
       <SelectTrigger aria-invalid={hasError} className="w-full" id={field.name}>
-        <SelectValue placeholder={`Выберите ${variable.label.toLowerCase()}`} />
+        <SelectValue
+          placeholder={placeholderTexts(locale).choose(variable.label)}
+        />
       </SelectTrigger>
       <SelectContent>
         {variable.options?.map((option) => (
@@ -276,11 +307,13 @@ function SwitchField({
 export const VariableField = memo(function VariableField({
   variable,
   field,
+  locale,
 }: VariableFieldProps) {
   const errors = field.state.meta.errors
     .map(getErrorMessage)
     .filter((e): e is string => e !== null);
   const hasError = errors.length > 0;
+  const texts = placeholderTexts(locale);
 
   const renderInput = () => {
     switch (variable.type) {
@@ -293,7 +326,7 @@ export const VariableField = memo(function VariableField({
             name={field.name}
             onBlur={field.handleBlur}
             onChange={(e) => field.handleChange(e.target.value)}
-            placeholder={`Введите ${variable.label.toLowerCase()}`}
+            placeholder={texts.enter(variable.label)}
             type="text"
             value={(field.state.value as string) ?? ""}
           />
@@ -308,7 +341,7 @@ export const VariableField = memo(function VariableField({
             name={field.name}
             onBlur={field.handleBlur}
             onChange={(e) => field.handleChange(e.target.value)}
-            placeholder={`Введите ${variable.label.toLowerCase()}`}
+            placeholder={texts.enter(variable.label)}
             rows={4}
             value={(field.state.value as string) ?? ""}
           />
@@ -326,7 +359,7 @@ export const VariableField = memo(function VariableField({
               const val = e.target.value;
               field.handleChange(val === "" ? "" : Number(val));
             }}
-            placeholder={`Введите ${variable.label.toLowerCase()}`}
+            placeholder={texts.enter(variable.label)}
             type="number"
             value={
               field.state.value !== undefined ? String(field.state.value) : ""
@@ -342,7 +375,7 @@ export const VariableField = memo(function VariableField({
             id={field.name}
             name={field.name}
             onChange={(date) => field.handleChange(date)}
-            placeholder={`Выберите ${variable.label.toLowerCase()}`}
+            placeholder={texts.choose(variable.label)}
             value={field.state.value as Date | undefined}
           />
         );
@@ -352,7 +385,12 @@ export const VariableField = memo(function VariableField({
 
       case "select":
         return (
-          <SelectField field={field} hasError={hasError} variable={variable} />
+          <SelectField
+            field={field}
+            hasError={hasError}
+            locale={locale}
+            variable={variable}
+          />
         );
 
       default:

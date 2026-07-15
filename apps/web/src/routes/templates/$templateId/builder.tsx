@@ -151,6 +151,40 @@ function RouteComponent() {
     enabled: !!documentId,
   });
 
+  // Admin-set defaults for every variable of the template (full set, NOT
+  // filtered by reachability). Computed synchronously so the form gets them
+  // on its very first mount — an effect would lose the race for complex
+  // native templates, leaving toggles/radios visually unset while the
+  // document preview already renders the default branch.
+  const templateDefaults = useMemo<Record<string, unknown>>(() => {
+    if (!template) {
+      return {};
+    }
+    // Same per-locale resolution chain as everywhere else — the fallback must
+    // parse the CONTRACT language's typst, or defaults would carry base-locale
+    // literals into another locale's form.
+    const templateVars = variablesForLocale(template, docLocale);
+    const defaults: Record<string, unknown> = {};
+    for (const v of templateVars) {
+      if (v.defaultValue !== undefined) {
+        defaults[v.name] = v.defaultValue;
+      } else {
+        switch (v.type) {
+          case "boolean":
+            defaults[v.name] = false;
+            break;
+          case "date":
+            defaults[v.name] = undefined;
+            break;
+          default:
+            defaults[v.name] = "";
+            break;
+        }
+      }
+    }
+    return defaults;
+  }, [template, docLocale]);
+
   // Set initial values from existing document
   const loadedDocIdRef = useRef<string | null>(null);
   useEffect(() => {
@@ -166,7 +200,9 @@ function RouteComponent() {
     const dateFields = new Set(
       storedVariables.filter((v) => v.type === "date").map((v) => v.name)
     );
-    const vars: Record<string, unknown> = {};
+    // Defaults underneath: fields added to the template after this document
+    // was saved still get their admin-set defaults instead of undefined.
+    const vars: Record<string, unknown> = { ...templateDefaults };
     for (const [key, value] of Object.entries(rawVars)) {
       if (dateFields.has(key) && typeof value === "string" && value) {
         vars[key] = new Date(value);
@@ -186,7 +222,7 @@ function RouteComponent() {
       setDocumentStyle(style);
     }
     setFormKey((k) => k + 1);
-  }, [existingDocument, template, storedVariables]);
+  }, [existingDocument, template, storedVariables, templateDefaults]);
 
   // Initialize formValues from template defaults when no document is loaded.
   // Once per template id: re-runs (language switch, query refetch) must not
@@ -202,31 +238,9 @@ function RouteComponent() {
       return;
     }
     defaultsInitRef.current = template.id;
-    const templateVars =
-      storedVariables.length > 0
-        ? storedVariables
-        : parseNativeLets(template.typstContent);
-    const defaults: Record<string, unknown> = {};
-    for (const v of templateVars) {
-      if (v.defaultValue !== undefined) {
-        defaults[v.name] = v.defaultValue;
-      } else {
-        switch (v.type) {
-          case "boolean":
-            defaults[v.name] = false;
-            break;
-          case "date":
-            defaults[v.name] = undefined;
-            break;
-          default:
-            defaults[v.name] = "";
-            break;
-        }
-      }
-    }
-    setFormValues(defaults);
-    latestValuesRef.current = defaults;
-  }, [template, initialValues, existingDocument, storedVariables]);
+    setFormValues(templateDefaults);
+    latestValuesRef.current = templateDefaults;
+  }, [template, initialValues, existingDocument, templateDefaults]);
 
   const triggerHighlight = useCallback((names: Set<string>) => {
     if (names.size === 0) {
@@ -417,11 +431,13 @@ function RouteComponent() {
       versionLogo: string | null,
       versionStyle: { font?: string; preset?: string } | null
     ) => {
-      // Preview version inline — hydrate dates and set form values
+      // Preview version inline — hydrate dates and set form values.
+      // Defaults underneath, like the doc-load path: fields the template
+      // gained after this version was saved must not become undefined.
       const dateFields = new Set(
         storedVariables.filter((v) => v.type === "date").map((v) => v.name)
       );
-      const variables: Record<string, unknown> = {};
+      const variables: Record<string, unknown> = { ...templateDefaults };
       for (const [key, value] of Object.entries(rawVariables)) {
         if (dateFields.has(key) && typeof value === "string" && value) {
           variables[key] = new Date(value);
@@ -441,7 +457,7 @@ function RouteComponent() {
         });
       }
     },
-    [storedVariables]
+    [storedVariables, templateDefaults]
   );
 
   const handleRevert = useCallback(
@@ -453,7 +469,11 @@ function RouteComponent() {
       const dateFields = new Set(
         storedVariables.filter((v) => v.type === "date").map((v) => v.name)
       );
-      const variables: Record<string, unknown> = {};
+      // Defaults underneath — reverting to a version saved before the
+      // template gained new defaulted fields must not leave them undefined
+      // (the form would show unset controls while the document renders the
+      // typst literal's branch).
+      const variables: Record<string, unknown> = { ...templateDefaults };
       for (const [key, value] of Object.entries(rawVariables)) {
         if (dateFields.has(key) && typeof value === "string" && value) {
           variables[key] = new Date(value);
@@ -475,7 +495,7 @@ function RouteComponent() {
       }
       setFormKey((k) => k + 1);
     },
-    [storedVariables]
+    [storedVariables, templateDefaults]
   );
 
   if (isLoading) {
@@ -511,6 +531,13 @@ function RouteComponent() {
     template.localizedContent,
     docLocale
   );
+  // Language the resolved content is ACTUALLY in: placeholders («Введите…» /
+  // «… енгізіңіз») must match the labels, and when the template has no
+  // version for docLocale everything falls back to the base (authored in
+  // Russian) — a Kazakh lead-in next to Russian labels would look broken.
+  const contentLocale = template.localizedContent?.[docLocale]?.typstContent
+    ? docLocale
+    : "ru";
 
   // Native Typst (#let) templates may have no synced variables[] — fall back to
   // parsing fillable `#let` fields out of the source so they drive the same form
@@ -640,9 +667,10 @@ function RouteComponent() {
             <PreviewErrorBoundary>
               <NativeForm
                 formApiRef={formApiRef}
-                initialValues={initialValues ?? undefined}
+                initialValues={initialValues ?? templateDefaults}
                 isSubmitting={compileMutation.isPending}
                 key={formKey}
+                locale={contentLocale}
                 onValuesChange={handleValuesChange}
                 typstContent={localized.typstContent}
                 values={formValues}

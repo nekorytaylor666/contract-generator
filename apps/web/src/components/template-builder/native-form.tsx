@@ -54,6 +54,7 @@ export function NativeForm({
   initialValues,
   isSubmitting,
   onValuesChange,
+  locale,
 }: {
   typstContent: string;
   values: Record<string, unknown>;
@@ -62,6 +63,8 @@ export function NativeForm({
   initialValues?: Record<string, unknown>;
   isSubmitting?: boolean;
   onValuesChange?: (values: Record<string, unknown>) => void;
+  /** Contract language — placeholders in fields follow it. */
+  locale?: string;
 }) {
   const valuesKey = JSON.stringify(values ?? {});
 
@@ -101,6 +104,7 @@ export function NativeForm({
       formApiRef={formApiRef}
       initialValues={initialValues}
       isSubmitting={isSubmitting}
+      locale={locale}
       onValuesChange={onValuesChange}
       sections={sections}
       variables={visibleVariables}

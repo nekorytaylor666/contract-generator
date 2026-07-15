@@ -102,7 +102,8 @@ export function detectVariables(typstContent: string): DetectedVariable[] {
 
 /**
  * Merge detected variables with existing user-defined ones.
- *  - Existing variable kept as-is (preserves label/required/defaultValue/dependsOn).
+ *  - Existing variable keeps its admin-owned fields (label/required/dependsOn);
+ *    typst-owned fields (options/descriptions/hint/defaultValue) re-sync.
  *  - For existing select: union new options with existing ones.
  *  - New variable: added with sensible defaults.
  *  - Variable that exists in `existing` but no longer in typst: marked `unused: true`
@@ -144,9 +145,12 @@ function mergeExistingVariable(
         ? optionDescriptions
         : undefined,
     hint: det.hint ?? ev.hint,
-    // Admin-set default wins; otherwise take the `#let` literal so the fill
-    // form starts from the template's own default, not an empty value.
-    defaultValue: ev.defaultValue ?? det.defaultValue,
+    // The `#let` literal is the source of truth for defaults — otherwise a
+    // default synced once sticks forever and the admin editing the typst
+    // (e.g. false → true) never reaches the form. Card-edited defaults
+    // survive only when the typst declares none (`#let x = ""`, legacy
+    // {{var}} templates).
+    defaultValue: det.defaultValue ?? ev.defaultValue,
     typeMismatch: typeMismatch || undefined,
   };
 }

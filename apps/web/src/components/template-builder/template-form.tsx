@@ -1,5 +1,6 @@
 import { useForm } from "@tanstack/react-form";
-import { useRef, useSyncExternalStore } from "react";
+import { ChevronDown } from "lucide-react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -46,6 +47,8 @@ interface TemplateFormProps {
   // When provided, fields render in numbered Figma-style sections
   // («Раздел N. …» + описание + подразделы N.M) instead of a flat list.
   sections?: FormSection[];
+  /** Contract language — auto-generated placeholders follow it. */
+  locale?: string;
 }
 
 function buildDefaultValues(
@@ -166,9 +169,26 @@ export function TemplateForm({
   initialValues,
   formApiRef,
   sections,
+  locale,
 }: TemplateFormProps) {
   const onValuesChangeRef = useRef(onValuesChange);
   onValuesChangeRef.current = onValuesChange;
+
+  // Collapsed section titles. Content is hidden with CSS (not unmounted) so
+  // the form fields keep their state while folded.
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
+    new Set()
+  );
+  const toggleSection = (title: string) =>
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(title)) {
+        next.delete(title);
+      } else {
+        next.add(title);
+      }
+      return next;
+    });
 
   const form = useForm({
     defaultValues: initialValues ?? buildDefaultValues(variables),
@@ -203,14 +223,22 @@ export function TemplateForm({
         key={variable.name}
         renderField={() => (
           <form.Field name={variable.name}>
-            {(field) => <VariableField field={field} variable={variable} />}
+            {(field) => (
+              <VariableField
+                field={field}
+                locale={locale}
+                variable={variable}
+              />
+            )}
           </form.Field>
         )}
         variable={variable}
       />
     ) : (
       <form.Field key={variable.name} name={variable.name}>
-        {(field) => <VariableField field={field} variable={variable} />}
+        {(field) => (
+          <VariableField field={field} locale={locale} variable={variable} />
+        )}
       </form.Field>
     );
 
@@ -234,34 +262,60 @@ export function TemplateForm({
       }}
     >
       {sections
-        ? sections.map((section, sIdx) => (
-            <section className="flex flex-col gap-3" key={section.title}>
-              <div>
-                <h3 className="font-semibold text-[17px] text-foreground leading-snug">
-                  Раздел {sIdx + 1}. {section.title}
-                </h3>
-                {section.description && (
-                  <p className="mt-1.5 text-[13px] text-muted-foreground leading-snug">
-                    {section.description}
-                  </p>
-                )}
-              </div>
-              {section.fields.length > 0 && (
-                <div className="flex flex-col gap-3">
-                  {renderNames(section.fields)}
+        ? sections.map((section, sIdx) => {
+            const isCollapsed = collapsedSections.has(section.title);
+            return (
+              <section className="flex flex-col gap-3" key={section.title}>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-semibold text-[17px] text-foreground leading-snug">
+                      Раздел {sIdx + 1}. {section.title}
+                    </h3>
+                    {section.description && !isCollapsed && (
+                      <p className="mt-1.5 text-[13px] text-muted-foreground leading-snug">
+                        {section.description}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    aria-expanded={!isCollapsed}
+                    aria-label={
+                      isCollapsed ? "Развернуть раздел" : "Свернуть раздел"
+                    }
+                    className="-mt-1 -mr-2 size-9 shrink-0 text-muted-foreground"
+                    onClick={() => toggleSection(section.title)}
+                    size="icon"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <ChevronDown
+                      className={`size-5 transition-transform ${
+                        isCollapsed ? "-rotate-90" : ""
+                      }`}
+                    />
+                  </Button>
                 </div>
-              )}
-              {section.subsections.map((sub, subIdx) => (
-                <div className="flex flex-col gap-3" key={sub.title}>
-                  <Separator className="mt-1" />
-                  <h4 className="font-semibold text-[15px] text-foreground">
-                    {sIdx + 1}.{subIdx + 1} {sub.title}
-                  </h4>
-                  {renderNames(sub.fields)}
+                {/* `contents` keeps the parent flex gap; `hidden` folds the
+                    section without unmounting its form fields. */}
+                <div className={isCollapsed ? "hidden" : "contents"}>
+                  {section.fields.length > 0 && (
+                    <div className="flex flex-col gap-3">
+                      {renderNames(section.fields)}
+                    </div>
+                  )}
+                  {section.subsections.map((sub, subIdx) => (
+                    <div className="flex flex-col gap-3" key={sub.title}>
+                      <Separator className="mt-1" />
+                      <h4 className="font-semibold text-[15px] text-foreground">
+                        {sIdx + 1}.{subIdx + 1} {sub.title}
+                      </h4>
+                      {renderNames(sub.fields)}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </section>
-          ))
+              </section>
+            );
+          })
         : variables.map((variable) => renderField(variable))}
 
       {onSubmit && (

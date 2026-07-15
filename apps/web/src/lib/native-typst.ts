@@ -175,6 +175,9 @@ function buildVariable(
   descriptions: Record<string, string> | null
 ): TemplateVariable {
   const label = labelFromName(name);
+  // `#let x = ""` means "no default", not "default is an empty string" — an
+  // empty defaultValue would stick in the admin sync and mask card edits.
+  const literal = unquote(rawValue);
   let variable: TemplateVariable;
   if (options) {
     variable = {
@@ -183,7 +186,7 @@ function buildVariable(
       label,
       required: false,
       options,
-      defaultValue: unquote(rawValue),
+      ...(literal !== "" ? { defaultValue: literal } : {}),
     };
   } else if (rawValue === "true" || rawValue === "false") {
     variable = {
@@ -199,7 +202,7 @@ function buildVariable(
       type: "text",
       label,
       required: false,
-      defaultValue: unquote(rawValue),
+      ...(literal !== "" ? { defaultValue: literal } : {}),
     };
   } else {
     variable = { name, type: "number", label, required: false };
