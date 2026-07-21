@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { FileText } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { isNativeTypst } from "@/lib/native-typst";
 import { useTRPC } from "@/utils/trpc";
 
 import { renderTypstVector } from "./typst-canvas-preview";
@@ -80,13 +81,6 @@ export function ServerTypstPreview({
       />
     </div>
   );
-}
-
-const VAR_PLACEHOLDER_REGEX = /\{\{\w+\}\}/;
-
-// Native Typst = no `{{var}}` placeholders (uses #let / functions instead).
-export function isNativeTypst(content: string): boolean {
-  return !VAR_PLACEHOLDER_REGEX.test(content);
 }
 
 // Constructs the inline JS parser can't interpret (functions, arrays, blocks,

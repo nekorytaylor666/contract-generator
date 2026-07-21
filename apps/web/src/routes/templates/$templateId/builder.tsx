@@ -17,15 +17,12 @@ import { LogoUpload } from "@/components/template-builder/logo-upload";
 import { NativeForm } from "@/components/template-builder/native-form";
 import { NativeInlinePreview } from "@/components/template-builder/native-inline-preview";
 import { PreviewErrorBoundary } from "@/components/template-builder/preview-error-boundary";
-import {
-  isComplexNative,
-  isNativeTypst,
-} from "@/components/template-builder/server-typst-preview";
+import { isComplexNative } from "@/components/template-builder/server-typst-preview";
 import { VersionHistory } from "@/components/template-builder/version-history";
 import { Button } from "@/components/ui/button";
 import { requireAuth } from "@/lib/auth-guard";
 import { remapValuesForLocale } from "@/lib/locale-values";
-import { parseNativeLets } from "@/lib/native-typst";
+import { isNativeTypst, parseNativeLets } from "@/lib/native-typst";
 import type { TemplateVariable } from "@/routes/templates";
 import { useTRPC } from "@/utils/trpc";
 
@@ -41,6 +38,40 @@ export const Route = createFileRoute("/templates/$templateId/builder")({
     return { session, organizations };
   },
 });
+
+// Loose equality over form values — the seeded-vs-current check must not be
+// tripped by representation drift (Date vs ISO string, "" vs undefined).
+function sameValues(
+  a: Record<string, unknown> | null,
+  b: Record<string, unknown> | null
+): boolean {
+  const left = a ?? {};
+  const right = b ?? {};
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) {
+    if (String(left[key] ?? "") !== String(right[key] ?? "")) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Merge template defaults into values for fields the user has never seen —
+// existing input wins. Returns null when nothing new was gained.
+function backfillNewFields(
+  current: Record<string, unknown>,
+  defaults: Record<string, unknown>
+): Record<string, unknown> | null {
+  let gained = false;
+  const merged = { ...current };
+  for (const [key, value] of Object.entries(defaults)) {
+    if (!(key in current)) {
+      merged[key] = value;
+      gained = true;
+    }
+  }
+  return gained ? merged : null;
+}
 
 function pluralFields(count: number): string {
   const mod10 = count % 10;
@@ -233,21 +264,49 @@ function RouteComponent() {
   }, [existingDocument, template, storedVariables, templateDefaults]);
 
   // Initialize formValues from template defaults when no document is loaded.
-  // Once per template id: re-runs (language switch, query refetch) must not
-  // clobber values the user has already typed.
+  // Keyed by id + updatedAt: on SPA navigation the stale cached template
+  // paints first and seeds the form, then the forced refetch delivers the
+  // admin's fresh edits — keying by id alone left the new defaults invisible
+  // ("the template never updates"). Language switches don't reseed (the key
+  // ignores locale), and values the user has already typed are never
+  // clobbered — a touched form only backfills fields it has never seen.
   const defaultsInitRef = useRef<string | null>(null);
+  const seededDefaultsRef = useRef<Record<string, unknown> | null>(null);
   useEffect(() => {
-    if (
-      !template ||
-      initialValues ||
-      existingDocument ||
-      defaultsInitRef.current === template.id
-    ) {
+    if (!template || initialValues || existingDocument) {
       return;
     }
-    defaultsInitRef.current = template.id;
+    const seedKey = `${template.id}:${String(template.updatedAt ?? "")}`;
+    if (defaultsInitRef.current === seedKey) {
+      return;
+    }
+    const isReseed =
+      defaultsInitRef.current?.startsWith(`${template.id}:`) ?? false;
+    defaultsInitRef.current = seedKey;
+    if (
+      isReseed &&
+      !sameValues(latestValuesRef.current, seededDefaultsRef.current)
+    ) {
+      // The user typed while the fresh template was in flight — keep their
+      // input, only pick up defaults for fields added since the stale seed.
+      const merged = backfillNewFields(
+        latestValuesRef.current ?? {},
+        templateDefaults
+      );
+      if (merged) {
+        setFormValues(merged);
+        latestValuesRef.current = merged;
+        setFormKey((k) => k + 1);
+      }
+      return;
+    }
+    seededDefaultsRef.current = templateDefaults;
     setFormValues(templateDefaults);
     latestValuesRef.current = templateDefaults;
+    if (isReseed) {
+      // TanStack Form reads initial values on mount only — remount it.
+      setFormKey((k) => k + 1);
+    }
   }, [template, initialValues, existingDocument, templateDefaults]);
 
   const triggerHighlight = useCallback((names: Set<string>) => {

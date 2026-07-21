@@ -1,4 +1,4 @@
-import { parseNativeLets } from "@/lib/native-typst";
+import { isNativeTypst, parseNativeLets } from "@/lib/native-typst";
 import type { TemplateVariable } from "@/routes/templates";
 
 interface DetectedVariable {
@@ -48,8 +48,10 @@ function inferTextLikeType(name: string): TemplateVariable["type"] {
  */
 export function detectVariables(typstContent: string): DetectedVariable[] {
   // Native Typst (#let bindings, no {{var}} placeholders): extract the
-  // top-level `#let name = ""` fields instead.
-  if (!typstContent.includes("{{")) {
+  // top-level `#let name = ""` fields instead. Same predicate as the render
+  // path (isNativeTypst) — a stray literal `{{` in prose must not flip a
+  // native template into the legacy branch.
+  if (typstAuthorsHints(typstContent)) {
     return parseNativeLets(typstContent).map((v) => ({
       name: v.name,
       type: v.type,
@@ -114,9 +116,23 @@ export interface MergedVariable extends TemplateVariable {
   typeMismatch?: boolean;
 }
 
+/**
+ * Whether hints are authored in this typst source. Native `#let` templates
+ * carry hints exclusively as `// @hint` comments — the variable card has no
+ * hint field — so a synced variable WITHOUT one means the comment was deleted
+ * and the stored hint must be dropped. Legacy `{{var}}` detection can't see
+ * hints at all: absence there is no evidence, the stored hint survives.
+ * Delegates to isNativeTypst — the same predicate detectVariables branches on
+ * and the render path uses, so the three can't drift apart.
+ */
+export function typstAuthorsHints(typstContent: string): boolean {
+  return isNativeTypst(typstContent);
+}
+
 function mergeExistingVariable(
   ev: TemplateVariable,
-  det: DetectedVariable
+  det: DetectedVariable,
+  hintFromTypst: boolean
 ): MergedVariable {
   // Type mismatch flag (e.g. user marked it text, typst uses it as boolean)
   const typeMismatch =
@@ -131,6 +147,8 @@ function mergeExistingVariable(
   // source of truth: they win per-key on every sync, so editing the template
   // updates the stored copy. Card-edited descriptions survive only for options
   // the typst comments don't cover (e.g. legacy {{var}} templates).
+  // For native templates the hint re-syncs INCLUDING deletion — a removed
+  // `// @hint` comment must clear the stored hint, not leave it sticking.
   const optionDescriptions =
     ev.type === "select"
       ? { ...ev.optionDescriptions, ...det.optionDescriptions }
@@ -144,7 +162,7 @@ function mergeExistingVariable(
       Object.keys(optionDescriptions).length > 0
         ? optionDescriptions
         : undefined,
-    hint: det.hint ?? ev.hint,
+    hint: hintFromTypst ? det.hint : (det.hint ?? ev.hint),
     // The `#let` literal is the source of truth for defaults — otherwise a
     // default synced once sticks forever and the admin editing the typst
     // (e.g. false → true) never reaches the form. Card-edited defaults
@@ -174,8 +192,10 @@ function newFromDetected(det: DetectedVariable): MergedVariable {
 
 export function mergeWithDetected(
   existing: TemplateVariable[],
-  detected: DetectedVariable[]
+  detected: DetectedVariable[],
+  options?: { hintsAuthoredInTypst?: boolean }
 ): MergedVariable[] {
+  const hintFromTypst = options?.hintsAuthoredInTypst ?? false;
   const detectedByName = new Map(detected.map((d) => [d.name, d]));
   const existingByName = new Map(existing.map((e) => [e.name, e]));
   const result: MergedVariable[] = [];
@@ -184,7 +204,7 @@ export function mergeWithDetected(
   for (const ev of existing) {
     const det = detectedByName.get(ev.name);
     if (det) {
-      result.push(mergeExistingVariable(ev, det));
+      result.push(mergeExistingVariable(ev, det, hintFromTypst));
     } else {
       result.push({ ...ev, unused: true });
     }

@@ -1,5 +1,15 @@
 import type { TemplateVariable } from "@/routes/templates";
 
+const VAR_PLACEHOLDER_REGEX = /\{\{\w+\}\}/;
+
+// Native Typst = no `{{var}}` placeholders (uses #let / functions instead).
+// The single source of truth for the native/legacy split: the render path,
+// detectVariables' parsing branch and the hint-sync semantics all key off it —
+// a stray literal `{{` in prose must not flip a native template to legacy.
+export function isNativeTypst(content: string): boolean {
+  return !VAR_PLACEHOLDER_REGEX.test(content);
+}
+
 // A top-level `#let name = <literal>` binding (string / true|false / number).
 // Functions (`#let f(...) =`), arrays (`= (...)`) and blocks (`= {...}`) don't
 // match and are left untouched.

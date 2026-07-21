@@ -22,10 +22,7 @@ import { toast } from "sonner";
 
 import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
 import { NativeInlinePreview } from "@/components/template-builder/native-inline-preview";
-import {
-  isComplexNative,
-  isNativeTypst,
-} from "@/components/template-builder/server-typst-preview";
+import { isComplexNative } from "@/components/template-builder/server-typst-preview";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { requireAuth } from "@/lib/auth-guard";
+import { isNativeTypst } from "@/lib/native-typst";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
 import type { TemplateVariable } from "../";

@@ -37,6 +37,9 @@ export const subscriptionsRouter = router({
     return {
       planId: plan?.id ?? null,
       planName: plan?.name ?? null,
+      // Платная подписка (не дефолтный «Разовый» тариф) — открывает смену
+      // статусов документов.
+      isPaid: Boolean(plan && !plan.isDefault),
       expiresAt: row?.expiresAt ?? null,
       downloadQuota: plan?.downloadQuota ?? 0,
       editQuota: plan?.editQuota ?? 0,

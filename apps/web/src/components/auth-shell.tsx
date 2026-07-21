@@ -42,7 +42,7 @@ export function AuthShell({
       </main>
 
       <footer className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 px-6 py-3 text-muted-foreground text-sm">
-        <span className="px-4 py-2">© Zhebe</span>
+        <span className="px-4 py-2">© ТОО «Primeis»</span>
         <a className="px-4 py-2 hover:text-foreground" href="/privacy">
           Политика конфиденциальности
         </a>

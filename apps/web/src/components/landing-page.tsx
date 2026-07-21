@@ -814,15 +814,21 @@ function Footer() {
           </div>
         </div>
         <div className="flex flex-col items-center justify-between gap-3 pt-6 text-landing-foreground/70 text-xs sm:flex-row">
-          <div className="flex gap-5">
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
             <a className="hover:text-landing-foreground" href="/privacy">
               Политика конфиденциальности
             </a>
-            <a className="hover:text-landing-foreground" href="/cookies">
+            <a className="hover:text-landing-foreground" href="/terms">
+              Пользовательское соглашение
+            </a>
+            <a
+              className="hover:text-landing-foreground"
+              href="/privacy#cookies"
+            >
               Политика Cookies
             </a>
           </div>
-          <span>Все права защищены. ТОО «Zhebe»</span>
+          <span>Все права защищены. ТОО «Primeis»</span>
         </div>
       </div>
     </footer>

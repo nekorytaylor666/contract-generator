@@ -8,6 +8,7 @@ import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 import Loader from "./loader";
+import { useCountdown } from "./password-dialog-shared";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
@@ -27,6 +28,15 @@ const otpSchema = z.object({
     .length(6, "Код должен состоять из 6 цифр")
     .regex(/^\d{6}$/, "Только цифры"),
 });
+const TWO_FA_RESEND_COOLDOWN_SECONDS = 60;
+
+// better-auth не создаёт сессию, если у аккаунта включена 2FA: вместо неё
+// приходит { twoFactorRedirect: true } и «полусессия»-кука на 10 минут.
+function hasTwoFactorRedirect(data: unknown): boolean {
+  return Boolean(
+    (data as { twoFactorRedirect?: boolean } | null)?.twoFactorRedirect
+  );
+}
 
 // Formats raw input into "+7 XXX XXX XX XX" as the user types.
 function formatKzPhone(value: string): string {
@@ -88,23 +98,55 @@ export default function SignInForm({
   const [phoneNumber, setPhoneNumber] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
+  // Шаг 2FA: пароль уже принят, ждём код из письма.
+  const [twoFaActive, setTwoFaActive] = useState(false);
+  const [twoFaEmail, setTwoFaEmail] = useState<string | null>(null);
+  const [twoFaSending, setTwoFaSending] = useState(false);
+  const twoFaResend = useCountdown();
+
   const onSignedIn = () => {
     toast.success("Вход выполнен успешно");
     window.location.href = "/dashboard";
   };
 
+  const sendTwoFaCode = async () => {
+    setTwoFaSending(true);
+    try {
+      const { error } = await authClient.twoFactor.sendOtp();
+      if (error) {
+        toast.error(error.message ?? "Не удалось отправить код");
+        return;
+      }
+      twoFaResend.start(TWO_FA_RESEND_COOLDOWN_SECONDS);
+    } finally {
+      setTwoFaSending(false);
+    }
+  };
+
+  // email известен только при входе по почте; при входе по телефону код всё
+  // равно уходит на почту аккаунта — адрес пользователю не раскрываем.
+  const startTwoFactor = async (email: string | null) => {
+    setTwoFaEmail(email);
+    setTwoFaActive(true);
+    await sendTwoFaCode();
+  };
+
   const emailForm = useForm({
     defaultValues: { email: "", password: "" },
     onSubmit: async ({ value }) => {
-      await authClient.signIn.email(
-        { email: value.email, password: value.password },
-        {
-          onSuccess: onSignedIn,
-          onError: (error) => {
-            toast.error(error.error.message || error.error.statusText);
-          },
-        }
-      );
+      const { data, error } = await authClient.signIn.email({
+        email: value.email,
+        password: value.password,
+      });
+      if (error) {
+        toast.error(error.message || "Неверная почта или пароль");
+        return;
+      }
+      if (hasTwoFactorRedirect(data)) {
+        await startTwoFactor(value.email);
+        return;
+      }
+      onSignedIn();
     },
     validators: {
       onSubmit: z.object({
@@ -114,10 +156,44 @@ export default function SignInForm({
     },
   });
 
+  // Основной вход по телефону — с паролем, без SMS (каждая SMS стоит денег).
+  // Код из SMS остаётся запасным путём (кнопка под формой).
   const phoneForm = useForm({
-    defaultValues: { phone: "" },
+    defaultValues: { phone: "", password: "" },
     onSubmit: async ({ value }) => {
       const phoneE164 = `+${value.phone.replace(/\D/g, "")}`;
+      const { data, error } = await authClient.signIn.phoneNumber({
+        phoneNumber: phoneE164,
+        password: value.password,
+      });
+      if (error) {
+        toast.error("Неверный номер телефона или пароль");
+        return;
+      }
+      if (hasTwoFactorRedirect(data)) {
+        await startTwoFactor(null);
+        return;
+      }
+      onSignedIn();
+    },
+    validators: {
+      onSubmit: phoneSchema.extend({
+        password: z.string().min(1, "Введите пароль"),
+      }),
+    },
+  });
+
+  // Запасной вход по коду из SMS (например, если пароль забыт).
+  const [smsSending, setSmsSending] = useState(false);
+  const sendSmsCode = async () => {
+    const phone = phoneForm.state.values.phone;
+    if (!phoneSchema.shape.phone.safeParse(phone).success) {
+      toast.error("Сначала введите номер телефона");
+      return;
+    }
+    setSmsSending(true);
+    try {
+      const phoneE164 = `+${phone.replace(/\D/g, "")}`;
       const { error } = await authClient.phoneNumber.sendOtp({
         phoneNumber: phoneE164,
       });
@@ -128,20 +204,51 @@ export default function SignInForm({
       setPhoneNumber(phoneE164);
       setPhoneStep("otp");
       toast.success("Код отправлен — проверьте SMS");
-    },
-    validators: { onSubmit: phoneSchema },
-  });
+    } finally {
+      setSmsSending(false);
+    }
+  };
 
   const otpForm = useForm({
-    // Dev-stub: код по умолчанию 111111. Убрать когда подключим реальный SMS.
-    defaultValues: { code: "111111" },
+    defaultValues: { code: "" },
     onSubmit: async ({ value }) => {
-      const { error } = await authClient.phoneNumber.verify({
+      const { data, error } = await authClient.phoneNumber.verify({
         phoneNumber,
         code: value.code,
       });
       if (error) {
         toast.error(error.message ?? "Неверный код");
+        return;
+      }
+      if (hasTwoFactorRedirect(data)) {
+        await startTwoFactor(null);
+        return;
+      }
+      onSignedIn();
+    },
+    validators: { onSubmit: otpSchema },
+  });
+
+  // Код 2FA из письма (после верного пароля/кода из SMS).
+  const twoFaForm = useForm({
+    defaultValues: { code: "" },
+    onSubmit: async ({ value }) => {
+      const { error } = await authClient.twoFactor.verifyOtp({
+        code: value.code,
+      });
+      if (error) {
+        const message = error.message ?? "";
+        if (message.includes("expired")) {
+          toast.error("Код устарел. Запросите новый.");
+        } else if (message.includes("Too many attempts")) {
+          toast.error("Слишком много попыток. Запросите новый код.");
+        } else if (message.includes("cookie")) {
+          // «Полусессия» (10 минут) истекла — начинаем вход заново.
+          toast.error("Время входа истекло. Войдите ещё раз.");
+          setTwoFaActive(false);
+        } else {
+          toast.error("Неверный код");
+        }
         return;
       }
       onSignedIn();
@@ -170,6 +277,7 @@ export default function SignInForm({
     if (next === "phone") {
       setPhoneStep("phone");
     }
+    setTwoFaActive(false);
     setMethod(next);
   };
 
@@ -301,6 +409,42 @@ export default function SignInForm({
         )}
       </phoneForm.Field>
 
+      <phoneForm.Field name="password">
+        {(field) => (
+          <div className="space-y-1">
+            <div className="relative">
+              <Input
+                autoComplete="current-password"
+                className="h-12 rounded-lg border-border bg-background px-4 pr-12 text-sm"
+                id="phone-password"
+                name={field.name}
+                onBlur={field.handleBlur}
+                onChange={(e) => field.handleChange(e.target.value)}
+                placeholder="Введите ваш пароль"
+                type={showPassword ? "text" : "password"}
+                value={field.state.value}
+              />
+              <button
+                className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowPassword(!showPassword)}
+                type="button"
+              >
+                {showPassword ? (
+                  <EyeOffIcon className="size-5" />
+                ) : (
+                  <EyeIcon className="size-5" />
+                )}
+              </button>
+            </div>
+            {field.state.meta.errors.map((error) => (
+              <p className="text-red-500 text-sm" key={error?.message}>
+                {error?.message}
+              </p>
+            ))}
+          </div>
+        )}
+      </phoneForm.Field>
+
       <phoneForm.Subscribe>
         {(state) => (
           <Button
@@ -308,10 +452,21 @@ export default function SignInForm({
             disabled={!state.canSubmit || state.isSubmitting}
             type="submit"
           >
-            {state.isSubmitting ? "Отправляем..." : "Получить код"}
+            {state.isSubmitting ? "Загрузка..." : "Войти"}
           </Button>
         )}
       </phoneForm.Subscribe>
+
+      <button
+        className="mx-auto flex items-center justify-center text-muted-foreground text-xs hover:text-foreground disabled:opacity-60"
+        disabled={smsSending}
+        onClick={sendSmsCode}
+        type="button"
+      >
+        {smsSending
+          ? "Отправляем код..."
+          : "Забыли пароль? Войти по коду из SMS"}
+      </button>
     </form>
   );
 
@@ -375,9 +530,91 @@ export default function SignInForm({
     </form>
   );
 
+  const twoFaFields = (
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        twoFaForm.handleSubmit();
+      }}
+    >
+      <p className="text-center text-muted-foreground text-sm">
+        Мы отправили 6-значный код на{" "}
+        {twoFaEmail ? `почту ${twoFaEmail}` : "почту вашего аккаунта"}
+      </p>
+      <twoFaForm.Field name="code">
+        {(field) => (
+          <div className="space-y-1">
+            <div className="relative">
+              <Input
+                autoComplete="one-time-code"
+                className="h-12 rounded-lg border-border bg-background px-4 pr-24 text-sm"
+                inputMode="numeric"
+                maxLength={6}
+                name={field.name}
+                onBlur={field.handleBlur}
+                onChange={(e) =>
+                  field.handleChange(e.target.value.replace(/\D/g, ""))
+                }
+                placeholder="Введите код"
+                value={field.state.value}
+              />
+              <div className="absolute top-1/2 right-3 -translate-y-1/2 text-sm">
+                {twoFaResend.active ? (
+                  <span className="text-muted-foreground">
+                    {twoFaResend.remainingSeconds} с.
+                  </span>
+                ) : (
+                  <button
+                    className="text-foreground hover:underline disabled:opacity-60"
+                    disabled={twoFaSending}
+                    onClick={sendTwoFaCode}
+                    type="button"
+                  >
+                    Повторить
+                  </button>
+                )}
+              </div>
+            </div>
+            {field.state.meta.errors.map((error) => (
+              <p className="text-red-500 text-sm" key={error?.message}>
+                {error?.message}
+              </p>
+            ))}
+          </div>
+        )}
+      </twoFaForm.Field>
+
+      <twoFaForm.Subscribe>
+        {(state) => (
+          <Button
+            className="h-12 w-full rounded-lg text-sm"
+            disabled={!state.canSubmit || state.isSubmitting}
+            type="submit"
+          >
+            {state.isSubmitting ? "Проверяем..." : "Войти"}
+          </Button>
+        )}
+      </twoFaForm.Subscribe>
+
+      <button
+        className="mx-auto flex items-center justify-center gap-1 text-muted-foreground text-xs hover:text-foreground"
+        onClick={() => setTwoFaActive(false)}
+        type="button"
+      >
+        <ArrowLeftIcon className="size-3" />
+        Назад
+      </button>
+    </form>
+  );
+
   let fields: ReactNode = emailFields;
   if (method === "phone") {
     fields = phoneStep === "phone" ? phoneNumberFields : otpFields;
+  }
+  if (twoFaActive) {
+    fields = twoFaFields;
   }
 
   return (

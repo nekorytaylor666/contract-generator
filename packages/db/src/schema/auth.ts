@@ -13,6 +13,7 @@ export const user = pgTable("user", {
   name: text("name").notNull(),
   email: text("email").unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
+  twoFactorEnabled: boolean("two_factor_enabled").default(false).notNull(),
   isAdmin: boolean("is_admin").default(false).notNull(),
   image: text("image"),
   phoneNumber: text("phone_number").unique(),
@@ -134,6 +135,22 @@ export const account = pgTable(
       .notNull(),
   },
   (table) => [index("account_userId_idx").on(table.userId)]
+);
+
+// Секрет и резервные коды 2FA (better-auth twoFactor plugin). Сам вход
+// подтверждается кодом из письма; TOTP-секрет плагин создаёт всегда, но в
+// интерфейсе он не используется.
+export const twoFactor = pgTable(
+  "two_factor",
+  {
+    id: text("id").primaryKey(),
+    secret: text("secret").notNull(),
+    backupCodes: text("backup_codes").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (table) => [index("two_factor_userId_idx").on(table.userId)]
 );
 
 export const verification = pgTable(

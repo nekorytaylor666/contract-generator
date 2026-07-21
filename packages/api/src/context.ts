@@ -1,9 +1,9 @@
 import { auth } from "@contract-builder/auth";
 import type { Context as HonoContext } from "hono";
 
-export type CreateContextOptions = {
+export interface CreateContextOptions {
   context: HonoContext;
-};
+}
 
 export async function createContext({ context }: CreateContextOptions) {
   const headers = context.req.raw.headers;
@@ -11,6 +11,9 @@ export async function createContext({ context }: CreateContextOptions) {
   return {
     session,
     headers,
+    // Заголовки ответа (например, set-cookie после смены пароля) — сервер
+    // отдаёт их клиенту через responseMeta tRPC-адаптера.
+    resHeaders: new Headers(),
   };
 }
 

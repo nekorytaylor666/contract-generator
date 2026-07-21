@@ -4,6 +4,10 @@ import { Check, Plus, Settings, User, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { ChangePasswordDialog } from "@/components/change-password-dialog";
+import { DeleteAccountDialog } from "@/components/delete-account-dialog";
+import { ForgotPasswordDialog } from "@/components/forgot-password-dialog";
+import { TwoFactorDialog } from "@/components/two-factor-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,6 +25,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { VerifyContactDialog } from "@/components/verify-contact-dialog";
 import { requireAuth } from "@/lib/auth-guard";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
@@ -889,7 +899,63 @@ function SecurityRow({
   );
 }
 
+function TwoFactorRow() {
+  const trpc = useTRPC();
+  const { data: me } = useQuery(trpc.account.me.queryOptions());
+  const [dialogMode, setDialogMode] = useState<"enable" | "disable" | null>(
+    null
+  );
+
+  const enabled = Boolean(me?.twoFactorEnabled);
+  const hasEmail = Boolean(me?.email);
+  const toggleButton = (
+    <Button
+      className="border-[#d4d4d4] bg-transparent text-foreground text-sm"
+      disabled={!(enabled || hasEmail)}
+      onClick={() => setDialogMode(enabled ? "disable" : "enable")}
+      size="lg"
+      type="button"
+      variant="outline"
+    >
+      {enabled ? "Отключить" : "Включить"}
+    </Button>
+  );
+
+  return (
+    <SecurityRow
+      action={
+        <>
+          {enabled || hasEmail ? (
+            toggleButton
+          ) : (
+            <Tooltip>
+              {/* Задизейбленная кнопка не ловит hover — тултип вешаем на обёртку */}
+              <TooltipTrigger asChild>
+                <span className="inline-flex">{toggleButton}</span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-52 text-center">
+                Укажите почту в разделе «Личные данные», чтобы подключить 2FA
+              </TooltipContent>
+            </Tooltip>
+          )}
+          <TwoFactorDialog
+            email={me?.email ?? null}
+            mode={dialogMode ?? "enable"}
+            onClose={() => setDialogMode(null)}
+            open={dialogMode !== null}
+          />
+        </>
+      }
+      subtitle={enabled ? "Включена" : "Выключена"}
+      title="Двухфакторная аутентификация"
+    />
+  );
+}
+
 function SecurityTab() {
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+
   return (
     <section className="flex flex-col divide-y divide-border">
       <SecurityRow
@@ -897,48 +963,33 @@ function SecurityTab() {
           <>
             <button
               className="px-2 text-foreground text-sm hover:underline"
+              onClick={() => setForgotPasswordOpen(true)}
               type="button"
             >
               Забыли пароль?
             </button>
+            <ForgotPasswordDialog
+              onClose={() => setForgotPasswordOpen(false)}
+              open={forgotPasswordOpen}
+            />
             <Button
               className="border-[#d4d4d4] bg-transparent text-foreground text-sm"
+              onClick={() => setChangePasswordOpen(true)}
               size="lg"
               variant="outline"
             >
               Изменить пароль
             </Button>
+            <ChangePasswordDialog
+              onClose={() => setChangePasswordOpen(false)}
+              open={changePasswordOpen}
+            />
           </>
         }
         subtitle="********"
         title="Пароль"
       />
-      <SecurityRow
-        action={
-          <Button
-            className="border-[#d4d4d4] bg-transparent text-foreground text-sm"
-            size="lg"
-            variant="outline"
-          >
-            Подключить Google
-          </Button>
-        }
-        subtitle="Выключена"
-        title="Авторизация через Google"
-      />
-      <SecurityRow
-        action={
-          <Button
-            className="border-[#d4d4d4] bg-transparent text-foreground text-sm"
-            size="lg"
-            variant="outline"
-          >
-            Включить
-          </Button>
-        }
-        subtitle="Выключена"
-        title="Двухфакторная аутентификация"
-      />
+      <TwoFactorRow />
     </section>
   );
 }
@@ -1008,9 +1059,8 @@ function PersonalDataTab() {
   const [editing, setEditing] = useState<EditField>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [emailDraft, setEmailDraft] = useState("");
-  const [phoneDraft, setPhoneDraft] = useState("");
   const [languageDraft, setLanguageDraft] = useState("ru");
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const update = useMutation(
     trpc.account.updateProfile.mutationOptions({
@@ -1029,14 +1079,8 @@ function PersonalDataTab() {
     setLastName(rest.join(" "));
     setEditing("name");
   };
-  const openEmail = () => {
-    setEmailDraft(me?.email ?? "");
-    setEditing("email");
-  };
-  const openPhone = () => {
-    setPhoneDraft(me?.phoneNumber ?? "");
-    setEditing("phone");
-  };
+  const openEmail = () => setEditing("email");
+  const openPhone = () => setEditing("phone");
   const openLanguage = () => {
     setLanguageDraft(me?.contractLanguage ?? "ru");
     setEditing("language");
@@ -1158,6 +1202,8 @@ function PersonalDataTab() {
         </div>
         <Button
           className="border-destructive/40 bg-transparent text-destructive text-sm hover:bg-destructive/10 hover:text-destructive"
+          disabled={!me}
+          onClick={() => setDeleteOpen(true)}
           size="lg"
           type="button"
           variant="outline"
@@ -1165,6 +1211,13 @@ function PersonalDataTab() {
           Удалить аккаунт
         </Button>
       </div>
+
+      <DeleteAccountDialog
+        email={me?.email ?? null}
+        onClose={() => setDeleteOpen(false)}
+        open={deleteOpen}
+        phoneNumber={me?.phoneNumber ?? null}
+      />
 
       {/* --- Edit dialogs --- */}
       <FieldDialog
@@ -1194,49 +1247,19 @@ function PersonalDataTab() {
         </div>
       </FieldDialog>
 
-      <FieldDialog
-        onApply={() =>
-          update.mutate({ email: emailDraft.trim() ? emailDraft.trim() : null })
-        }
+      <VerifyContactDialog
+        channel="email"
+        currentValue={me?.email ?? null}
         onClose={() => setEditing(null)}
         open={editing === "email"}
-        pending={update.isPending}
-        title="Электронная почта"
-      >
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="pd-email">Электронная почта</Label>
-          <Input
-            id="pd-email"
-            onChange={(e) => setEmailDraft(e.target.value)}
-            placeholder="you@example.com"
-            type="email"
-            value={emailDraft}
-          />
-        </div>
-      </FieldDialog>
+      />
 
-      <FieldDialog
-        onApply={() =>
-          update.mutate({
-            phoneNumber: phoneDraft.trim() ? phoneDraft.trim() : null,
-          })
-        }
+      <VerifyContactDialog
+        channel="phone"
+        currentValue={me?.phoneNumber ?? null}
         onClose={() => setEditing(null)}
         open={editing === "phone"}
-        pending={update.isPending}
-        title="Номер телефона"
-      >
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="pd-phone">Номер телефона</Label>
-          <Input
-            id="pd-phone"
-            onChange={(e) => setPhoneDraft(e.target.value)}
-            placeholder="+7 700 000 00 00"
-            type="tel"
-            value={phoneDraft}
-          />
-        </div>
-      </FieldDialog>
+      />
 
       <FieldDialog
         onApply={() =>

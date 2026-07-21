@@ -21,6 +21,11 @@ export const env = createEnv({
     SMTP_PASSWORD: z.string().min(1).optional(),
     // Optional display "From" (e.g. "Zhebe <no-reply@zhebe.kz>"); defaults to SMTP_USER.
     SMTP_FROM: z.string().min(1).optional(),
+    // Mobizon SMS gateway (api.mobizon.kz) for phone OTP. Optional so the
+    // server boots without it — the phone sign-in then falls back to the dev
+    // stub (code "111111", nothing is sent).
+    MOBIZON_API_KEY: z.string().min(1).optional(),
+    MOBIZON_API_URL: z.url().default("https://api.mobizon.kz"),
     NODE_ENV: z
       .enum(["development", "production", "test"])
       .default("development"),

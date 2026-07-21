@@ -27,8 +27,7 @@ export function SignUpOtpForm({
   phone: string;
 }) {
   const form = useForm({
-    // Dev-stub: код подтверждения по умолчанию — 111111. Убрать когда подключим SMS.
-    defaultValues: { code: "111111" },
+    defaultValues: { code: "" },
     onSubmit: async ({ value }) => {
       const { error } = await authClient.phoneNumber.verify({
         phoneNumber: phone,

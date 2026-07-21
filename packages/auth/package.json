@@ -16,10 +16,12 @@
     "@contract-builder/env": "workspace:*",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
+    "nodemailer": "^6.10.1",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@contract-builder/config": "workspace:*",
+    "@types/nodemailer": "^6.4.17",
     "typescript": "catalog:"
   }
 }

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { isMailerConfigured } from "@contract-builder/auth/mailer";
 import { db } from "@contract-builder/db";
 import {
   invitation,
@@ -10,7 +11,6 @@ import { env } from "@contract-builder/env/server";
 import { TRPCError } from "@trpc/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-
 import {
   ACCESS_LABELS,
   ACCESS_LEVELS,
@@ -25,7 +25,8 @@ import {
   publicProcedure,
   router,
 } from "../index";
-import { isMailerConfigured, sendTeamInvitationEmail } from "../lib/mailer";
+
+import { sendTeamInvitationEmail } from "../lib/mailer";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const TRAILING_SLASH_REGEX = /\/$/;

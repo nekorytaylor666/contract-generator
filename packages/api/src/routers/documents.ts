@@ -15,7 +15,17 @@ import { z } from "zod";
 
 import { resolveLocalized } from "../constants/template-options";
 import { editorProcedure, orgProcedure, router } from "../index";
-import { consumeQuota } from "../lib/subscription";
+import { consumeQuota, getEffectivePlan } from "../lib/subscription";
+
+// Статусы, которые пользователь ставит вручную из меню карточки. Значения
+// «расторгнут»/«ожидает подписи» зарезервированы под будущий флоу подписания
+// и руками не ставятся.
+const settableStatusSchema = z.enum([
+  "draft",
+  "in_progress",
+  "signed",
+  "expired",
+]);
 
 // Creating a document consumes one "edit" quota of the user's plan.
 async function consumeEditQuotaOrThrow(userId: string) {
@@ -248,6 +258,65 @@ export const documentsRouter = router({
       });
 
       return { id: docId, version: 1 };
+    }),
+
+  // Смена статуса карточки (меню «…»). Доступна на платной подписке —
+  // на дефолтном «Разовом» тарифе сервер отказывает.
+  setStatus: editorProcedure
+    .input(
+      z.object({
+        documentId: z.string(),
+        status: settableStatusSchema,
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const plan = await getEffectivePlan(ctx.session.user.id);
+      if (!plan || plan.isDefault) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Смена статуса доступна на платной подписке.",
+        });
+      }
+
+      const [updated] = await db
+        .update(document)
+        .set({ status: input.status })
+        .where(
+          and(
+            eq(document.id, input.documentId),
+            eq(document.organizationId, ctx.orgId)
+          )
+        )
+        .returning({ id: document.id, status: document.status });
+      if (!updated) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Document not found",
+        });
+      }
+      return updated;
+    }),
+
+  // Удаление документа из меню карточки (версии уйдут каскадом).
+  delete: editorProcedure
+    .input(z.object({ documentId: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      const [deleted] = await db
+        .delete(document)
+        .where(
+          and(
+            eq(document.id, input.documentId),
+            eq(document.organizationId, ctx.orgId)
+          )
+        )
+        .returning({ id: document.id });
+      if (!deleted) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Document not found",
+        });
+      }
+      return deleted;
     }),
 
   listVersions: orgProcedure

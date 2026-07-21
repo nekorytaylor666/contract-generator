@@ -26,6 +26,48 @@ app.use(
   })
 );
 
+// Смена пароля идёт только через tRPC auth.changePassword, где действует
+// лимит попыток. «Сырой» better-auth-роут /change-password обошёл бы этот
+// лимит (его встроенный rate-limit включён лишь в production), поэтому
+// закрываем его — регистрируем до общего /api/auth/* обработчика.
+app.post("/api/auth/change-password", (c) =>
+  c.json({ error: "Not found" }, 404)
+);
+
+// Плагин phoneNumber отдаёт «сырые» роуты, которыми угонщик сессии обошёл бы
+// шаг-ап смены контакта (account.verifyContactCode) и захватил аккаунт через
+// «Забыли пароль?»:
+//   • /phone-number/verify с updatePhoneNumber:true перепривязывает телефон
+//     текущей сессии на любой номер без пароля и ставит verified=true;
+//   • /phone-number/(request-)?reset-password сбрасывает пароль по SMS в обход
+//     нашего кулдауна (resetCodeLastSentAt) — приложение ходит через tRPC,
+//     который зовёт auth.api.* напрямую, а не по HTTP.
+// Смена/добавление телефона доступны только через защищённый tRPC-путь. При
+// этом sign-in/sign-up используют send-otp и обычный verify (без
+// updatePhoneNumber) — их не трогаем.
+const blockedPhoneRoutes = new Set([
+  "/api/auth/phone-number/request-password-reset",
+  "/api/auth/phone-number/reset-password",
+]);
+for (const path of blockedPhoneRoutes) {
+  app.post(path, (c) => c.json({ error: "Not found" }, 404));
+}
+app.post("/api/auth/phone-number/verify", async (c) => {
+  let updatesPhone = false;
+  try {
+    const body = (await c.req.raw.clone().json()) as {
+      updatePhoneNumber?: unknown;
+    };
+    updatesPhone = Boolean(body?.updatePhoneNumber);
+  } catch {
+    updatesPhone = false;
+  }
+  if (updatesPhone) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  return auth.handler(c.req.raw);
+});
+
 app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
 app.use(
@@ -35,6 +77,9 @@ app.use(
     createContext: (_opts, context) => {
       return createContext({ context });
     },
+    // Мутации (смена пароля) кладут set-cookie в ctx.resHeaders — отдаём их.
+    responseMeta: ({ ctx }) =>
+      ctx?.resHeaders ? { headers: ctx.resHeaders } : {},
   })
 );
 

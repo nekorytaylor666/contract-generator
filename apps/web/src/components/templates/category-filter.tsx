@@ -111,40 +111,17 @@ export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
   }
 
   function renderSub(sub: CategorySub) {
-    // Leafless subcategory (e.g. Трудовой договор) is selectable directly.
-    if (sub.leaves.length === 0) {
-      return (
-        <DropdownMenuCheckboxItem
-          checked={selectedSet.has(sub.slug)}
-          key={sub.slug}
-          onCheckedChange={() => toggle(sub.slug)}
-          onSelect={keepOpen}
-        >
-          {sub.label}
-        </DropdownMenuCheckboxItem>
-      );
-    }
-
-    const count = branchCount(sub.slug);
+    // Третий уровень (листовые документы) из фильтра убран — подкатегория
+    // выбирается целиком, совпадение раскрывается по потомкам на страницах.
     return (
-      <DropdownMenuSub key={sub.slug}>
-        <DropdownMenuSubTrigger>
-          <span className="flex-1">{sub.label}</span>
-          {count > 0 && <CountBadge value={count} />}
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent className="min-w-[260px]" sideOffset={16}>
-          {sub.leaves.map((leaf) => (
-            <DropdownMenuCheckboxItem
-              checked={selectedSet.has(leaf.slug)}
-              key={leaf.slug}
-              onCheckedChange={() => toggle(leaf.slug)}
-              onSelect={keepOpen}
-            >
-              {leaf.label}
-            </DropdownMenuCheckboxItem>
-          ))}
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
+      <DropdownMenuCheckboxItem
+        checked={selectedSet.has(sub.slug)}
+        key={sub.slug}
+        onCheckedChange={() => toggle(sub.slug)}
+        onSelect={keepOpen}
+      >
+        {sub.label}
+      </DropdownMenuCheckboxItem>
     );
   }
 }

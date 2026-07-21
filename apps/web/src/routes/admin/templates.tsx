@@ -43,6 +43,7 @@ import {
   detectVariables,
   type MergedVariable,
   mergeWithDetected,
+  typstAuthorsHints,
 } from "@/lib/template-variable-detector";
 import type { TemplateVariable } from "@/routes/templates";
 import { useTRPC } from "@/utils/trpc";
@@ -410,7 +411,9 @@ function buildLocalizedForSave(form: FormState): Record<string, LocaleForm> {
       out[locale] = {
         ...content,
         variables: stripFlags(
-          mergeWithDetected(seed, detectVariables(content.typstContent))
+          mergeWithDetected(seed, detectVariables(content.typstContent), {
+            hintsAuthoredInTypst: typstAuthorsHints(content.typstContent),
+          })
         ),
       };
     } else {
@@ -578,14 +581,18 @@ function AdminTemplatesPage() {
   // (label/required/dependsOn) but flags unused/typeMismatch.
   const mergedVariables: MergedVariable[] = useMemo(() => {
     const detected = detectVariables(activeTypst);
-    return mergeWithDetected(activeStoredVariables, detected);
+    return mergeWithDetected(activeStoredVariables, detected, {
+      hintsAuthoredInTypst: typstAuthorsHints(activeTypst),
+    });
   }, [activeTypst, activeStoredVariables]);
 
   // The default set always goes into the save payload's `variables`, no matter
   // which tab is open.
   const defaultMergedVariables: MergedVariable[] = useMemo(() => {
     const detected = detectVariables(form.typstContent);
-    return mergeWithDetected(form.variables, detected);
+    return mergeWithDetected(form.variables, detected, {
+      hintsAuthoredInTypst: typstAuthorsHints(form.typstContent),
+    });
   }, [form.typstContent, form.variables]);
 
   // The button lights up whenever the merged view differs from what's stored

@@ -11,9 +11,19 @@ import { useTRPC } from "@/utils/trpc";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
+const LOWERCASE_RE = /[a-z]/;
+const UPPERCASE_RE = /[A-Z]/;
+const DIGIT_RE = /\d/;
+const MIN_PASSWORD_LENGTH = 8;
+
 const passwordSchema = z
   .object({
-    password: z.string().min(8).regex(/[a-z]/).regex(/[A-Z]/).regex(/\d/),
+    password: z
+      .string()
+      .min(MIN_PASSWORD_LENGTH)
+      .regex(LOWERCASE_RE)
+      .regex(UPPERCASE_RE)
+      .regex(DIGIT_RE),
     confirm: z.string(),
   })
   .refine((d) => d.password === d.confirm, {
@@ -21,16 +31,19 @@ const passwordSchema = z
     path: ["confirm"],
   });
 
-type Requirement = {
+interface Requirement {
   label: string;
   test: (v: string) => boolean;
-};
+}
 
-const REQUIREMENTS: Requirement[] = [
-  { label: "Минимум 8 символов", test: (v) => v.length >= 8 },
-  { label: "Минимум одна строчная буква", test: (v) => /[a-z]/.test(v) },
-  { label: "Минимум одна цифра", test: (v) => /\d/.test(v) },
-  { label: "Минимум одна заглавная буква", test: (v) => /[A-Z]/.test(v) },
+export const PASSWORD_REQUIREMENTS: Requirement[] = [
+  {
+    label: "Минимум 8 символов",
+    test: (v) => v.length >= MIN_PASSWORD_LENGTH,
+  },
+  { label: "Минимум одна строчная буква", test: (v) => LOWERCASE_RE.test(v) },
+  { label: "Минимум одна цифра", test: (v) => DIGIT_RE.test(v) },
+  { label: "Минимум одна заглавная буква", test: (v) => UPPERCASE_RE.test(v) },
 ];
 
 export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
@@ -87,7 +100,9 @@ export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
         <form.Field name="password">
           {(field) => {
             const value = field.state.value;
-            const passwordReqsMet = REQUIREMENTS.every((r) => r.test(value));
+            const passwordReqsMet = PASSWORD_REQUIREMENTS.every((r) =>
+              r.test(value)
+            );
             const showError =
               field.state.meta.isTouched &&
               value.length > 0 &&
@@ -196,11 +211,11 @@ export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
   );
 }
 
-function PasswordRequirementsTooltip({ value }: { value: string }) {
+export function PasswordRequirementsTooltip({ value }: { value: string }) {
   return (
     <div className="absolute top-0 left-full ml-3 hidden w-max rounded-lg bg-foreground px-2 py-1.5 text-background text-xs shadow-lg md:block">
       <ul className="flex flex-col gap-1">
-        {REQUIREMENTS.map((r) => {
+        {PASSWORD_REQUIREMENTS.map((r) => {
           const ok = r.test(value);
           return (
             <li
