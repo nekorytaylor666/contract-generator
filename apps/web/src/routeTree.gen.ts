@@ -9,83 +9,33 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as TeamRouteImport } from './routes/team'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as RegisterRouteImport } from './routes/register'
-import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as DocumentsRouteImport } from './routes/documents'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as ContinueSignupRouteImport } from './routes/continue-signup'
-import { Route as AiRouteImport } from './routes/ai'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as TemplatesIndexRouteImport } from './routes/templates/index'
-import { Route as SuccessPaymentRouteImport } from './routes/success/payment'
-import { Route as FailPaymentRouteImport } from './routes/fail/payment'
-import { Route as AdminUsersRouteImport } from './routes/admin/users'
-import { Route as AdminTemplatesRouteImport } from './routes/admin/templates'
-import { Route as AdminSubscriptionsRouteImport } from './routes/admin/subscriptions'
+import { Route as AiRouteImport } from './routes/ai'
+import { Route as ContinueSignupRouteImport } from './routes/continue-signup'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DocumentsRouteImport } from './routes/documents'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as TeamRouteImport } from './routes/team'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminPurchasesRouteImport } from './routes/admin/purchases'
-import { Route as TemplatesTemplateIdIndexRouteImport } from './routes/templates/$templateId/index'
+import { Route as AdminSubscriptionsRouteImport } from './routes/admin/subscriptions'
+import { Route as AdminTemplatesRouteImport } from './routes/admin/templates'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as FailPaymentRouteImport } from './routes/fail/payment'
+import { Route as SuccessPaymentRouteImport } from './routes/success/payment'
+import { Route as TemplatesIndexRouteImport } from './routes/templates/index'
 import { Route as AcceptInvitationInvitationIdIndexRouteImport } from './routes/accept-invitation/$invitationId/index'
+import { Route as TemplatesTemplateIdIndexRouteImport } from './routes/templates/$templateId/index'
 import { Route as TemplatesTemplateIdBuilderRouteImport } from './routes/templates/$templateId/builder'
 
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TeamRoute = TeamRouteImport.update({
-  id: '/team',
-  path: '/team',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegisterRoute = RegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProfileRoute = ProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DocumentsRoute = DocumentsRouteImport.update({
-  id: '/documents',
-  path: '/documents',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ContinueSignupRoute = ContinueSignupRouteImport.update({
-  id: '/continue-signup',
-  path: '/continue-signup',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AiRoute = AiRouteImport.update({
@@ -93,39 +43,59 @@ const AiRoute = AiRouteImport.update({
   path: '/ai',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ContinueSignupRoute = ContinueSignupRouteImport.update({
+  id: '/continue-signup',
+  path: '/continue-signup',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TemplatesIndexRoute = TemplatesIndexRouteImport.update({
-  id: '/templates/',
-  path: '/templates/',
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SuccessPaymentRoute = SuccessPaymentRouteImport.update({
-  id: '/success/payment',
-  path: '/success/payment',
+const DocumentsRoute = DocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FailPaymentRoute = FailPaymentRouteImport.update({
-  id: '/fail/payment',
-  path: '/fail/payment',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: '/admin/users',
-  path: '/admin/users',
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
-  id: '/admin/templates',
-  path: '/admin/templates',
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminSubscriptionsRoute = AdminSubscriptionsRouteImport.update({
-  id: '/admin/subscriptions',
-  path: '/admin/subscriptions',
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeamRoute = TeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminPurchasesRoute = AdminPurchasesRouteImport.update({
@@ -133,16 +103,46 @@ const AdminPurchasesRoute = AdminPurchasesRouteImport.update({
   path: '/admin/purchases',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TemplatesTemplateIdIndexRoute =
-  TemplatesTemplateIdIndexRouteImport.update({
-    id: '/templates/$templateId/',
-    path: '/templates/$templateId/',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const AdminSubscriptionsRoute = AdminSubscriptionsRouteImport.update({
+  id: '/admin/subscriptions',
+  path: '/admin/subscriptions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminTemplatesRoute = AdminTemplatesRouteImport.update({
+  id: '/admin/templates',
+  path: '/admin/templates',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FailPaymentRoute = FailPaymentRouteImport.update({
+  id: '/fail/payment',
+  path: '/fail/payment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuccessPaymentRoute = SuccessPaymentRouteImport.update({
+  id: '/success/payment',
+  path: '/success/payment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesIndexRoute = TemplatesIndexRouteImport.update({
+  id: '/templates/',
+  path: '/templates/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AcceptInvitationInvitationIdIndexRoute =
   AcceptInvitationInvitationIdIndexRouteImport.update({
     id: '/accept-invitation/$invitationId/',
     path: '/accept-invitation/$invitationId/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const TemplatesTemplateIdIndexRoute =
+  TemplatesTemplateIdIndexRouteImport.update({
+    id: '/templates/$templateId/',
+    path: '/templates/$templateId/',
     getParentRoute: () => rootRouteImport,
   } as any)
 const TemplatesTemplateIdBuilderRoute =
@@ -334,81 +334,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/team': {
-      id: '/team'
-      path: '/team'
-      fullPath: '/team'
-      preLoaderRoute: typeof TeamRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/register': {
-      id: '/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof RegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/profile': {
-      id: '/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/documents': {
-      id: '/documents'
-      path: '/documents'
-      fullPath: '/documents'
-      preLoaderRoute: typeof DocumentsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/continue-signup': {
-      id: '/continue-signup'
-      path: '/continue-signup'
-      fullPath: '/continue-signup'
-      preLoaderRoute: typeof ContinueSignupRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ai': {
@@ -418,53 +348,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/continue-signup': {
+      id: '/continue-signup'
+      path: '/continue-signup'
+      fullPath: '/continue-signup'
+      preLoaderRoute: typeof ContinueSignupRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/templates/': {
-      id: '/templates/'
-      path: '/templates'
-      fullPath: '/templates/'
-      preLoaderRoute: typeof TemplatesIndexRouteImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/success/payment': {
-      id: '/success/payment'
-      path: '/success/payment'
-      fullPath: '/success/payment'
-      preLoaderRoute: typeof SuccessPaymentRouteImport
+    '/documents': {
+      id: '/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof DocumentsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/fail/payment': {
-      id: '/fail/payment'
-      path: '/fail/payment'
-      fullPath: '/fail/payment'
-      preLoaderRoute: typeof FailPaymentRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/users': {
-      id: '/admin/users'
-      path: '/admin/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminUsersRouteImport
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/templates': {
-      id: '/admin/templates'
-      path: '/admin/templates'
-      fullPath: '/admin/templates'
-      preLoaderRoute: typeof AdminTemplatesRouteImport
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/subscriptions': {
-      id: '/admin/subscriptions'
-      path: '/admin/subscriptions'
-      fullPath: '/admin/subscriptions'
-      preLoaderRoute: typeof AdminSubscriptionsRouteImport
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/team': {
+      id: '/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof TeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/purchases': {
@@ -474,11 +432,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPurchasesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/templates/$templateId/': {
-      id: '/templates/$templateId/'
-      path: '/templates/$templateId'
-      fullPath: '/templates/$templateId/'
-      preLoaderRoute: typeof TemplatesTemplateIdIndexRouteImport
+    '/admin/subscriptions': {
+      id: '/admin/subscriptions'
+      path: '/admin/subscriptions'
+      fullPath: '/admin/subscriptions'
+      preLoaderRoute: typeof AdminSubscriptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/templates': {
+      id: '/admin/templates'
+      path: '/admin/templates'
+      fullPath: '/admin/templates'
+      preLoaderRoute: typeof AdminTemplatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fail/payment': {
+      id: '/fail/payment'
+      path: '/fail/payment'
+      fullPath: '/fail/payment'
+      preLoaderRoute: typeof FailPaymentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/success/payment': {
+      id: '/success/payment'
+      path: '/success/payment'
+      fullPath: '/success/payment'
+      preLoaderRoute: typeof SuccessPaymentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates/': {
+      id: '/templates/'
+      path: '/templates'
+      fullPath: '/templates/'
+      preLoaderRoute: typeof TemplatesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/accept-invitation/$invitationId/': {
@@ -486,6 +479,13 @@ declare module '@tanstack/react-router' {
       path: '/accept-invitation/$invitationId'
       fullPath: '/accept-invitation/$invitationId/'
       preLoaderRoute: typeof AcceptInvitationInvitationIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates/$templateId/': {
+      id: '/templates/$templateId/'
+      path: '/templates/$templateId'
+      fullPath: '/templates/$templateId/'
+      preLoaderRoute: typeof TemplatesTemplateIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/templates/$templateId/builder': {

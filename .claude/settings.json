@@ -4,6 +4,8 @@
       "Bash(curl -s -X POST http://localhost:3000/api/auth/sign-in/social -H 'Content-Type: application/json' -d '{\"provider\":\"google\",\"callbackURL\":\"http://localhost:3001/dashboard\"}')",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
       "Bash(pnpm exec *)",
+      "Bash(bun run *)",
+      "Bash(bunx *)",
       "Bash(psql postgresql://contract:23je9fm31mdltk4m1da90031ksla@localhost:5432/contract-builder -c ' *)",
       "Bash(psql \"postgresql://contract:23je9fm31mdltk4m1da90031ksla@localhost:5432/contract-builder\" -c \"\\\\d payment\")",
       "Bash(python3 -c \"import json; e=json.load\\(open\\('/tmp/entry.json'\\)\\); print\\(list\\(e.keys\\(\\)\\)\\)\")",
@@ -28,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pnpm dlx ultracite fix"
+            "command": "bunx ultracite fix"
           }
         ]
       }

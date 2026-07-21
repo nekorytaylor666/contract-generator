@@ -18,7 +18,7 @@
     "db:watch": "docker compose up",
     "db:stop": "docker compose stop",
     "db:down": "docker compose down",
-    "db:seed": "pnpm dlx tsx src/seed.ts"
+    "db:seed": "bun src/seed.ts"
   },
   "dependencies": {
     "@contract-builder/env": "workspace:*",
