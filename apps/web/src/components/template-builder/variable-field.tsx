@@ -411,7 +411,7 @@ export const VariableField = memo(function VariableField({
       {variable.type !== "boolean" && (
         <div className="space-y-1">
           <Label
-            className="font-normal text-muted-foreground text-sm"
+            className="font-medium text-foreground text-sm"
             htmlFor={field.name}
           >
             {variable.required && "*"}

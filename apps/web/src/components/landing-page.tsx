@@ -1,18 +1,23 @@
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
-  CalendarCheck,
-  Check,
+  ArrowUpRight,
   ChevronDown,
-  Download,
+  CircleCheck,
+  CodeXml,
+  Coins,
+  FileUser,
+  Globe,
+  Hammer,
+  House,
   type LucideIcon,
+  Megaphone,
   Menu,
-  Minus,
   MoreHorizontal,
+  Plus,
+  RefreshCw,
   Scale,
-  Search,
-  Timer,
-  Wallet,
+  Tags,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -20,14 +25,17 @@ import { useEffect, useRef, useState } from "react";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
-import { cn } from "@/lib/utils";
 
+// Палитра лендинга из Figma (Landing, node 4264:23659): тёплый фон страницы,
+// песочные акценты и чернильный текст. Бордовый — общий токен --landing.
+const PAGE_BG = "#faf9f6";
 const TAN = "#f5d9b0";
+const PANEL = "#ecc07d";
+const INK = "#1b1b1b";
 
 const NAV_LINKS = [
   { href: "#about", label: "О решении" },
   { href: "#library", label: "Библиотека" },
-  { href: "#pricing", label: "Тарифы" },
 ];
 
 function ZhebeLogo({ className }: { className?: string }) {
@@ -62,14 +70,14 @@ function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 bg-landing text-landing-foreground">
-      <nav className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-4 sm:px-6">
+      <nav className="mx-auto flex h-[72px] max-w-[1200px] items-center justify-between px-4 sm:px-12">
         <a aria-label="Zhebe" className="flex flex-1 items-center" href="#top">
-          <ZhebeLogo className="h-8 w-auto text-landing-foreground" />
+          <ZhebeLogo className="h-10 w-auto text-[#faf9f6] sm:h-12" />
         </a>
-        <div className="hidden items-center gap-1 md:flex">
+        <div className="hidden items-center gap-0.5 md:flex">
           {NAV_LINKS.map((link) => (
             <a
-              className="rounded-lg px-4 py-2 text-landing-foreground/90 text-sm transition-colors hover:bg-landing-foreground/10"
+              className="rounded-lg px-4 py-2 font-medium text-[#faf9f6] text-sm transition-colors hover:bg-landing-foreground/10"
               href={link.href}
               key={link.href}
             >
@@ -77,12 +85,12 @@ function Navbar() {
             </a>
           ))}
         </div>
-        <div className="flex flex-1 items-center justify-end gap-2 sm:gap-3">
+        <div className="flex flex-1 items-center justify-end gap-2 sm:gap-4">
           <LanguageSwitcher triggerClassName="text-landing-foreground hover:bg-landing-foreground/10" />
           {session && (
             <Button
               asChild
-              className="h-9 bg-landing-foreground px-3 text-landing text-sm hover:bg-landing-foreground/90 sm:px-4"
+              className="h-9 rounded-lg bg-[#faf9f6] px-3 font-medium text-[#0a0a0a] text-sm hover:bg-[#faf9f6]/90 sm:px-4"
             >
               <Link to="/templates">Открыть приложение</Link>
             </Button>
@@ -93,14 +101,14 @@ function Navbar() {
             <>
               <Button
                 asChild
-                className="hidden h-9 border-landing-foreground/40 bg-transparent px-4 text-landing-foreground text-sm hover:bg-landing-foreground/10 sm:inline-flex"
+                className="hidden h-9 rounded-lg border-[#faf9f6] bg-transparent px-4 font-medium text-[#fafafa] text-sm hover:bg-landing-foreground/10 sm:inline-flex"
                 variant="outline"
               >
                 <Link to="/login">Войти</Link>
               </Button>
               <Button
                 asChild
-                className="h-9 bg-landing-foreground px-3 text-landing text-sm hover:bg-landing-foreground/90 sm:px-4"
+                className="h-9 rounded-lg bg-[#faf9f6] px-3 font-medium text-[#0a0a0a] text-sm hover:bg-[#faf9f6]/90 sm:px-4"
               >
                 <Link to="/register">Регистрация</Link>
               </Button>
@@ -145,11 +153,39 @@ function Navbar() {
   );
 }
 
-function HeroFloatingCard() {
+// Плавающее меню выбора контрагента поверх ноутбука — маркетинговая имитация
+// продукта из макета, не интерактив.
+function HeroContragentMenu() {
   return (
-    <div className="w-[260px] rounded-2xl border border-[#ececec] bg-white p-5 text-foreground shadow-2xl">
+    <div className="w-[167px] rounded-md border border-[#e5e5e5] bg-white p-1.5 shadow-xl">
+      <div className="flex flex-col gap-1">
+        {[
+          "ТОО «Ромашка», Юр.лицо",
+          "ИП «Square», Юр.лицо",
+          "Руслан Кошкаров, Физ.лицо",
+        ].map((item) => (
+          <span
+            className="rounded px-1.5 py-1 font-medium text-[#0a0a0a] text-[10px] leading-3"
+            key={item}
+          >
+            {item}
+          </span>
+        ))}
+        <span className="my-0.5 h-px w-full bg-[#e5e5e5]" />
+        <span className="flex items-center gap-1 rounded bg-[#f5f5f5] px-1.5 py-1.5 font-medium text-[#0a0a0a] text-[10px] leading-3">
+          <Plus className="size-3" />
+          Новый контрагент
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function HeroDocumentCard() {
+  return (
+    <div className="w-[262px] rounded-2xl border border-[#ececec] bg-white p-5 text-foreground shadow-2xl">
       <div className="flex items-center gap-1">
-        <span className="flex-1 truncate font-medium text-[12px]">
+        <span className="flex-1 truncate font-medium text-[#0a0a0a] text-[12px]">
           ТОО «Meridian Logistics»
         </span>
         <MoreHorizontal className="size-4 text-muted-foreground" />
@@ -168,21 +204,26 @@ function HeroFloatingCard() {
         </div>
       </div>
       <div className="mt-4 flex items-center justify-between">
-        <span className="rounded-full bg-[#d6edd6] px-2 py-1 font-medium text-[#2e6b2e] text-[11px]">
+        <span className="flex items-center gap-1 rounded-full bg-[#d6edd6] px-2 py-1.5 font-medium text-[#2e6b2e] text-[12px] leading-none">
+          <CircleCheck className="size-3" />
           Подписан
         </span>
         <div className="flex">
-          {["GA", "MU", "RK"].map((initials, i) => (
+          {["GA", "MU"].map((initials) => (
             <span
-              className={cn(
-                "flex size-7 items-center justify-center rounded-full border-2 border-white bg-[#f5f5f5] font-semibold text-[#0a0a0a] text-[10px]",
-                i > 0 && "-ml-2"
-              )}
+              className="-mr-2 flex size-8 items-center justify-center rounded-full border border-white bg-[#f5f5f5] font-semibold text-[#0a0a0a] text-[12px]"
               key={initials}
             >
               {initials}
             </span>
           ))}
+          <img
+            alt=""
+            className="size-8 rounded-full border border-white object-cover"
+            height={32}
+            src="/landing/avatar-photo.png"
+            width={32}
+          />
         </div>
       </div>
     </div>
@@ -192,23 +233,28 @@ function HeroFloatingCard() {
 function Hero() {
   return (
     <section className="bg-landing text-landing-foreground" id="top">
-      <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-20 lg:grid-cols-2 lg:py-24">
-        <div className="flex flex-col gap-6">
-          <span className="font-medium text-[16px]" style={{ color: TAN }}>
-            Онлайн конструктор договоров
-          </span>
-          <h1 className="font-semibold text-4xl leading-[1.15] tracking-tight sm:text-5xl">
-            Договор за пару кликов — доступно и составлено юристами
-          </h1>
-          <p className="max-w-md text-landing-foreground/85 leading-relaxed">
-            Каждый шаблон составлен практикующими юристами — так, чтобы интересы
-            обеих сторон были защищены. Выберите договор, заполните поля и
-            скачайте готовый документ за пару минут.
-          </p>
-          <div className="flex flex-wrap items-center gap-3 pt-2">
+      <div className="mx-auto grid max-w-[1200px] items-center gap-6 px-4 pt-16 pb-16 sm:px-12 sm:pt-24 lg:grid-cols-2">
+        <div className="flex flex-col gap-10 lg:gap-16">
+          <div className="flex flex-col gap-6">
+            <span className="font-medium text-[16px]" style={{ color: TAN }}>
+              Онлайн конструктор договоров
+            </span>
+            <h1
+              className="max-w-[519px] font-semibold text-[40px] leading-[48px] sm:text-[48px] sm:leading-[56px]"
+              style={{ color: TAN }}
+            >
+              Договор за пару кликов — доступно и составлено юристами
+            </h1>
+            <p className="max-w-[389px] font-medium text-[#faf9f6] text-base leading-5">
+              Каждый шаблон составлен практикующими юристами — так, чтобы
+              интересы обеих сторон были защищены. Выберите договор, заполните
+              поля и скачайте готовый документ за пару минут.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
             <Button
               asChild
-              className="h-11 rounded-full border-landing-foreground/60 bg-transparent px-6 text-landing-foreground text-sm hover:bg-landing-foreground/10"
+              className="h-9 rounded-full border-[#faf9f6] bg-transparent px-4 font-medium text-[#faf9f6] text-sm hover:bg-landing-foreground/10"
               variant="outline"
             >
               <Link to="/register">
@@ -216,28 +262,31 @@ function Hero() {
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
-            <span className="px-3 text-landing-foreground/70 text-sm">
+            <span className="px-4 py-2 font-medium text-[#faf9f6] text-sm">
               Без привязки карты
             </span>
           </div>
         </div>
 
-        <div className="relative hidden min-h-[420px] lg:block">
+        <div className="relative hidden min-h-[531px] lg:block">
           <img
-            alt="Договоры в конструкторе Zhebe"
-            className="h-full w-full rounded-2xl object-cover"
-            height={1067}
-            src="/landing/hero-collage.png"
-            width={1600}
+            alt="Конструктор договоров Zhebe на ноутбуке"
+            className="h-[531px] w-full rounded-lg object-cover"
+            height={1062}
+            src="/landing/hero-laptop.jpg"
+            width={1128}
           />
-          <div className="absolute top-6 left-0">
+          <div className="absolute top-8 right-[-8px]">
             <span className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 font-medium text-black text-sm shadow-lg">
               Скачать в PDF, DOCX
               <ChevronDown className="size-4" />
             </span>
           </div>
-          <div className="absolute bottom-6 left-2">
-            <HeroFloatingCard />
+          <div className="absolute top-[190px] left-[-24px]">
+            <HeroContragentMenu />
+          </div>
+          <div className="absolute right-2 bottom-[-28px]">
+            <HeroDocumentCard />
           </div>
         </div>
       </div>
@@ -249,96 +298,10 @@ interface Step {
   n: string;
   title: string;
   desc: string;
-  mock: () => React.ReactNode;
-}
-
-function CatalogMock() {
-  return (
-    <div className="space-y-2 rounded-lg bg-white p-3 shadow-sm">
-      <div className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-muted-foreground text-xs">
-        <Search className="size-3.5" />
-        Название договора или категория
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        {["Категория", "Тип договора", "Условия оплаты", "Срок действия"].map(
-          (chip) => (
-            <span
-              className="rounded-md border px-2 py-1 text-[10px] text-muted-foreground"
-              key={chip}
-            >
-              {chip}
-            </span>
-          )
-        )}
-      </div>
-      <div className="grid grid-cols-3 gap-2 pt-1">
-        {["Аренда жилья", "Трудовой договор", "Поставка товаров"].map((c) => (
-          <div className="rounded-md border p-2" key={c}>
-            <div className="mb-1 h-1.5 w-8 rounded bg-muted" />
-            <p className="font-medium text-[10px] text-foreground leading-tight">
-              {c}
-            </p>
-            <div className="mt-2 h-1 w-full rounded bg-muted" />
-            <div className="mt-1 h-1 w-2/3 rounded bg-muted" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function FormMock() {
-  return (
-    <div className="grid grid-cols-2 gap-2 rounded-lg bg-white p-3 shadow-sm">
-      <div className="space-y-1.5">
-        <div className="h-1.5 w-16 rounded bg-muted" />
-        <div className="h-2 w-full rounded bg-muted" />
-        <div className="h-2 w-5/6 rounded bg-muted" />
-        <div className="h-2 w-full rounded bg-muted" />
-      </div>
-      <div className="rounded-md border p-2">
-        <p className="font-semibold text-[10px] text-foreground">
-          Сведения об арендодателе
-        </p>
-        <div className="mt-2 space-y-1.5">
-          <div className="h-2 w-full rounded bg-muted" />
-          <div className="flex gap-1">
-            <span className="rounded-full bg-landing px-2 py-0.5 text-[8px] text-landing-foreground">
-              Физ. лицо
-            </span>
-            <span className="rounded-full border px-2 py-0.5 text-[8px] text-muted-foreground">
-              Юр. лицо
-            </span>
-          </div>
-          <div className="h-2 w-full rounded bg-muted" />
-          <div className="h-2 w-2/3 rounded bg-muted" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DownloadMock() {
-  return (
-    <div className="rounded-lg bg-white p-3 shadow-sm">
-      <div className="mb-2 flex items-center justify-between">
-        <span className="font-medium text-[10px] text-foreground">
-          Договор аренды нежилого помещения
-        </span>
-        <span className="flex items-center gap-1 rounded bg-landing px-2 py-1 text-[9px] text-landing-foreground">
-          <Download className="size-2.5" /> Скачать договор
-        </span>
-      </div>
-      <div className="space-y-1.5">
-        <div className="h-1.5 w-1/3 rounded bg-muted" />
-        <div className="h-2 w-full rounded bg-muted" />
-        <div className="h-2 w-full rounded bg-muted" />
-        <div className="h-2 w-4/5 rounded bg-muted" />
-        <div className="h-2 w-full rounded bg-muted" />
-        <div className="h-2 w-3/5 rounded bg-muted" />
-      </div>
-    </div>
-  );
+  image: string;
+  // Смещение «скриншота приложения» внутри персиковой панели (в процентах от
+  // её ширины/высоты) — каждая панель показывает свой участок продукта.
+  offset: { left: string; top: string };
 }
 
 const STEPS: Step[] = [
@@ -346,26 +309,37 @@ const STEPS: Step[] = [
     n: "Шаг 1",
     title: "Выберите шаблон",
     desc: "Найдите нужный договор в каталоге — по категории, ситуации или названию. Если нет нужного договора, напишите в тех.поддержку и мы создадим его.",
-    mock: CatalogMock,
+    image: "/landing/step-catalog.jpg",
+    offset: { left: "7%", top: "9%" },
   },
   {
     n: "Шаг 2",
     title: "Заполните поля",
     desc: "Платформа задаёт точные вопросы под каждый тип договора. Никаких лишних юридических терминов.",
-    mock: FormMock,
+    image: "/landing/step-builder.jpg",
+    offset: { left: "-31%", top: "-35%" },
   },
   {
     n: "Шаг 3",
     title: "Скачайте документ",
     desc: "Готовый договор в формате Word или PDF, который соответствует законодательству Казахстана, справедливый для всех сторон в пару кликов.",
-    mock: DownloadMock,
+    image: "/landing/step-builder.jpg",
+    offset: { left: "-33%", top: "10%" },
   },
 ];
 
-// Уровень «застревания» страницы: грид секции замирает на 62% высоты экрана —
-// сверху остаётся виден низ бордового героя. Высота правого окна ниже
-// (lg:h-[calc(38svh-48px)]) должна дополнять эту долю до 100svh минус отступ.
-const STEPS_LOCK_RATIO = 0.62;
+// Уровень «застревания» страницы: грид секции замирает на 58% высоты экрана
+// минус 115px (окно дважды увеличивали: +100px, потом ещё +10%) — сверху
+// остаётся виден низ бордового героя. Правое окно дополняет эту долю до
+// 100svh и затекает на 48px вверх (lg:-mt-12 lg:pt-12) — под самый край
+// героя, чтобы при листании контент уходил за цветовую границу. Высота окна
+// = (100 − 58)svh + 48px затека + 115px подъёма уровня — при изменении
+// констант поменяйте и класс высоты lg:h-[calc(42svh+163px)].
+const STEPS_LOCK_RATIO = 0.58;
+const STEPS_LOCK_LIFT = 115;
+// Верхний «затек» окна под героя = py-12 секции (48px). Должен совпадать с
+// классами lg:-mt-12 / lg:pt-12 / +48px в высоте окна.
+const STEPS_TOP_BLEED = 48;
 // Шаги листания с клавиатуры, пока страница заблокирована.
 const KEY_LINE_STEP = 60;
 const KEY_PAGE_SHARE = 0.8;
@@ -397,13 +371,19 @@ function Steps() {
     let prevTop = Number.POSITIVE_INFINITY;
     let touchY = 0;
 
-    const levelPx = () => Math.round(window.innerHeight * STEPS_LOCK_RATIO);
+    const levelPx = () =>
+      Math.round(window.innerHeight * STEPS_LOCK_RATIO) - STEPS_LOCK_LIFT;
     const apply = () => {
       track.style.transform = `translateY(${-Math.round(progress)}px)`;
     };
     const measure = () => {
+      // Верхние 48px окна (STEPS_TOP_BLEED) — зона «под героем», куда контент
+      // уезжает при листании; из видимой высоты для расчёта они исключаются.
       extra = mq.matches
-        ? Math.max(0, Math.ceil(track.scrollHeight - win.clientHeight))
+        ? Math.max(
+            0,
+            Math.ceil(track.scrollHeight - (win.clientHeight - STEPS_TOP_BLEED))
+          )
         : 0;
       progress = Math.min(progress, extra);
       apply();
@@ -518,40 +498,61 @@ function Steps() {
   }, []);
 
   return (
-    <section className="scroll-mt-20 bg-background py-20" id="about">
+    <section
+      className="scroll-mt-20 py-12"
+      id="about"
+      style={{ backgroundColor: PAGE_BG }}
+    >
       <div ref={outerRef}>
-        <div className="mx-auto grid max-w-6xl gap-12 px-6 lg:grid-cols-[1fr_1.4fr]">
-          <h2 className="font-semibold text-3xl text-foreground leading-tight tracking-tight sm:text-4xl lg:self-start">
+        <div className="mx-auto grid max-w-[1200px] gap-6 px-4 sm:px-6 lg:grid-cols-2">
+          <h2
+            className="max-w-[374px] font-semibold text-[32px] leading-10 sm:text-[40px] sm:leading-[48px] lg:self-start"
+            style={{ color: INK }}
+          >
             Три шага до готового договора
           </h2>
-          {/* Окно в нижней трети экрана (дополняет уровень застревания 62svh
-              до полной высоты с отступом 48px): листается только его
-              содержимое. Без маски по краям — она мешала читать текст. */}
+          {/* Окно от низа героя (затекает на 48px выше грида) до низа экрана:
+              оба обреза совпадают с естественными границами. Листается только
+              его содержимое. */}
           <div
-            className="lg:h-[calc(38svh-48px)] lg:overflow-hidden"
+            className="lg:-mt-12 lg:h-[calc(42svh+163px)] lg:overflow-hidden lg:pt-12"
             ref={windowRef}
           >
-            <div
-              className="flex flex-col gap-16 will-change-transform"
-              ref={trackRef}
-            >
+            <div className="flex flex-col gap-10" ref={trackRef}>
               {STEPS.map((step) => (
-                <div className="flex flex-col gap-5" key={step.n}>
-                  <div className="rounded-2xl bg-secondary/70 p-5">
-                    <step.mock />
+                <div className="flex flex-col gap-6" key={step.n}>
+                  {/* Персиковая панель с обрезанным «скриншотом» продукта */}
+                  <div
+                    className="relative aspect-[564/317] overflow-hidden rounded-lg"
+                    style={{ backgroundColor: PANEL }}
+                  >
+                    <div
+                      className="absolute w-[128%] overflow-hidden rounded-[10px] border border-[#ececec] bg-white shadow-2xl"
+                      style={{ left: step.offset.left, top: step.offset.top }}
+                    >
+                      <img
+                        alt={step.title}
+                        className="block h-auto w-full"
+                        height={810}
+                        src={step.image}
+                        width={1440}
+                      />
+                    </div>
                   </div>
-                  <div className="grid gap-2 sm:grid-cols-[110px_1fr]">
-                    <span className="font-medium text-muted-foreground text-sm">
+                  {/* Подпись: Шаг N | Название | Описание */}
+                  <div
+                    className="flex flex-col gap-2 sm:flex-row sm:gap-6"
+                    style={{ color: INK }}
+                  >
+                    <span className="w-[74px] shrink-0 font-medium text-base leading-5">
                       {step.n}
                     </span>
-                    <div>
-                      <h3 className="font-medium text-foreground">
-                        {step.title}
-                      </h3>
-                      <p className="mt-1 text-muted-foreground text-sm leading-relaxed">
-                        {step.desc}
-                      </p>
-                    </div>
+                    <span className="w-[172px] shrink-0 font-medium text-lg leading-[22px]">
+                      {step.title}
+                    </span>
+                    <p className="flex-1 font-medium text-sm leading-[18px]">
+                      {step.desc}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -568,6 +569,7 @@ interface LibraryCard {
   title: string;
   desc: string;
   tag: string;
+  icon: LucideIcon;
 }
 
 const LIBRARY_CARDS: LibraryCard[] = [
@@ -576,57 +578,79 @@ const LIBRARY_CARDS: LibraryCard[] = [
     title: "Договор аренды жилого помещения",
     desc: "С описью имущества, актом приёма-передачи и порядком возврата депозита",
     tag: "Недвижимость",
-  },
-  {
-    date: "Октябрь 2024",
-    title: "Трудовой договор с дистанционным сотрудником",
-    desc: "С режимом работы, постановкой задач и условиями расторжения по ТК РК",
-    tag: "Кадры",
-  },
-  {
-    date: "Июль 2023",
-    title: "Договор поставки товаров и продукции",
-    desc: "С условиями доставки, порядком приёмки и ответственностью за недостачу",
-    tag: "Торговля",
+    icon: House,
   },
   {
     date: "Апр 2025",
     title: "Договор возмездного оказания услуг по разработке ПО",
     desc: "С передачей исключительных прав, поэтапной оплатой и актом сдачи-приёмки",
     tag: "Разработка",
+    icon: CodeXml,
   },
   {
     date: "Сентябрь 2024",
     title: "Договор подряда на строительные работы",
     desc: "С локальной сметой, актами КС-2 и гарантийными обязательствами подрядчика",
     tag: "Строительство",
+    icon: Hammer,
   },
   {
     date: "Май 2023",
     title: "Договор займа между физическими лицами",
     desc: "С графиком возврата, процентной ставкой и штрафами за просрочку",
     tag: "Финансы",
+    icon: Coins,
+  },
+  {
+    date: "Июнь 2023",
+    title: "Договор на оказание маркетинговых услуг",
+    desc: "С перечнем услуг, KPI и порядком сдачи результата для проектной работы",
+    tag: "Маркетинг",
+    icon: Megaphone,
+  },
+  {
+    date: "Октябрь 2024",
+    title: "Трудовой договор с дистанционным сотрудником",
+    desc: "С режимом работы, постановкой задач и условиями расторжения по ТК РК",
+    tag: "Кадры",
+    icon: FileUser,
+  },
+  {
+    date: "Июль 2023",
+    title: "Договор поставки товаров и продукции",
+    desc: "С условиями доставки, порядком приёмки и ответственностью за недостачу",
+    tag: "Торговля",
+    icon: Tags,
+  },
+  {
+    date: "Март 2025",
+    title: "Договор об оказании юридических услуг",
+    desc: "С объёмом правовой помощи, стоимостью и условиями досрочного расторжения",
+    tag: "Юриспруденция",
+    icon: Scale,
   },
 ];
 
 function Library() {
   return (
-    <section className="scroll-mt-20 bg-muted/40 py-20" id="library">
-      <div className="mx-auto max-w-6xl px-6">
-        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
-          <div className="max-w-2xl">
-            <h2 className="font-semibold text-3xl text-foreground tracking-tight sm:text-4xl">
-              В библиотеке более 1000+ договоров
-            </h2>
-            <p className="mt-3 text-muted-foreground">
-              Найдите нужный шаблон по категории или через поиск. Каждый договор
-              составлен юристом, актуален на сегодняшний день и готов к
-              заполнению.
-            </p>
-          </div>
+    <section
+      className="scroll-mt-20 py-12"
+      id="library"
+      style={{ backgroundColor: PAGE_BG }}
+    >
+      <div className="mx-auto flex max-w-[1200px] flex-col gap-8 px-4 sm:px-6">
+        <div className="flex flex-col items-start gap-4 lg:flex-row lg:justify-between">
+          <h2 className="max-w-[374px] font-semibold text-[32px] text-black leading-10 sm:text-[40px] sm:leading-[48px]">
+            В библиотеке более 1000+ договоров
+          </h2>
+          <p className="max-w-[389px] font-medium text-base text-black leading-5 lg:pt-3">
+            Найдите нужный шаблон по категории или через поиск. Каждый договор
+            составлен юристом, актуален на сегодняшний день и готов к
+            заполнению.
+          </p>
           <Button
             asChild
-            className="h-10 shrink-0 rounded-full px-5 text-sm"
+            className="h-9 shrink-0 rounded-full border-[#404040] bg-transparent px-4 font-medium text-[#0a0a0a] text-sm hover:bg-black/5"
             variant="outline"
           >
             <Link to="/register">
@@ -635,20 +659,27 @@ function Library() {
             </Link>
           </Button>
         </div>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {LIBRARY_CARDS.map((card) => (
             <div
-              className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5"
+              className="flex h-[242px] flex-col overflow-hidden rounded-2xl bg-white p-5"
               key={card.title}
             >
-              <span className="text-muted-foreground text-xs">{card.date}</span>
-              <h3 className="font-medium text-foreground leading-snug">
+              <div className="flex h-6 items-center justify-between">
+                <span className="flex items-center gap-2.5 font-medium text-[#0a0a0a] text-sm">
+                  <RefreshCw className="size-4" />
+                  {card.date}
+                </span>
+                <MoreHorizontal className="size-4 text-[#0a0a0a]" />
+              </div>
+              <h3 className="mt-4 line-clamp-2 font-semibold text-base text-black leading-5">
                 {card.title}
               </h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">
+              <p className="mt-2 line-clamp-3 font-medium text-[#a3a3a3] text-sm leading-[18px]">
                 {card.desc}
               </p>
-              <span className="mt-auto w-fit rounded-full bg-secondary/40 px-2.5 py-1 text-secondary-foreground text-xs">
+              <span className="mt-auto flex items-center gap-2 pt-4 font-medium text-[#0a0a0a] text-sm">
+                <card.icon className="size-4" />
                 {card.tag}
               </span>
             </div>
@@ -659,224 +690,66 @@ function Library() {
   );
 }
 
-const PERIODS = ["Ежемесячно", "Ежеквартально (- 7%)", "Ежегодно (-22%)"];
-
-const PLAN_FEATURES = [
-  "Скачивание",
-  "Редактирование",
-  "Поддержка",
-  "Сохранение реквизитов",
-  "Проверка документов",
-  "Риск аналитика",
-  "Пользователи в команде",
-  "Составление документов",
-  "Консультация от юриста",
-];
-
-interface PricingPlan {
-  name: string;
-  desc: string;
-  price: string;
-  period?: string;
-  highlight: boolean;
-  values: string[];
-}
-
-const PRICING_PLANS: PricingPlan[] = [
-  {
-    name: "Разовый",
-    desc: "Один договор — одна оплата. Без подписки и обязательств. Достаточно для теста Zhebe.",
-    price: "Бесплатно",
-    highlight: false,
-    values: ["1", "1", "Чат-бот", "—", "—", "—", "—", "—", "—"],
-  },
-  {
-    name: "Базовый",
-    desc: "Регулярный доступ к шаблонам для фрилансеров и небольших проектов.",
-    price: "23 870 ₸",
-    period: "/ в месяц",
-    highlight: false,
-    values: ["15", "5", "Чат-бот", "до 3", "1", "—", "—", "—", "—"],
-  },
-  {
-    name: "Стандарт",
-    desc: "Полный доступ и юридическая поддержка для команд до 10 человек.",
-    price: "61 000 ₸",
-    period: "/ в месяц",
-    highlight: true,
-    values: ["∞", "20", "до 5 в месяц", "∞", "3", "∞", "10", "1", "1"],
-  },
-  {
-    name: "Премиум",
-    desc: "Максимальные возможности платформы для компаний с высоким документооборотом.",
-    price: "120 000 ₸",
-    period: "/ в месяц",
-    highlight: false,
-    values: ["∞", "50", "до 10 в месяц", "∞", "5", "∞", "30", "3", "5"],
-  },
-];
-
-function Pricing() {
-  const [period, setPeriod] = useState(PERIODS[0]);
-
-  return (
-    <section className="scroll-mt-20 bg-background py-20" id="pricing">
-      <div className="mx-auto max-w-6xl px-6">
-        <div className="flex flex-col items-center gap-6 text-center">
-          <h2 className="font-semibold text-3xl text-foreground tracking-tight sm:text-4xl">
-            Выберите формат, который вам подходит
-          </h2>
-          <div className="flex flex-wrap items-center gap-1 rounded-full bg-muted p-1">
-            {PERIODS.map((option) => (
-              <button
-                className={cn(
-                  "rounded-full px-4 py-1.5 text-sm transition-colors",
-                  option === period
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-                key={option}
-                onClick={() => setPeriod(option)}
-                type="button"
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {PRICING_PLANS.map((plan) => (
-            <div
-              className={cn(
-                "flex flex-col gap-5 rounded-2xl border p-6",
-                plan.highlight
-                  ? "border-foreground/40 bg-foreground/[0.02] shadow-sm"
-                  : "border-border bg-card"
-              )}
-              key={plan.name}
-            >
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-foreground text-xl">
-                    {plan.name}
-                  </h3>
-                  {plan.highlight && (
-                    <span className="rounded-full bg-foreground px-2 py-0.5 text-background text-xs">
-                      Популярный
-                    </span>
-                  )}
-                </div>
-                <p className="text-muted-foreground text-xs leading-relaxed">
-                  {plan.desc}
-                </p>
-              </div>
-              <div className="flex items-end gap-1">
-                <span className="font-semibold text-2xl text-foreground">
-                  {plan.price}
-                </span>
-                {plan.period && (
-                  <span className="pb-1 text-muted-foreground text-xs">
-                    {plan.period}
-                  </span>
-                )}
-              </div>
-              <Button
-                asChild
-                className="h-9 w-full bg-foreground text-background text-sm hover:bg-foreground/90"
-              >
-                <Link to="/register">Выбрать</Link>
-              </Button>
-              <div className="flex flex-col gap-2 border-t pt-4">
-                {PLAN_FEATURES.map((feature, i) => {
-                  const value = plan.values[i];
-                  const included = value !== "—";
-                  return (
-                    <div
-                      className="flex items-start justify-between gap-2 text-xs"
-                      key={feature}
-                    >
-                      <span className="flex items-start gap-1.5 text-foreground">
-                        {included ? (
-                          <Check className="mt-0.5 size-3.5 shrink-0 text-foreground" />
-                        ) : (
-                          <Minus className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-                        )}
-                        {feature}
-                      </span>
-                      <span className="shrink-0 text-muted-foreground">
-                        {value}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-interface CtaFeature {
-  icon: LucideIcon;
-  title: string;
+interface Benefit {
+  lines: [string, string];
   desc: string;
 }
 
-const CTA_FEATURES: CtaFeature[] = [
+const BENEFITS: Benefit[] = [
   {
-    icon: Scale,
-    title: "Составлено юристами",
+    lines: ["Составлено", "юристами"],
     desc: "Каждый шаблон разработан практикующими юристами — не алгоритмом и не копированием из интернета.",
   },
   {
-    icon: CalendarCheck,
-    title: "Актуально на сегодня",
+    lines: ["Актуально", "на сегодня"],
     desc: "Следим за изменениями в ТК РК и ГК РК и обновляем шаблоны каждую неделю.",
   },
   {
-    icon: Timer,
-    title: "Готово за 7 минут",
+    lines: ["Готово", "за 7 минут"],
     desc: "Выберите шаблон, заполните поля — и получите договор, готовый к подписанию.",
   },
   {
-    icon: Wallet,
-    title: "Без юриста в штате",
+    lines: ["Без юриста", "в штате"],
     desc: "Типовые договоры — без очередей, звонков и счетов на 50 000 ₸ за стандартный документ.",
   },
 ];
 
 function CallToAction() {
   return (
-    <section className="bg-landing text-landing-foreground">
-      <div className="mx-auto max-w-6xl px-6 py-20">
-        <div className="flex flex-col items-center gap-5 text-center">
-          <h2 className="font-semibold text-3xl tracking-tight sm:text-4xl">
-            Первый договор — бесплатно
-          </h2>
-          <p className="max-w-md text-landing-foreground/80">
-            Зарегистрируйтесь и получите доступ к каталогу прямо сейчас. Без
-            карты, без обязательств.
-          </p>
-          <Button
-            asChild
-            className="h-11 rounded-full bg-landing-foreground px-6 text-landing text-sm hover:bg-landing-foreground/90"
-          >
-            <Link to="/register">
-              Начать бесплатно
-              <ArrowRight className="size-4" />
-            </Link>
-          </Button>
-        </div>
-        <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          {CTA_FEATURES.map((feature) => (
-            <div className="flex flex-col gap-3" key={feature.title}>
-              <feature.icon className="size-7" style={{ color: TAN }} />
-              <h3 className="font-medium text-lg">{feature.title}</h3>
-              <p className="text-landing-foreground/75 text-sm leading-relaxed">
-                {feature.desc}
+    <section className="py-12" style={{ backgroundColor: PAGE_BG }}>
+      <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-4 px-4 sm:px-6">
+        <h2 className="max-w-[368px] text-center font-semibold text-[32px] text-black leading-10 sm:text-[40px] sm:leading-[48px]">
+          Первый договор — бесплатно
+        </h2>
+        <p className="max-w-[389px] text-center font-medium text-base text-black leading-5">
+          Зарегистрируйтесь и получите доступ к каталогу прямо сейчас. Без
+          карты, без обязательств.
+        </p>
+        <Button
+          asChild
+          className="h-9 rounded-full bg-landing px-4 font-medium text-[#faf9f6] text-sm hover:bg-landing/90"
+        >
+          <Link to="/register">
+            Начать бесплатно
+            <ArrowRight className="size-4" />
+          </Link>
+        </Button>
+
+        <div className="grid w-full gap-6 pt-16 sm:grid-cols-2 lg:grid-cols-4">
+          {BENEFITS.map((benefit, index) => (
+            <div className="flex flex-col gap-4" key={benefit.lines[0]}>
+              <div className="flex items-start gap-4">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-black font-semibold text-base text-black">
+                  {index + 1}
+                </span>
+                <h3 className="font-semibold text-2xl text-black leading-7">
+                  {benefit.lines[0]}
+                  <br />
+                  {benefit.lines[1]}
+                </h3>
+              </div>
+              <p className="pl-12 font-medium text-base text-black leading-5">
+                {benefit.desc}
               </p>
             </div>
           ))}
@@ -923,19 +796,28 @@ const FAQ_ITEMS = [
 
 function Faq() {
   return (
-    <section className="scroll-mt-20 bg-background py-20" id="faq">
-      <div className="mx-auto grid max-w-6xl gap-12 px-6 lg:grid-cols-[1fr_1.6fr]">
-        <h2 className="font-semibold text-3xl text-foreground tracking-tight sm:text-4xl lg:sticky lg:top-28 lg:self-start">
+    <section
+      className="scroll-mt-20 py-12"
+      id="faq"
+      style={{ backgroundColor: PAGE_BG }}
+    >
+      <div className="mx-auto grid max-w-[1200px] gap-8 px-4 sm:px-12 lg:grid-cols-2">
+        <h2 className="max-w-[374px] font-semibold text-[32px] text-black leading-10 sm:text-[40px] sm:leading-[48px] lg:self-start">
           Часто задаваемые вопросы
         </h2>
-        <div className="flex flex-col divide-y divide-border border-border border-t">
+        <div className="flex flex-col gap-6">
           {FAQ_ITEMS.map((item) => (
-            <details className="group py-4" key={item.q}>
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium text-foreground">
-                {item.q}
-                <ChevronDown className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+            <details
+              className="group border-[#0a0a0a] border-b pb-6 last:border-b-0 last:pb-0"
+              key={item.q}
+            >
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-12">
+                <span className="flex-1 font-semibold text-2xl text-[#0a0a0a] leading-7">
+                  {item.q}
+                </span>
+                <ChevronDown className="mt-1 size-6 shrink-0 text-[#0a0a0a] transition-transform group-open:rotate-180" />
               </summary>
-              <p className="mt-3 text-muted-foreground text-sm leading-relaxed">
+              <p className="mt-4 pr-12 font-medium text-[#0a0a0a] text-base leading-5">
                 {item.a}
               </p>
             </details>
@@ -946,113 +828,81 @@ function Faq() {
   );
 }
 
-const FOOTER_COLUMNS = [
-  {
-    title: "Семья и наследство",
-    links: [
-      "Брачный договор",
-      "Соглашение о разделе имущества",
-      "Соглашение об алиментах",
-      "Договор дарения",
-      "Завещание",
-      "Согласие супруга на сделку",
-      "Алименты",
-    ],
-  },
-  {
-    title: "Недвижимость",
-    links: [
-      "Договор аренды квартиры",
-      "Договор купли-продажи квартиры",
-      "Договор аренды нежилого помещения",
-      "Договор найма жилого помещения",
-      "Договор субаренды",
-      "Акт приёма-передачи помещения",
-      "Соглашение о задатке",
-    ],
-  },
-  {
-    title: "Для бизнеса",
-    links: [
-      "Договор оказания услуг",
-      "Договор аренды офиса",
-      "Агентский договор",
-      "Договор конфиденциальности (NDA)",
-      "Корпоративный договор",
-      "Договор франшизы",
-      "Договор с самозанятым",
-    ],
-  },
-  {
-    title: "Для фрилансеров",
-    links: [
-      "Договор на разработку сайта",
-      "Договор на дизайн",
-      "Договор на копирайтинг",
-      "Договор на SMM-продвижение",
-      "Договор авторского заказа",
-      "Акт выполненных работ",
-      "Договор оферты",
-    ],
-  },
+const FOOTER_MENU = [
+  { href: "#about", label: "Решения" },
+  { href: "#library", label: "Библиотека договоров" },
+  { href: "#top", label: "Блог" },
+  { href: "#top", label: "О нас" },
+];
+
+// Ссылки на соцсети пока не определены — проставьте реальные адреса.
+const FOOTER_SOCIALS = [
+  { label: "Instagram", icon: "/landing/social-instagram.svg", href: "#top" },
+  { label: "Telegram", icon: "/landing/social-telegram.svg", href: "#top" },
+  { label: "WhatsApp", icon: "/landing/social-whatsapp.svg", href: "#top" },
+  { label: "YouTube", icon: "/landing/social-youtube.svg", href: "#top" },
 ];
 
 function Footer() {
   return (
-    <footer className="bg-landing text-landing-foreground">
-      <div className="mx-auto max-w-6xl px-6 py-16">
-        <div className="flex flex-col gap-8 border-landing-foreground/15 border-b pb-10 lg:flex-row lg:justify-between">
-          <div className="flex flex-col gap-4">
-            <ZhebeLogo className="h-8 w-auto text-landing-foreground" />
-            <div className="flex flex-wrap gap-x-5 gap-y-2 text-landing-foreground/80 text-sm">
-              {["Решения", "Библиотека договоров", "Блог", "О нас"].map(
-                (item) => (
-                  <a
-                    className="hover:text-landing-foreground"
-                    href="#top"
-                    key={item}
-                  >
-                    {item}
-                  </a>
-                )
-              )}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
-            {FOOTER_COLUMNS.map((column) => (
-              <div className="flex flex-col gap-3" key={column.title}>
-                <span className="font-medium text-landing-foreground text-sm">
-                  {column.title}
-                </span>
-                {column.links.map((link) => (
-                  <a
-                    className="text-landing-foreground/70 text-xs hover:text-landing-foreground"
-                    href="#library"
-                    key={link}
-                  >
-                    {link}
-                  </a>
-                ))}
-              </div>
+    <footer className="bg-[#1b1b1b] text-[#fafafa]">
+      <div className="mx-auto flex max-w-[1200px] flex-col gap-8 px-4 py-12 sm:px-12">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+          <ZhebeLogo className="h-[72px] w-auto text-[#fafafa]" />
+          <div className="flex flex-wrap items-center gap-1">
+            {FOOTER_MENU.map((item) => (
+              <a
+                className="flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 font-medium text-[#fafafa] text-sm hover:bg-white/10"
+                href={item.href}
+                key={item.label}
+              >
+                {item.label}
+                <ArrowUpRight className="size-4" />
+              </a>
             ))}
           </div>
         </div>
-        <div className="flex flex-col items-center justify-between gap-3 pt-6 text-landing-foreground/70 text-xs sm:flex-row">
-          <div className="flex flex-wrap gap-x-5 gap-y-2">
-            <a className="hover:text-landing-foreground" href="/privacy">
+
+        <div className="h-px w-full bg-white/10" />
+
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 font-medium text-sm">
+            <Globe className="size-4" />
+            <a className="py-2 hover:underline" href="/terms">
+              Договор оферты
+            </a>
+            <a className="py-2 hover:underline" href="/privacy">
               Политика конфиденциальности
             </a>
-            <a className="hover:text-landing-foreground" href="/terms">
-              Пользовательское соглашение
-            </a>
-            <a
-              className="hover:text-landing-foreground"
-              href="/privacy#cookies"
-            >
+            <a className="py-2 hover:underline" href="/privacy#cookies">
               Политика Cookies
             </a>
+            <span className="py-2">Все права защищены. ТОО «Zhebe»</span>
+            <a
+              className="py-2 text-[#faf9f6] hover:underline"
+              href="tel:+87753864010"
+            >
+              +8 775 386 40 10
+            </a>
           </div>
-          <span>Все права защищены. ТОО «Primeis»</span>
+          <div className="flex items-center gap-2">
+            {FOOTER_SOCIALS.map((social) => (
+              <a
+                aria-label={social.label}
+                className="flex size-10 items-center justify-center rounded-full bg-[#262626] transition-colors hover:bg-[#333]"
+                href={social.href}
+                key={social.label}
+              >
+                <img
+                  alt=""
+                  className="size-6"
+                  height={24}
+                  src={social.icon}
+                  width={24}
+                />
+              </a>
+            ))}
+          </div>
         </div>
       </div>
     </footer>
@@ -1061,13 +911,15 @@ function Footer() {
 
 export function LandingPage() {
   return (
-    <div className="min-h-svh scroll-smooth bg-background">
+    <div
+      className="min-h-svh scroll-smooth"
+      style={{ backgroundColor: PAGE_BG }}
+    >
       <Navbar />
       <main>
         <Hero />
         <Steps />
         <Library />
-        <Pricing />
         <CallToAction />
         <Faq />
       </main>
