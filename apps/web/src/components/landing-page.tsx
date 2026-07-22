@@ -19,6 +19,7 @@ import { useState } from "react";
 
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
+import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 const TAN = "#f5d9b0";
@@ -55,6 +56,9 @@ function ZhebeLogo({ className }: { className?: string }) {
 
 function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  // Лендинг живёт вне app-shell, поэтому сессию проверяем сами: авторизованному
+  // показываем вход в приложение вместо «Войти»/«Регистрация».
+  const { data: session, isPending } = authClient.useSession();
 
   return (
     <header className="sticky top-0 z-50 bg-landing text-landing-foreground">
@@ -75,19 +79,33 @@ function Navbar() {
         </div>
         <div className="flex flex-1 items-center justify-end gap-2 sm:gap-3">
           <LanguageSwitcher triggerClassName="text-landing-foreground hover:bg-landing-foreground/10" />
-          <Button
-            asChild
-            className="hidden h-9 border-landing-foreground/40 bg-transparent px-4 text-landing-foreground text-sm hover:bg-landing-foreground/10 sm:inline-flex"
-            variant="outline"
-          >
-            <Link to="/login">Войти</Link>
-          </Button>
-          <Button
-            asChild
-            className="h-9 bg-landing-foreground px-3 text-landing text-sm hover:bg-landing-foreground/90 sm:px-4"
-          >
-            <Link to="/register">Регистрация</Link>
-          </Button>
+          {session && (
+            <Button
+              asChild
+              className="h-9 bg-landing-foreground px-3 text-landing text-sm hover:bg-landing-foreground/90 sm:px-4"
+            >
+              <Link to="/templates">Открыть приложение</Link>
+            </Button>
+          )}
+          {/* Пока сессия грузится, гостевые кнопки не показываем — иначе
+              авторизованный пользователь видит мигающее «Войти». */}
+          {!(session || isPending) && (
+            <>
+              <Button
+                asChild
+                className="hidden h-9 border-landing-foreground/40 bg-transparent px-4 text-landing-foreground text-sm hover:bg-landing-foreground/10 sm:inline-flex"
+                variant="outline"
+              >
+                <Link to="/login">Войти</Link>
+              </Button>
+              <Button
+                asChild
+                className="h-9 bg-landing-foreground px-3 text-landing text-sm hover:bg-landing-foreground/90 sm:px-4"
+              >
+                <Link to="/register">Регистрация</Link>
+              </Button>
+            </>
+          )}
           <button
             aria-expanded={menuOpen}
             aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}
@@ -112,12 +130,14 @@ function Navbar() {
                 {link.label}
               </a>
             ))}
-            <Link
-              className="rounded-lg px-3 py-2.5 text-landing-foreground/90 text-sm transition-colors hover:bg-landing-foreground/10 sm:hidden"
-              to="/login"
-            >
-              Войти
-            </Link>
+            {!session && (
+              <Link
+                className="rounded-lg px-3 py-2.5 text-landing-foreground/90 text-sm transition-colors hover:bg-landing-foreground/10 sm:hidden"
+                to="/login"
+              >
+                Войти
+              </Link>
+            )}
           </div>
         </div>
       )}
