@@ -15,7 +15,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
@@ -362,32 +362,201 @@ const STEPS: Step[] = [
   },
 ];
 
+// Уровень «застревания» страницы: грид секции замирает на 62% высоты экрана —
+// сверху остаётся виден низ бордового героя. Высота правого окна ниже
+// (lg:h-[calc(38svh-48px)]) должна дополнять эту долю до 100svh минус отступ.
+const STEPS_LOCK_RATIO = 0.62;
+// Шаги листания с клавиатуры, пока страница заблокирована.
+const KEY_LINE_STEP = 60;
+const KEY_PAGE_SHARE = 0.8;
+
+/**
+ * «Три шага»: когда грид секции докручивается до 62% высоты экрана (низ героя
+ * ещё виден), страница блокируется целиком (overflow hidden) — «долистать»
+ * дальше нельзя. Колесо/тач/клавиши в этот момент листают только правое окно
+ * со степами; когда оно докручено до конца (или обратно до начала), блокировка
+ * снимается и страница едет дальше. На мобильных — обычный поток.
+ */
 function Steps() {
+  const outerRef = useRef<HTMLDivElement | null>(null);
+  const windowRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const outer = outerRef.current;
+    const win = windowRef.current;
+    const track = trackRef.current;
+    if (!(outer && win && track)) {
+      return;
+    }
+
+    const mq = window.matchMedia("(min-width: 1024px)");
+    let extra = 0;
+    let progress = 0;
+    let locked = false;
+    let prevTop = Number.POSITIVE_INFINITY;
+    let touchY = 0;
+
+    const levelPx = () => Math.round(window.innerHeight * STEPS_LOCK_RATIO);
+    const apply = () => {
+      track.style.transform = `translateY(${-Math.round(progress)}px)`;
+    };
+    const measure = () => {
+      extra = mq.matches
+        ? Math.max(0, Math.ceil(track.scrollHeight - win.clientHeight))
+        : 0;
+      progress = Math.min(progress, extra);
+      apply();
+    };
+
+    const lock = () => {
+      locked = true;
+      // Выравниваем страницу ровно на уровень застревания и замораживаем её —
+      // герой сверху остаётся на месте, скроллится только окно степов.
+      const top =
+        outer.getBoundingClientRect().top + window.scrollY - levelPx();
+      window.scrollTo(0, top);
+      document.documentElement.style.overflow = "hidden";
+    };
+    const unlock = () => {
+      locked = false;
+      document.documentElement.style.overflow = "";
+      prevTop = outer.getBoundingClientRect().top;
+    };
+
+    // Продвигает листание окна; на краях — отпускает страницу.
+    const page = (delta: number) => {
+      progress = Math.min(extra, Math.max(0, progress + delta));
+      apply();
+      if ((delta > 0 && progress >= extra) || (delta < 0 && progress <= 0)) {
+        unlock();
+      }
+    };
+
+    const onScroll = () => {
+      if (locked || extra <= 0) {
+        return;
+      }
+      const top = outer.getBoundingClientRect().top;
+      const level = levelPx();
+      // Блокируемся при пересечении уровня в сторону недолистанного края.
+      const crossedDown = prevTop > level && top <= level && progress < extra;
+      const crossedUp = prevTop < level && top >= level && progress > 0;
+      prevTop = top;
+      if (crossedDown || crossedUp) {
+        lock();
+      }
+    };
+    const onWheel = (event: WheelEvent) => {
+      if (!locked) {
+        return;
+      }
+      event.preventDefault();
+      page(event.deltaY);
+    };
+    const onTouchStart = (event: TouchEvent) => {
+      touchY = event.touches[0]?.clientY ?? 0;
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      if (!locked) {
+        return;
+      }
+      event.preventDefault();
+      const y = event.touches[0]?.clientY ?? touchY;
+      page(touchY - y);
+      touchY = y;
+    };
+    // Без обработки клавиш клавиатурный пользователь застрял бы навсегда.
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!locked) {
+        return;
+      }
+      const pageStep = window.innerHeight * KEY_PAGE_SHARE;
+      const deltas: Record<string, number> = {
+        ArrowDown: KEY_LINE_STEP,
+        ArrowUp: -KEY_LINE_STEP,
+        PageDown: pageStep,
+        PageUp: -pageStep,
+        " ": pageStep,
+        End: extra,
+        Home: -extra,
+      };
+      const delta = deltas[event.key];
+      if (delta !== undefined) {
+        event.preventDefault();
+        page(delta);
+      }
+    };
+    const onViewportChange = () => {
+      if (locked) {
+        unlock();
+      }
+      measure();
+    };
+
+    measure();
+    prevTop = outer.getBoundingClientRect().top;
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onViewportChange);
+    mq.addEventListener("change", onViewportChange);
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      if (locked) {
+        document.documentElement.style.overflow = "";
+      }
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onViewportChange);
+      mq.removeEventListener("change", onViewportChange);
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
+
   return (
     <section className="scroll-mt-20 bg-background py-20" id="about">
-      <div className="mx-auto grid max-w-6xl gap-12 px-6 lg:grid-cols-[1fr_1.4fr]">
-        <h2 className="font-semibold text-3xl text-foreground leading-tight tracking-tight sm:text-4xl lg:sticky lg:top-28 lg:self-start">
-          Три шага до готового договора
-        </h2>
-        <div className="flex flex-col gap-16">
-          {STEPS.map((step) => (
-            <div className="flex flex-col gap-5" key={step.n}>
-              <div className="rounded-2xl bg-secondary/70 p-5">
-                <step.mock />
-              </div>
-              <div className="grid gap-2 sm:grid-cols-[110px_1fr]">
-                <span className="font-medium text-muted-foreground text-sm">
-                  {step.n}
-                </span>
-                <div>
-                  <h3 className="font-medium text-foreground">{step.title}</h3>
-                  <p className="mt-1 text-muted-foreground text-sm leading-relaxed">
-                    {step.desc}
-                  </p>
+      <div ref={outerRef}>
+        <div className="mx-auto grid max-w-6xl gap-12 px-6 lg:grid-cols-[1fr_1.4fr]">
+          <h2 className="font-semibold text-3xl text-foreground leading-tight tracking-tight sm:text-4xl lg:self-start">
+            Три шага до готового договора
+          </h2>
+          {/* Окно в нижней трети экрана (дополняет уровень застревания 62svh
+              до полной высоты с отступом 48px): листается только его
+              содержимое. Без маски по краям — она мешала читать текст. */}
+          <div
+            className="lg:h-[calc(38svh-48px)] lg:overflow-hidden"
+            ref={windowRef}
+          >
+            <div
+              className="flex flex-col gap-16 will-change-transform"
+              ref={trackRef}
+            >
+              {STEPS.map((step) => (
+                <div className="flex flex-col gap-5" key={step.n}>
+                  <div className="rounded-2xl bg-secondary/70 p-5">
+                    <step.mock />
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-[110px_1fr]">
+                    <span className="font-medium text-muted-foreground text-sm">
+                      {step.n}
+                    </span>
+                    <div>
+                      <h3 className="font-medium text-foreground">
+                        {step.title}
+                      </h3>
+                      <p className="mt-1 text-muted-foreground text-sm leading-relaxed">
+                        {step.desc}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </section>
