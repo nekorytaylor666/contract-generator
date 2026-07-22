@@ -5,16 +5,18 @@ import {
   document,
   documentVersion,
 } from "@contract-builder/db/schema/document";
-import {
-  template,
-  templateVersion,
-} from "@contract-builder/db/schema/template";
+import { template } from "@contract-builder/db/schema/template";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { resolveLocalized } from "../constants/template-options";
 import { editorProcedure, orgProcedure, router } from "../index";
+import {
+  createDocumentFromTemplate,
+  hasPaidEditPurchase,
+  pinLatestTemplateVersion,
+} from "../lib/document-service";
 import { consumeQuota, getEffectivePlan } from "../lib/subscription";
 
 // Статусы, которые пользователь ставит вручную из меню карточки. Значения
@@ -127,10 +129,6 @@ export const documentsRouter = router({
       const orgId = ctx.orgId;
       const userId = ctx.session.user.id;
 
-      if (!input.documentId) {
-        await consumeEditQuotaOrThrow(userId);
-      }
-
       // Load full template — needed for backfill if no version exists yet.
       const [tmpl] = await db
         .select()
@@ -145,31 +143,18 @@ export const documentsRouter = router({
         });
       }
 
-      // Resolve the templateVersion to pin this document to. Always the latest
-      // for this template; legacy templates with no versions get one created here.
-      let pinnedVersionId: string;
-      const [latestVersion] = await db
-        .select({ id: templateVersion.id })
-        .from(templateVersion)
-        .where(eq(templateVersion.templateId, tmpl.id))
-        .orderBy(desc(templateVersion.version))
-        .limit(1);
-      if (latestVersion) {
-        pinnedVersionId = latestVersion.id;
-      } else {
-        pinnedVersionId = randomUUID();
-        await db.insert(templateVersion).values({
-          id: pinnedVersionId,
-          templateId: tmpl.id,
-          version: tmpl.currentVersion,
-          typstContent: tmpl.typstContent,
-          variables: tmpl.variables,
-          changelog: "backfill",
-          createdBy: userId,
-        });
+      // Прямая покупка шаблона — это и есть право создавать из него документы:
+      // не списываем квоту подписки (покупают как раз те, у кого она кончилась).
+      if (!(input.documentId || (await hasPaidEditPurchase(userId, tmpl.id)))) {
+        await consumeEditQuotaOrThrow(userId);
       }
 
       if (input.documentId) {
+        const pinnedVersionId = await pinLatestTemplateVersion(
+          db,
+          tmpl,
+          userId
+        );
         // Update existing document - create new version
         const [existing] = await db
           .select()
@@ -222,42 +207,17 @@ export const documentsRouter = router({
         return { id: existing.id, version: newVersion };
       }
 
-      // Create new document — pin to current latest template version
-      const docId = randomUUID();
-      const title =
-        input.title ||
-        resolveLocalized(
-          { title: tmpl.title, description: null, typstContent: "" },
-          tmpl.localizedContent,
-          input.locale
-        ).title;
-
-      await db.insert(document).values({
-        id: docId,
-        title,
-        templateId: input.templateId,
-        templateVersionId: pinnedVersionId,
-        organizationId: orgId,
-        createdBy: userId,
-        currentVersion: 1,
+      // Create new document — same shared path the payment webhook uses.
+      return await createDocumentFromTemplate(db, {
+        tmpl,
+        orgId,
+        userId,
+        title: input.title,
+        locale: input.locale,
         variables: input.variables,
         logo: input.logo ?? null,
         style: input.style ?? null,
       });
-
-      // Save first version
-      await db.insert(documentVersion).values({
-        id: randomUUID(),
-        documentId: docId,
-        version: 1,
-        templateVersionId: pinnedVersionId,
-        variables: input.variables,
-        logo: input.logo ?? null,
-        style: input.style ?? null,
-        createdBy: userId,
-      });
-
-      return { id: docId, version: 1 };
     }),
 
   // Смена статуса карточки (меню «…»). Доступна на платной подписке —

@@ -6,12 +6,14 @@ import {
   ChevronDown,
   Download,
   type LucideIcon,
+  Menu,
   Minus,
   MoreHorizontal,
   Scale,
   Search,
   Timer,
   Wallet,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -52,9 +54,11 @@ function ZhebeLogo({ className }: { className?: string }) {
 }
 
 function Navbar() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <header className="sticky top-0 z-50 bg-landing text-landing-foreground">
-      <nav className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-6">
+      <nav className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-4 sm:px-6">
         <a aria-label="Zhebe" className="flex flex-1 items-center" href="#top">
           <ZhebeLogo className="h-8 w-auto text-landing-foreground" />
         </a>
@@ -69,7 +73,7 @@ function Navbar() {
             </a>
           ))}
         </div>
-        <div className="flex flex-1 items-center justify-end gap-3">
+        <div className="flex flex-1 items-center justify-end gap-2 sm:gap-3">
           <LanguageSwitcher triggerClassName="text-landing-foreground hover:bg-landing-foreground/10" />
           <Button
             asChild
@@ -80,12 +84,43 @@ function Navbar() {
           </Button>
           <Button
             asChild
-            className="h-9 bg-landing-foreground px-4 text-landing text-sm hover:bg-landing-foreground/90"
+            className="h-9 bg-landing-foreground px-3 text-landing text-sm hover:bg-landing-foreground/90 sm:px-4"
           >
             <Link to="/register">Регистрация</Link>
           </Button>
+          <button
+            aria-expanded={menuOpen}
+            aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}
+            className="flex size-9 items-center justify-center rounded-lg text-landing-foreground transition-colors hover:bg-landing-foreground/10 md:hidden"
+            onClick={() => setMenuOpen((open) => !open)}
+            type="button"
+          >
+            {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
         </div>
       </nav>
+      {menuOpen && (
+        <div className="border-landing-foreground/15 border-t px-4 pb-4 md:hidden">
+          <div className="flex flex-col gap-1 pt-3">
+            {NAV_LINKS.map((link) => (
+              <a
+                className="rounded-lg px-3 py-2.5 text-landing-foreground/90 text-sm transition-colors hover:bg-landing-foreground/10"
+                href={link.href}
+                key={link.href}
+                onClick={() => setMenuOpen(false)}
+              >
+                {link.label}
+              </a>
+            ))}
+            <Link
+              className="rounded-lg px-3 py-2.5 text-landing-foreground/90 text-sm transition-colors hover:bg-landing-foreground/10 sm:hidden"
+              to="/login"
+            >
+              Войти
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

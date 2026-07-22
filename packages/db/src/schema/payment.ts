@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { organization, user } from "./auth";
+import { document } from "./document";
 import { template } from "./template";
 
 export const payment = pgTable(
@@ -40,6 +41,13 @@ export const payment = pgTable(
     currency: text("currency").notNull().default("RUB"),
     // pending | paid | failed
     status: text("status").notNull().default("pending"),
+    // For template_edit purchases: the draft document the ResultURL webhook
+    // creates in «Мои документы» on payment confirmation. The success page
+    // opens the builder on this document so the user keeps editing the same
+    // draft instead of spawning a second one.
+    documentId: text("document_id").references(() => document.id, {
+      onDelete: "set null",
+    }),
     isTest: boolean("is_test").notNull().default(true),
     description: text("description"),
     createdAt: timestamp("created_at").defaultNow().notNull(),

@@ -15,7 +15,11 @@ import { CommandSearchProvider } from "@/components/command-search/command-searc
 import { CommandSearchDialog } from "@/components/command-search/command-search-dialog";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 import { looksLikePhone } from "@/lib/display-name";
 
@@ -192,25 +196,29 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
       <SidebarProvider className="!h-svh !overflow-hidden">
         <AppSidebar />
         <SidebarInset>
-          <header className="flex h-[54px] shrink-0 items-center justify-between border-[#e5e5e5] border-b py-2 pr-6 pl-3">
-            <div className="flex items-center gap-1.5 px-3 py-2 text-sm">
-              <span className="flex items-center gap-2 text-foreground">
-                <TitleIcon className="size-4" />
-                {title}
+          <header className="flex h-[54px] shrink-0 items-center justify-between gap-2 border-[#e5e5e5] border-b py-2 pr-3 pl-2 sm:pr-6 sm:pl-3">
+            <div className="flex min-w-0 items-center gap-1.5 px-1 py-2 text-sm sm:px-3">
+              {/* На мобильных сайдбар живёт в Sheet — без этой кнопки его не открыть */}
+              <SidebarTrigger className="size-8 shrink-0 text-foreground md:hidden" />
+              <span className="flex min-w-0 items-center gap-2 text-foreground">
+                <TitleIcon className="size-4 shrink-0" />
+                <span className="truncate">{title}</span>
               </span>
               {isDocuments &&
                 activeOrg?.name &&
                 !looksLikePhone(activeOrg.name) && (
                   <>
-                    <span className="text-muted-foreground">/</span>
-                    <span className="flex items-center gap-1.5 text-foreground">
-                      <FolderOpen className="size-4 text-muted-foreground" />
-                      {activeOrg.name}
+                    <span className="hidden text-muted-foreground sm:inline">
+                      /
+                    </span>
+                    <span className="hidden min-w-0 items-center gap-1.5 text-foreground sm:flex">
+                      <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
+                      <span className="truncate">{activeOrg.name}</span>
                     </span>
                   </>
                 )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
               {/* Временно скрыто: команда (TeamAvatarStack + ShareAccessMenu) */}
               <LanguageSwitcher />
               <HeaderAdminToggle />

@@ -270,7 +270,7 @@ function RouteComponent() {
 
   return (
     <div className="flex h-full flex-col overflow-auto">
-      <div className="flex flex-col gap-4 p-6">
+      <div className="flex flex-col gap-4 p-4 sm:p-6">
         {/* Page heading */}
         <h1 className="font-semibold text-2xl text-foreground leading-7">
           {t("templates.title")}

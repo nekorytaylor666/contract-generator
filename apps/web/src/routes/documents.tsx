@@ -304,7 +304,7 @@ function RouteComponent() {
 
   return (
     <div className="flex h-full flex-col overflow-auto">
-      <div className="flex flex-col gap-4 p-6">
+      <div className="flex flex-col gap-4 p-4 sm:p-6">
         {/* Heading */}
         <div className="flex flex-col gap-0.5">
           <h1 className="font-semibold text-2xl text-foreground leading-7">
@@ -315,14 +315,14 @@ function RouteComponent() {
           </h2>
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-1 border-border border-b">
+        {/* Tabs: на мобильных не влезают — скроллим по горизонтали */}
+        <div className="flex items-center gap-1 overflow-x-auto border-border border-b">
           {DOC_TABS.map((docTab) => {
             const isActive = tab === docTab.id;
             return (
               <button
                 className={cn(
-                  "-mb-px border-b pb-2 transition-colors",
+                  "-mb-px shrink-0 whitespace-nowrap border-b pb-2 transition-colors",
                   isActive ? "border-foreground" : "border-transparent"
                 )}
                 key={docTab.id}

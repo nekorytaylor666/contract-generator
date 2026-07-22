@@ -51,6 +51,9 @@ function PaymentSuccess() {
 
   const paid = data?.status === "paid";
   const templateId = data?.templateId ?? null;
+  // Черновик, созданный вебхуком при подтверждении оплаты, — редактор
+  // открывается на нём, а не плодит второй документ.
+  const documentId = data?.documentId ?? null;
   const isDownload = data?.purpose === "template_download";
   const isSubscription = data?.purpose === "subscription";
 
@@ -99,7 +102,11 @@ function PaymentSuccess() {
             </Button>
           ) : (
             <Button asChild>
-              <Link params={{ templateId }} to="/templates/$templateId/builder">
+              <Link
+                params={{ templateId }}
+                search={documentId ? { documentId } : {}}
+                to="/templates/$templateId/builder"
+              >
                 <Pencil className="size-4" />
                 {t("payment.openEditor")}
               </Link>

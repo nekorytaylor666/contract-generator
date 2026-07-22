@@ -146,7 +146,7 @@ export function CommandSearchDialog() {
   return (
     <Dialog onOpenChange={(open) => !open && close()} open={isOpen}>
       <DialogContent
-        className="max-h-[90vh] max-w-2xl overflow-y-auto sm:max-w-2xl"
+        className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
         showCloseButton
       >
         <DialogHeader>

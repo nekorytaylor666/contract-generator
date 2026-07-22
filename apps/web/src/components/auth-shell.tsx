@@ -14,8 +14,8 @@ export function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-screen w-full items-center justify-center bg-muted px-6">
-      <header className="absolute inset-x-0 top-0 flex h-[72px] items-center justify-between px-6 py-3">
+    <div className="flex min-h-svh w-full flex-col bg-muted">
+      <header className="flex h-[72px] shrink-0 items-center justify-between px-4 py-3 sm:px-6">
         <Link aria-label="Zhebe" to="/">
           <ZhebeLogo />
         </Link>
@@ -34,14 +34,16 @@ export function AuthShell({
         )}
       </header>
 
-      <main
-        className="w-full max-w-md rounded-2xl bg-background p-8"
-        style={{ boxShadow: "0px 25px 50px 0 rgba(0,0,0,0.1)" }}
-      >
-        {children}
-      </main>
+      <div className="flex flex-1 items-center justify-center px-4 py-6 sm:px-6">
+        <main
+          className="w-full max-w-md rounded-2xl bg-background p-6 sm:p-8"
+          style={{ boxShadow: "0px 25px 50px 0 rgba(0,0,0,0.1)" }}
+        >
+          {children}
+        </main>
+      </div>
 
-      <footer className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 px-6 py-3 text-muted-foreground text-sm">
+      <footer className="flex flex-wrap items-center justify-center px-4 py-3 text-center text-muted-foreground text-sm sm:px-6">
         <span className="px-4 py-2">© ТОО «Primeis»</span>
         <a className="px-4 py-2 hover:text-foreground" href="/privacy">
           Политика конфиденциальности

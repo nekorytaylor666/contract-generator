@@ -45,8 +45,8 @@ function ContinueSignupComponent() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted px-6 py-12">
-      <main className="w-full max-w-md rounded-2xl bg-background p-8 shadow-xl">
+    <div className="flex min-h-svh items-center justify-center bg-muted px-4 py-8 sm:px-6 sm:py-12">
+      <main className="w-full max-w-md rounded-2xl bg-background p-6 shadow-xl sm:p-8">
         {needsPassword && (
           <SignUpPasswordForm onDone={() => statusQuery.refetch()} />
         )}

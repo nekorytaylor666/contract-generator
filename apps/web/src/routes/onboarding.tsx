@@ -207,8 +207,8 @@ function OnboardingComponent() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted px-6 py-12">
-      <main className="w-full max-w-md rounded-2xl bg-background p-8 shadow-xl">
+    <div className="flex min-h-svh items-center justify-center bg-muted px-4 py-8 sm:px-6 sm:py-12">
+      <main className="w-full max-w-md rounded-2xl bg-background p-6 shadow-xl sm:p-8">
         <StepHeader current={step} total={totalSteps} />
 
         {step === 1 && accountType === "individual" && (
@@ -310,7 +310,9 @@ function StepHeader({ current, total }: { current: number; total: number }) {
 function Heading({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div className="mb-6 flex flex-col items-center gap-2 text-center">
-      <h1 className="font-medium text-3xl text-foreground">{title}</h1>
+      <h1 className="font-medium text-2xl text-foreground sm:text-3xl">
+        {title}
+      </h1>
       <p className="text-base text-foreground/80">{subtitle}</p>
     </div>
   );

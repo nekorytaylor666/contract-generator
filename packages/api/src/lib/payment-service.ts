@@ -1,8 +1,11 @@
 import { db } from "@contract-builder/db";
-import { user } from "@contract-builder/db/schema/auth";
+import { member, user } from "@contract-builder/db/schema/auth";
 import { payment } from "@contract-builder/db/schema/payment";
-import { eq } from "drizzle-orm";
+import { template } from "@contract-builder/db/schema/template";
+import { and, eq, inArray } from "drizzle-orm";
 
+import { canEditDocuments } from "../constants/access";
+import { createDocumentFromTemplate, type DbClient } from "./document-service";
 import { formatOutSum, verifyResultSignature } from "./robokassa";
 
 /**
@@ -27,6 +30,80 @@ type ResultStatus =
   | "bad_sign"
   | "not_found"
   | "amount_mismatch";
+
+/**
+ * Создаёт черновик в «Моих документах» для оплаченной прямой покупки
+ * редактирования. Вебхук — единственное гарантированное место: покупатель
+ * может закрыть браузер и никогда не открыть success-страницу.
+ *
+ * Работает внутри транзакции вебхука через вложенный savepoint: ошибка
+ * создания откатывает только черновик, а не пометку «оплачено» (клиентский
+ * путь documents.save с обходом квоты остаётся запасным). Возвращает null,
+ * когда черновик создать нельзя.
+ */
+async function createPurchasedDraft(
+  tx: DbClient,
+  paid: {
+    userId: string;
+    organizationId: string | null;
+    templateId: string;
+  }
+): Promise<string | null> {
+  try {
+    return await tx.transaction(async (inner) => {
+      // Членство проверяем на момент вебхука, а не чекаута: организацию из
+      // платежа используем, только если покупатель всё ещё её участник с
+      // правом редактирования — иначе документ уехал бы в чужой тенант.
+      // Логика повторяет orgProcedure + editorProcedure.
+      const memberships = await inner
+        .select({
+          organizationId: member.organizationId,
+          role: member.role,
+        })
+        .from(member)
+        .where(eq(member.userId, paid.userId));
+      const editable = memberships.filter((m) => canEditDocuments(m.role));
+      const membership =
+        editable.find((m) => m.organizationId === paid.organizationId) ??
+        editable[0];
+      if (!membership) {
+        return null;
+      }
+
+      const [tmpl] = await inner
+        .select()
+        .from(template)
+        .where(eq(template.id, paid.templateId))
+        .limit(1);
+      if (!tmpl) {
+        return null;
+      }
+
+      // Заголовок — на языке договоров из профиля покупателя, как в билдере.
+      const [buyer] = await inner
+        .select({ contractLanguage: user.contractLanguage })
+        .from(user)
+        .where(eq(user.id, paid.userId))
+        .limit(1);
+
+      const created = await createDocumentFromTemplate(inner, {
+        tmpl,
+        orgId: membership.organizationId,
+        userId: paid.userId,
+        locale: buyer?.contractLanguage ?? undefined,
+        variables: {},
+      });
+      return created.id;
+    });
+  } catch (error) {
+    console.error(
+      "Не удалось создать документ после оплаты шаблона:",
+      paid.templateId,
+      error
+    );
+    return null;
+  }
+}
 
 /**
  * Handles a Robokassa ResultURL webhook: verifies the Password #2 signature,
@@ -54,6 +131,8 @@ export async function processRobokassaResult(input: {
       amount: payment.amount,
       status: payment.status,
       userId: payment.userId,
+      organizationId: payment.organizationId,
+      templateId: payment.templateId,
       purpose: payment.purpose,
       subscriptionPlanId: payment.subscriptionPlanId,
       subscriptionPeriod: payment.subscriptionPeriod,
@@ -74,25 +153,60 @@ export async function processRobokassaResult(input: {
   // (late confirmation) should still complete so no real payment is lost.
   if (found.status === "pending" || found.status === "expired") {
     const paidAt = new Date();
-    await db
-      .update(payment)
-      .set({ status: "paid", paidAt })
-      .where(eq(payment.id, found.id));
 
-    // A paid subscription payment activates the plan for the buyer.
-    if (found.purpose === "subscription" && found.subscriptionPlanId) {
-      await db
-        .update(user)
-        .set({
-          subscriptionPlanId: found.subscriptionPlanId,
-          subscriptionPeriod: found.subscriptionPeriod ?? "monthly",
-          subscriptionExpiresAt: subscriptionExpiry(
-            paidAt,
-            found.subscriptionPeriod
-          ),
-        })
-        .where(eq(user.id, found.userId));
-    }
+    await db.transaction(async (tx) => {
+      // Условный claim сериализует конкурентные/повторные доставки вебхука:
+      // проигравшая доставка обновит 0 строк и не создаст второй черновик.
+      const claimed = await tx
+        .update(payment)
+        .set({ status: "paid", paidAt })
+        .where(
+          and(
+            eq(payment.id, found.id),
+            inArray(payment.status, ["pending", "expired"])
+          )
+        )
+        .returning({ id: payment.id });
+      if (claimed.length === 0) {
+        return;
+      }
+
+      // Купленное редактирование шаблона сразу материализуется черновиком в
+      // «Моих документах». documentId коммитится вместе со статусом, чтобы
+      // success-страница, увидев paid, гарантированно увидела и documentId
+      // (она перестаёт опрашивать сервер после первого paid-ответа).
+      const isEditPurchase =
+        found.purpose === "template_edit" ||
+        found.purpose === "template_purchase";
+      if (isEditPurchase && found.templateId) {
+        const documentId = await createPurchasedDraft(tx, {
+          userId: found.userId,
+          organizationId: found.organizationId,
+          templateId: found.templateId,
+        });
+        if (documentId) {
+          await tx
+            .update(payment)
+            .set({ documentId })
+            .where(eq(payment.id, found.id));
+        }
+      }
+
+      // A paid subscription payment activates the plan for the buyer.
+      if (found.purpose === "subscription" && found.subscriptionPlanId) {
+        await tx
+          .update(user)
+          .set({
+            subscriptionPlanId: found.subscriptionPlanId,
+            subscriptionPeriod: found.subscriptionPeriod ?? "monthly",
+            subscriptionExpiresAt: subscriptionExpiry(
+              paidAt,
+              found.subscriptionPeriod
+            ),
+          })
+          .where(eq(user.id, found.userId));
+      }
+    });
   }
 
   return { status: "ok", invId };

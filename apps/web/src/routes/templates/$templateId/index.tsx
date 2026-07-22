@@ -204,7 +204,7 @@ function TemplateInfoSidebar({
   }).format(new Date(updatedAt));
 
   return (
-    <aside className="flex w-[365px] shrink-0 flex-col gap-4 overflow-auto border-border border-l bg-background p-6">
+    <aside className="flex w-full shrink-0 flex-col gap-4 border-border border-t bg-background p-4 sm:p-6 lg:w-[365px] lg:overflow-auto lg:border-t-0 lg:border-l">
       <div className="flex flex-col gap-2">
         <h2 className="font-semibold text-foreground text-xl leading-tight">
           {title}
@@ -483,8 +483,8 @@ function RouteComponent() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header: breadcrumb + actions */}
-      <div className="flex items-center justify-between gap-4 border-border border-b bg-background px-4 py-3">
+      {/* Header: breadcrumb + actions; на мобильных кнопки уходят под хлебные крошки */}
+      <div className="flex flex-col gap-3 border-border border-b bg-background px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
         <nav className="flex min-w-0 items-center gap-1 text-sm">
           <Link
             className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:text-foreground"
@@ -499,7 +499,7 @@ function RouteComponent() {
           </span>
         </nav>
         {/* Action buttons: Сохранить + Скачать (secondary) + Редактировать */}
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <button
             className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#ececec] px-4 font-medium text-foreground text-sm transition-colors hover:bg-muted disabled:opacity-60"
             disabled={bookmarkMutation.isPending}
@@ -546,10 +546,11 @@ function RouteComponent() {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* Content: на мобильных — предпросмотр и инфо-панель в столбик, общий
+          скролл; на десктопе — две независимо скроллящиеся колонки */}
+      <div className="flex flex-1 flex-col overflow-auto lg:flex-row lg:overflow-hidden">
         {/* Preview Section */}
-        <div className="flex-1 overflow-auto bg-muted/30 p-6">
+        <div className="bg-muted/30 p-4 sm:p-6 lg:flex-1 lg:overflow-auto">
           <div className="mx-auto max-w-3xl">
             <div className="relative">
               <PreviewPane

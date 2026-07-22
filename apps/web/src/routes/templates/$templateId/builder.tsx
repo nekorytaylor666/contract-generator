@@ -185,10 +185,26 @@ function RouteComponent() {
   );
 
   // Load existing document if documentId is set
-  const { data: existingDocument } = useQuery({
+  const { data: existingDocument, error: documentLoadError } = useQuery({
     ...trpc.documents.getById.queryOptions({ id: documentId ?? "" }),
     enabled: !!documentId,
   });
+
+  // Документ из URL недоступен (удалён или лежит в другой организации) —
+  // сбрасываем documentId и работаем как с новым документом. Иначе каждое
+  // сохранение уходило бы в update-ветку и падало с «Document not found».
+  useEffect(() => {
+    if (!(documentLoadError && documentId)) {
+      return;
+    }
+    setDocumentId(undefined);
+    navigate({
+      to: "/templates/$templateId/builder",
+      params: { templateId },
+      search: {},
+      replace: true,
+    });
+  }, [documentLoadError, documentId, navigate, templateId]);
 
   // Admin-set defaults for every variable of the template (full set, NOT
   // filtered by reachability). Computed synchronously so the form gets them
@@ -350,6 +366,7 @@ function RouteComponent() {
         link.click();
         document.body.removeChild(link);
       },
+      onError: (err) => toast.error(err.message),
     })
   );
 
@@ -378,6 +395,9 @@ function RouteComponent() {
           });
         }
       },
+      // Без обработчика отказ сохранения (например, «Лимит редактирований
+      // исчерпан») проглатывался молча, а шапка показывала «Сохранено».
+      onError: (err) => toast.error(err.message),
     })
   );
 
@@ -612,8 +632,8 @@ function RouteComponent() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 border-border border-b bg-background px-4 py-3">
+      {/* Header: на узких экранах кнопки переносятся под хлебные крошки */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-border border-b bg-background px-4 py-3">
         <div className="flex min-w-0 items-center gap-1.5 text-sm">
           <Link
             className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
@@ -659,8 +679,8 @@ function RouteComponent() {
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-3 border-border border-b bg-background px-4 py-2">
+      {/* Toolbar: селекты стиля не влезают на мобильных — скроллим по горизонтали */}
+      <div className="flex items-center gap-3 overflow-x-auto border-border border-b bg-background px-4 py-2">
         <DocumentStyleSettings
           locale={docLocale}
           onLocaleChange={handleLocaleChange}
@@ -683,11 +703,12 @@ function RouteComponent() {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* Content: на мобильных — документ и форма в столбик с общим скроллом,
+          на десктопе — две независимо скроллящиеся колонки */}
+      <div className="flex flex-1 flex-col overflow-auto lg:flex-row lg:overflow-hidden">
         {/* Interactive Document Preview */}
-        <div className="flex-1 overflow-auto bg-muted/30 p-4">
-          <div className="mx-auto h-full max-w-5xl">
+        <div className="bg-muted/30 p-4 lg:flex-1 lg:overflow-auto">
+          <div className="mx-auto max-w-5xl lg:h-full">
             <PreviewErrorBoundary>
               {isComplexNative(localized.typstContent) ? (
                 <NativeInlinePreview
@@ -714,9 +735,9 @@ function RouteComponent() {
           </div>
         </div>
 
-        {/* Form Sidebar — collapsible */}
+        {/* Form Sidebar — collapsible; на мобильных занимает всю ширину под документом */}
         {sidebarOpen && (
-          <div className="w-96 shrink-0 overflow-auto border-border border-l bg-background p-5">
+          <div className="w-full shrink-0 border-border border-t bg-background p-4 sm:p-5 lg:w-96 lg:overflow-auto lg:border-t-0 lg:border-l">
             <h2 className="font-semibold text-foreground text-xl leading-tight">
               {localized.title}
             </h2>

@@ -185,6 +185,9 @@ function SidebarToggle() {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation();
   const { t } = useTranslation();
+  // На мобильных сайдбар — это Sheet: после перехода по пункту меню его надо
+  // закрыть, иначе оверлей остаётся поверх новой страницы.
+  const { setOpenMobile } = useSidebar();
   const isAdminContext = location.pathname.startsWith("/admin");
   const navigation = isAdminContext ? adminNavigation : userNavigation;
 
@@ -194,6 +197,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <Link
           aria-label={isAdminContext ? "ZHEBE · Админка" : "ZHEBE"}
           className="text-sidebar-foreground group-data-[collapsible=icon]:hidden"
+          onClick={() => setOpenMobile(false)}
           to={isAdminContext ? "/admin/templates" : "/"}
         >
           <ZhebeLogo className="h-5 w-auto" />
@@ -215,7 +219,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     }
                     tooltip={t(item.titleKey)}
                   >
-                    <Link to={item.url}>
+                    <Link onClick={() => setOpenMobile(false)} to={item.url}>
                       <item.icon />
                       <span>{t(item.titleKey)}</span>
                     </Link>

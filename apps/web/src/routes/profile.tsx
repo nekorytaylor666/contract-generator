@@ -434,9 +434,9 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
           <h2 className="font-semibold text-2xl text-foreground leading-6">
             Доступные планы
           </h2>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <span className="text-foreground text-xs">Период подписки</span>
-            <div className="flex items-center gap-1 rounded-[10px] bg-muted p-1">
+            <div className="flex flex-wrap items-center gap-1 rounded-[10px] bg-muted p-1">
               {PERIODS.map((option) => {
                 const isActive = option.key === period;
                 return (
@@ -1300,17 +1300,18 @@ function ProfilePage() {
     <div className="flex h-full flex-col overflow-auto">
       <div className="flex flex-col">
         {/* Navigation: heading + tab bar */}
-        <div className="flex flex-col gap-4 px-6 pt-4">
+        <div className="flex flex-col gap-4 px-4 pt-4 sm:px-6">
           <h1 className="font-semibold text-2xl text-foreground leading-7">
             Профиль
           </h1>
-          <div className="flex items-start gap-1 border-border border-b">
+          {/* Табы не влезают на мобильных — скроллим по горизонтали */}
+          <div className="flex items-start gap-1 overflow-x-auto border-border border-b">
             {PROFILE_TABS.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
                 <button
                   className={cn(
-                    "-mb-px flex flex-col items-stretch border-b pb-2 transition-colors",
+                    "-mb-px flex shrink-0 flex-col items-stretch whitespace-nowrap border-b pb-2 transition-colors",
                     isActive ? "border-foreground" : "border-transparent"
                   )}
                   key={tab.id}
@@ -1334,7 +1335,7 @@ function ProfilePage() {
         </div>
 
         {/* Content per active tab */}
-        <div className="px-6 py-4">
+        <div className="px-4 py-4 sm:px-6">
           {activeTab === "subscription" && (
             <SubscriptionTab justPaid={search.subscribed} />
           )}

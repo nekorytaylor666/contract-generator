@@ -28,9 +28,9 @@ function unusableReason(status: string, expired: boolean): string | null {
 
 function CenteredCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-muted px-6">
+    <div className="flex min-h-svh w-full items-center justify-center bg-muted px-4 py-8 sm:px-6">
       <main
-        className="flex w-full max-w-md flex-col items-center gap-5 rounded-2xl bg-background p-8 text-center"
+        className="flex w-full max-w-md flex-col items-center gap-5 rounded-2xl bg-background p-6 text-center sm:p-8"
         style={{ boxShadow: "0px 25px 50px 0 rgba(0,0,0,0.1)" }}
       >
         {children}

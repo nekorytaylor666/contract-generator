@@ -249,6 +249,9 @@ export const paymentsRouter = router({
           currency: payment.currency,
           templateId: payment.templateId,
           purpose: payment.purpose,
+          // Черновик, созданный вебхуком при оплате template_edit, — success-
+          // страница открывает конструктор сразу на нём.
+          documentId: payment.documentId,
         })
         .from(payment)
         .where(
