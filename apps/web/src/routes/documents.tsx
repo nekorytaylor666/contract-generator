@@ -104,6 +104,7 @@ interface DocumentListItem {
   templateTitle: string | null;
   status: string;
   updatedAt: Date | string;
+  downloadedAt: Date | string | null;
 }
 
 function StatCard({
@@ -154,8 +155,11 @@ function RouteComponent() {
   const visibleDocuments = useMemo(() => {
     let list = documents;
     if (tab === "drafts") {
+      // Скачанный («выданный») договор черновиком уже не является, даже если
+      // статус остался draft.
       list = list.filter(
-        (doc) => normalizeDocumentStatus(doc.status) === "draft"
+        (doc) =>
+          normalizeDocumentStatus(doc.status) === "draft" && !doc.downloadedAt
       );
     } else if (tab === "completed") {
       list = list.filter((doc) =>
@@ -212,7 +216,8 @@ function RouteComponent() {
       if (status === "signed") {
         signed += 1;
       }
-      if (IN_WORK_STATUSES.has(status)) {
+      // Выданные (скачанные) договоры активной работой не считаем.
+      if (IN_WORK_STATUSES.has(status) && !doc.downloadedAt) {
         inWork += 1;
       }
       const age = now - toTime(doc.createdAt);
@@ -535,6 +540,7 @@ function renderGrid({
       {documents.map((doc) => (
         <DocumentCard
           canChangeStatus={canChangeStatus}
+          downloadedAt={doc.downloadedAt}
           id={doc.id}
           key={doc.id}
           status={doc.status}
@@ -553,6 +559,7 @@ interface SavedTemplate {
   title: string;
   description: string | null;
   price: number;
+  updatedAt: Date | string;
 }
 
 function SavedTemplatesGrid({ templates }: { templates: SavedTemplate[] }) {
@@ -579,6 +586,7 @@ function SavedTemplatesGrid({ templates }: { templates: SavedTemplate[] }) {
           price={tpl.price}
           saved
           title={tpl.title}
+          updatedAt={tpl.updatedAt}
         />
       ))}
     </div>

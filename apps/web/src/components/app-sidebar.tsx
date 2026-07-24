@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
+import { Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   CircleUserIcon,
@@ -125,9 +126,18 @@ function UsageMeter({
   );
 }
 
+// Кнопка «Повысить тариф» появляется, когда какой-то из квот осталось меньше
+// этого количества (безлимит -1 не считается).
+const LOW_QUOTA_THRESHOLD = 2;
+
+function quotaRemaining(quota: number, used: number): number {
+  return quota === -1 ? Number.POSITIVE_INFINITY : Math.max(0, quota - used);
+}
+
 /** Карточка «Использование» внизу сайдбара: месячные квоты тарифа. */
 function SidebarUsageCard() {
   const { data: session } = authClient.useSession();
+  const { setOpenMobile } = useSidebar();
   const trpc = useTRPC();
   const { data: sub } = useQuery({
     ...trpc.subscriptions.mySubscription.queryOptions(),
@@ -142,6 +152,11 @@ function SidebarUsageCard() {
   const now = new Date();
   const reset = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const resetLabel = `Обновится ${reset.getDate()} ${MONTHS_RU_GENITIVE[reset.getMonth()]}`;
+
+  const lowQuota =
+    quotaRemaining(sub.downloadQuota, sub.downloadsUsed) <
+      LOW_QUOTA_THRESHOLD ||
+    quotaRemaining(sub.editQuota, sub.editsUsed) < LOW_QUOTA_THRESHOLD;
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 group-data-[collapsible=icon]:hidden">
@@ -161,6 +176,22 @@ function SidebarUsageCard() {
         quota={sub.editQuota}
         used={sub.editsUsed}
       />
+      {lowQuota && (
+        <Button
+          asChild
+          className="h-8 w-full justify-center gap-1.5 border-[#d4d4d4] bg-transparent font-medium text-foreground text-xs hover:bg-muted"
+          variant="outline"
+        >
+          <Link
+            onClick={() => setOpenMobile(false)}
+            search={{ tab: "subscription" }}
+            to="/profile"
+          >
+            <Zap className="size-3.5" />
+            Повысить тариф
+          </Link>
+        </Button>
+      )}
     </div>
   );
 }

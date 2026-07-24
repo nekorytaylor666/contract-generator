@@ -32,6 +32,9 @@ export const document = pgTable(
     currentVersion: integer("current_version").notNull().default(1),
     // Lifecycle: draft | in_progress | signed | completed.
     status: text("status").notNull().default("draft"),
+    // Момент первого скачивания PDF: после него договор считается выданным
+    // и закрывается для редактирования (в «Моих документах» показан серым).
+    downloadedAt: timestamp("downloaded_at"),
     variables: jsonb("variables").notNull().default({}),
     logo: text("logo"),
     style: jsonb("style"),

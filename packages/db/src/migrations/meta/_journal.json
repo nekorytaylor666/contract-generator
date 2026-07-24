@@ -120,6 +120,20 @@
       "when": 1784722883677,
       "tag": "0016_lean_blonde_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1784819027683,
+      "tag": "0017_chunky_miracleman",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1784887903547,
+      "tag": "0018_flashy_gargoyle",
+      "breakpoints": true
     }
   ]
 }

@@ -386,6 +386,7 @@ function renderGrid({
     description?: string | null;
     price?: number;
     categories?: string[] | null;
+    updatedAt?: Date | string;
   }>;
   purchasedSet: Set<string>;
   bookmarkSet: Set<string>;
@@ -425,6 +426,7 @@ function renderGrid({
           purchased={purchasedSet.has(template.id)}
           saved={bookmarkSet.has(template.id)}
           title={template.title}
+          updatedAt={template.updatedAt}
         />
       ))}
     </div>

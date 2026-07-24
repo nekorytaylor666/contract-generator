@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Check,
   CircleDashed,
+  Download,
   MoreHorizontal,
   PenLine,
   Trash2,
@@ -36,6 +37,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
 
 interface DocumentCardProps {
@@ -45,6 +47,8 @@ interface DocumentCardProps {
   templateId: string;
   status: string;
   updatedAt: Date | string;
+  /** Момент скачивания PDF — скачанный договор показан серым и не редактируется. */
+  downloadedAt?: Date | string | null;
   /** Смена статуса доступна только на платной подписке. */
   canChangeStatus: boolean;
 }
@@ -60,6 +64,7 @@ export function DocumentCard({
   templateId,
   status,
   updatedAt,
+  downloadedAt,
   canChangeStatus,
 }: DocumentCardProps) {
   const trpc = useTRPC();
@@ -68,7 +73,8 @@ export function DocumentCard({
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const currentStatus = normalizeDocumentStatus(status);
-  const editable = !FINAL_STATUSES.has(currentStatus);
+  const downloaded = Boolean(downloadedAt);
+  const editable = !(FINAL_STATUSES.has(currentStatus) || downloaded);
 
   const invalidateList = () =>
     queryClient.invalidateQueries(trpc.documents.list.queryFilter());
@@ -103,16 +109,29 @@ export function DocumentCard({
 
   return (
     <>
+      {/* Скачанный договор в конструктор не ведёт — ссылка отключена. */}
       <Link
-        className="group block"
+        className={cn("group block", downloaded && "cursor-default")}
+        disabled={downloaded}
         params={{ templateId }}
         search={{ documentId: id }}
         to="/templates/$templateId/builder"
       >
-        <div className="flex h-full flex-col gap-3 rounded-2xl border border-[#e5e5e5] bg-card p-4 transition-all hover:border-foreground/20 hover:shadow-sm">
-          {/* Counterparty + actions */}
+        <div
+          className={cn(
+            "flex h-full flex-col gap-3 rounded-2xl border border-[#e5e5e5] bg-card p-4",
+            !downloaded &&
+              "transition-all hover:border-foreground/20 hover:shadow-sm"
+          )}
+        >
+          {/* Counterparty + actions: иконки действий не гасим (по макету) */}
           <div className="flex items-start justify-between gap-2">
-            <span className="truncate text-muted-foreground text-xs">
+            <span
+              className={cn(
+                "truncate text-muted-foreground text-xs",
+                downloaded && "opacity-50"
+              )}
+            >
               {templateTitle ?? "—"}
             </span>
             <DropdownMenu>
@@ -194,13 +213,29 @@ export function DocumentCard({
           </div>
 
           {/* Title */}
-          <h3 className="line-clamp-2 min-h-[2.75rem] font-semibold text-base text-foreground leading-snug">
+          <h3
+            className={cn(
+              "line-clamp-2 min-h-[2.75rem] font-semibold text-base text-foreground leading-snug",
+              downloaded && "opacity-50"
+            )}
+          >
             {title}
           </h3>
 
           {/* Status + last change (по макету) */}
-          <div className="mt-auto flex items-center gap-2 pt-2">
+          <div
+            className={cn(
+              "mt-auto flex flex-wrap items-center gap-2 pt-2",
+              downloaded && "opacity-50"
+            )}
+          >
             <DocumentStatusBadge status={status} />
+            {downloaded && (
+              <span className="inline-flex items-center gap-1 whitespace-nowrap text-muted-foreground text-xs">
+                <Download className="size-3.5" />
+                Скачан
+              </span>
+            )}
             <DocumentDateChip value={updatedAt} />
           </div>
         </div>

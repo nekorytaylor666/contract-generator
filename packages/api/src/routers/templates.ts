@@ -7,7 +7,11 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { db } from "@contract-builder/db";
-import { user } from "@contract-builder/db/schema/auth";
+import { member, user } from "@contract-builder/db/schema/auth";
+import {
+  document,
+  documentVersion,
+} from "@contract-builder/db/schema/document";
 import { payment } from "@contract-builder/db/schema/payment";
 import {
   type LocaleContent,
@@ -30,6 +34,7 @@ import {
   sql,
 } from "drizzle-orm";
 import { z } from "zod";
+import { canEditDocuments } from "../constants/access";
 import {
   resolveLocalized,
   resolveLocalizedVariables,
@@ -43,6 +48,7 @@ import {
   isCloudflareImageId,
   uploadCloudflareImage,
 } from "../lib/cloudflare-images";
+import { pinLatestTemplateVersion } from "../lib/document-service";
 import { consumeQuota } from "../lib/subscription";
 import { pluralize } from "../utils/pluralize";
 
@@ -1145,6 +1151,10 @@ export const templatesRouter = router({
       z.object({
         templateId: z.string(),
         templateVersionId: z.string().optional(),
+        // Сохранённый документ, который скачивают: первое скачивание
+        // фиксирует присланные значения как финальную версию и закрывает
+        // документ; повторные печатают только сохранённое состояние.
+        documentId: z.string().optional(),
         locale: z.string().optional(),
         variables: z.record(z.string(), z.unknown()),
         logo: z.string().optional(),
@@ -1156,30 +1166,56 @@ export const templatesRouter = router({
           .optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const download = input.documentId
+        ? await prepareDocumentDownload(
+            input.documentId,
+            input.templateId,
+            ctx.session
+          )
+        : ({ mode: "plain" } as const);
+
+      // Скачанный («выданный») документ печатаем строго из сохранённого
+      // состояния — присланные с клиента значения игнорируются, иначе одну
+      // покупку можно было бы бесконечно переделывать под новые договоры.
+      const compileArgs =
+        download.mode === "locked"
+          ? {
+              templateId: download.doc.templateId,
+              templateVersionId: download.doc.templateVersionId ?? undefined,
+              variables: download.doc.variables as Record<string, unknown>,
+              logo: download.doc.logo ?? undefined,
+              style: (download.doc.style ?? undefined) as
+                | { font?: string; preset?: string }
+                | undefined,
+            }
+          : {
+              templateId: input.templateId,
+              templateVersionId: input.templateVersionId,
+              variables: input.variables,
+              logo: input.logo,
+              style: input.style,
+            };
+
       const source = await loadTemplateSource(
-        input.templateId,
-        input.templateVersionId,
+        compileArgs.templateId,
+        compileArgs.templateVersionId,
         input.locale
       );
 
       const templateVars = (source.variables ?? []) as TemplateVariable[];
-      const vars = computeDerivedVariables(input.variables, templateVars);
+      const vars = computeDerivedVariables(compileArgs.variables, templateVars);
       const processedContent = applyNativeLetValues(
         replaceVariables(source.typstContent, vars, templateVars),
         vars
       );
 
+      let pdf: Buffer;
       try {
-        const pdf = await compileTypst(processedContent, {
-          logoBase64: input.logo,
-          style: input.style,
+        pdf = await compileTypst(processedContent, {
+          logoBase64: compileArgs.logo,
+          style: compileArgs.style,
         });
-        const base64 = pdf.toString("base64");
-        return {
-          pdfDataUrl: `data:application/pdf;base64,${base64}`,
-          fileName: `${source.title}.pdf`,
-        };
       } catch (error) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -1189,6 +1225,15 @@ export const templatesRouter = router({
               : "Failed to compile PDF",
         });
       }
+      // Первое скачивание фиксируем на сервере, а не с клиента: вкладку могут
+      // закрыть или обновить раньше, чем ушла бы отдельная отметка.
+      if (download.mode === "issue") {
+        await issueDocumentDownload(download, compileArgs);
+      }
+      return {
+        pdfDataUrl: `data:application/pdf;base64,${pdf.toString("base64")}`,
+        fileName: `${source.title}.pdf`,
+      };
     }),
 
   /**
@@ -1298,6 +1343,132 @@ export const templatesRouter = router({
       }
     }),
 });
+
+type DocumentDownload =
+  /** Обычная компиляция шаблона — документ не затрагивается. */
+  | { mode: "plain" }
+  /** Документ уже «выдан»: печатаем только его сохранённое состояние. */
+  | { mode: "locked"; doc: typeof document.$inferSelect }
+  /** Первое скачивание: после компиляции фиксируем версию и ставим отметку. */
+  | {
+      mode: "issue";
+      doc: typeof document.$inferSelect;
+      tmpl: typeof template.$inferSelect;
+      userId: string;
+    };
+
+/**
+ * Решает, как обращаться с documentId при скачивании. Чужой или битый
+ * documentId молча превращается в обычную компиляцию: заблокировать (или
+ * прочитать) чужой договор нельзя, а честный клиент шлёт только свой id.
+ */
+async function prepareDocumentDownload(
+  documentId: string,
+  templateId: string,
+  session: { user: { id: string } } | null | undefined
+): Promise<DocumentDownload> {
+  if (!session) {
+    // Без сессии PDF ушёл бы без отметки «скачан» — блокировка молча снялась
+    // бы. Честный клиент шлёт documentId только из авторизованного билдера.
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Сессия истекла — войдите и повторите скачивание",
+    });
+  }
+  const [doc] = await db
+    .select()
+    .from(document)
+    .where(eq(document.id, documentId))
+    .limit(1);
+  if (!doc) {
+    return { mode: "plain" };
+  }
+  const [membership] = await db
+    .select({ role: member.role })
+    .from(member)
+    .where(
+      and(
+        eq(member.userId, session.user.id),
+        eq(member.organizationId, doc.organizationId)
+      )
+    )
+    .limit(1);
+  if (!membership) {
+    return { mode: "plain" };
+  }
+  if (doc.downloadedAt) {
+    return { mode: "locked", doc };
+  }
+  // Шаблон в запросе обязан совпадать с шаблоном документа, а «выдать»
+  // договор может только роль с правом редактирования — просмотрщик скачивает
+  // без последствий для документа.
+  if (doc.templateId !== templateId || !canEditDocuments(membership.role)) {
+    return { mode: "plain" };
+  }
+  const [tmpl] = await db
+    .select()
+    .from(template)
+    .where(eq(template.id, doc.templateId))
+    .limit(1);
+  if (!tmpl) {
+    return { mode: "plain" };
+  }
+  return { mode: "issue", doc, tmpl, userId: session.user.id };
+}
+
+/**
+ * Первое скачивание: скачанные значения становятся финальной версией
+ * документа (иначе выданный PDF разошёлся бы с сохранённым состоянием), и
+ * документ закрывается для правок. Всё под блокировкой строки — параллельное
+ * скачивание или сохранение не перезапишет уже выданный договор.
+ */
+async function issueDocumentDownload(
+  { doc, tmpl, userId }: Extract<DocumentDownload, { mode: "issue" }>,
+  values: {
+    variables: Record<string, unknown>;
+    logo?: string;
+    style?: { font?: string; preset?: string };
+  }
+) {
+  const pinnedVersionId = await pinLatestTemplateVersion(db, tmpl, userId);
+  await db.transaction(async (tx) => {
+    const [fresh] = await tx
+      .select({
+        id: document.id,
+        currentVersion: document.currentVersion,
+        downloadedAt: document.downloadedAt,
+      })
+      .from(document)
+      .where(eq(document.id, doc.id))
+      .for("update")
+      .limit(1);
+    if (!fresh || fresh.downloadedAt) {
+      return;
+    }
+    const newVersion = fresh.currentVersion + 1;
+    await tx.insert(documentVersion).values({
+      id: randomUUID(),
+      documentId: fresh.id,
+      version: newVersion,
+      templateVersionId: pinnedVersionId,
+      variables: values.variables,
+      logo: values.logo ?? null,
+      style: values.style ?? null,
+      createdBy: userId,
+    });
+    await tx
+      .update(document)
+      .set({
+        variables: values.variables,
+        logo: values.logo ?? null,
+        style: values.style ?? null,
+        currentVersion: newVersion,
+        templateVersionId: pinnedVersionId,
+        downloadedAt: new Date(),
+      })
+      .where(eq(document.id, fresh.id));
+  });
+}
 
 /**
  * Load template content + variables. If `templateVersionId` is provided, returns

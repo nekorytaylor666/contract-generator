@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock, Eye, History, RotateCcw } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
@@ -102,6 +103,10 @@ export function VersionHistory({
           queryKey: trpc.documents.getById.queryKey({ id: documentId }),
         });
       },
+      // Без обработчика отказ отката (например, «Договор уже скачан») молча
+      // проглатывался — кнопка просто ничего не делала.
+      onError: (err) =>
+        toast.error(err.message || "Не удалось откатить версию"),
     })
   );
 

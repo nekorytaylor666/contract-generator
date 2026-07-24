@@ -56,6 +56,7 @@ export const documentsRouter = router({
           categories: template.categories,
           documentType: template.documentType,
           status: document.status,
+          downloadedAt: document.downloadedAt,
           currentVersion: document.currentVersion,
           createdBy: document.createdBy,
           authorName: user.name,
@@ -150,61 +151,76 @@ export const documentsRouter = router({
       }
 
       if (input.documentId) {
+        const targetDocumentId = input.documentId;
         const pinnedVersionId = await pinLatestTemplateVersion(
           db,
           tmpl,
           userId
         );
-        // Update existing document - create new version
-        const [existing] = await db
-          .select()
-          .from(document)
-          .where(
-            and(
-              eq(document.id, input.documentId),
-              eq(document.organizationId, orgId)
+        // Update existing document - create new version. Всё в транзакции под
+        // блокировкой строки: параллельное скачивание (issueDocumentDownload)
+        // не успеет «выдать» договор между проверкой downloadedAt и записью.
+        return await db.transaction(async (tx) => {
+          const [existing] = await tx
+            .select()
+            .from(document)
+            .where(
+              and(
+                eq(document.id, targetDocumentId),
+                eq(document.organizationId, orgId)
+              )
             )
-          )
-          .limit(1);
+            .for("update")
+            .limit(1);
 
-        if (!existing) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Document not found",
-          });
-        }
+          if (!existing) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "Document not found",
+            });
+          }
 
-        const newVersion = existing.currentVersion + 1;
+          // Скачанный договор считается выданным: правки закрыты, иначе одну
+          // покупку можно было бы бесконечно переделывать под новые договоры.
+          if (existing.downloadedAt) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Договор уже скачан и закрыт для редактирования",
+            });
+          }
 
-        // Save version snapshot — re-pin to the LATEST template version. The
-        // builder renders and downloads the live template, so keeping the
-        // creation-time pin made admin edits invisible in saved documents;
-        // the per-version pin below still records what was live at save time.
-        await db.insert(documentVersion).values({
-          id: randomUUID(),
-          documentId: existing.id,
-          version: newVersion,
-          templateVersionId: pinnedVersionId,
-          variables: input.variables,
-          logo: input.logo ?? null,
-          style: input.style ?? null,
-          createdBy: userId,
-        });
+          const newVersion = existing.currentVersion + 1;
 
-        // Update document with latest data
-        await db
-          .update(document)
-          .set({
+          // Save version snapshot — re-pin to the LATEST template version. The
+          // builder renders and downloads the live template, so keeping the
+          // creation-time pin made admin edits invisible in saved documents;
+          // the per-version pin below still records what was live at save time.
+          await tx.insert(documentVersion).values({
+            id: randomUUID(),
+            documentId: existing.id,
+            version: newVersion,
+            templateVersionId: pinnedVersionId,
             variables: input.variables,
             logo: input.logo ?? null,
             style: input.style ?? null,
-            currentVersion: newVersion,
-            title: input.title ?? existing.title,
-            templateVersionId: pinnedVersionId,
-          })
-          .where(eq(document.id, existing.id));
+            createdBy: userId,
+          });
 
-        return { id: existing.id, version: newVersion };
+          // Update document with latest data
+          await tx
+            .update(document)
+            .set({
+              variables: input.variables,
+              logo: input.logo ?? null,
+              style: input.style ?? null,
+              currentVersion: newVersion,
+              title: input.title ?? existing.title,
+              templateVersionId: pinnedVersionId,
+            })
+            .where(eq(document.id, existing.id));
+
+          return { id: existing.id, version: newVersion };
+        });
       }
 
       // Create new document — same shared path the payment webhook uses.
@@ -368,71 +384,83 @@ export const documentsRouter = router({
       const orgId = ctx.orgId;
       const userId = ctx.session.user.id;
 
-      const [doc] = await db
-        .select()
-        .from(document)
-        .where(
-          and(
-            eq(document.id, input.documentId),
-            eq(document.organizationId, orgId)
+      // Транзакция с блокировкой строки — как в save: откат не должен
+      // проскочить параллельно с «выдачей» договора при скачивании.
+      return await db.transaction(async (tx) => {
+        const [doc] = await tx
+          .select()
+          .from(document)
+          .where(
+            and(
+              eq(document.id, input.documentId),
+              eq(document.organizationId, orgId)
+            )
           )
-        )
-        .limit(1);
+          .for("update")
+          .limit(1);
 
-      if (!doc) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Document not found",
-        });
-      }
+        if (!doc) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Document not found",
+          });
+        }
 
-      // Get the version to revert to
-      const [ver] = await db
-        .select()
-        .from(documentVersion)
-        .where(
-          and(
-            eq(documentVersion.documentId, input.documentId),
-            eq(documentVersion.version, input.version)
+        if (doc.downloadedAt) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Договор уже скачан и закрыт для редактирования",
+          });
+        }
+
+        // Get the version to revert to
+        const [ver] = await tx
+          .select()
+          .from(documentVersion)
+          .where(
+            and(
+              eq(documentVersion.documentId, input.documentId),
+              eq(documentVersion.version, input.version)
+            )
           )
-        )
-        .limit(1);
+          .limit(1);
 
-      if (!ver) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Version not found",
-        });
-      }
+        if (!ver) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Version not found",
+          });
+        }
 
-      // Create a new version with the old data (revert = new version with old content)
-      const newVersion = doc.currentVersion + 1;
+        // Create a new version with the old data (revert = new version with old content)
+        const newVersion = doc.currentVersion + 1;
 
-      await db.insert(documentVersion).values({
-        id: randomUUID(),
-        documentId: doc.id,
-        version: newVersion,
-        templateVersionId: ver.templateVersionId ?? doc.templateVersionId,
-        variables: ver.variables,
-        logo: ver.logo,
-        style: ver.style,
-        createdBy: userId,
-      });
-
-      await db
-        .update(document)
-        .set({
+        await tx.insert(documentVersion).values({
+          id: randomUUID(),
+          documentId: doc.id,
+          version: newVersion,
+          templateVersionId: ver.templateVersionId ?? doc.templateVersionId,
           variables: ver.variables,
           logo: ver.logo,
-          style: ver.style as { font?: string; preset?: string } | null,
-          currentVersion: newVersion,
-        })
-        .where(eq(document.id, doc.id));
+          style: ver.style,
+          createdBy: userId,
+        });
 
-      return {
-        id: doc.id,
-        version: newVersion,
-        revertedFrom: input.version,
-      };
+        await tx
+          .update(document)
+          .set({
+            variables: ver.variables,
+            logo: ver.logo,
+            style: ver.style as { font?: string; preset?: string } | null,
+            currentVersion: newVersion,
+          })
+          .where(eq(document.id, doc.id));
+
+        return {
+          id: doc.id,
+          version: newVersion,
+          revertedFrom: input.version,
+        };
+      });
     }),
 });

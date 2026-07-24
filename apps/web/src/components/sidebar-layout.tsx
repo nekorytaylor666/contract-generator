@@ -1,5 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useMatch } from "@tanstack/react-router";
 import {
+  BookUser,
   CircleUser,
   FolderOpen,
   LogOut,
@@ -8,11 +10,12 @@ import {
   Shield,
   Users,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CommandSearchProvider } from "@/components/command-search/command-search-context";
 import { CommandSearchDialog } from "@/components/command-search/command-search-dialog";
+import { CounterpartiesDialog } from "@/components/counterparties/counterparties-dialog";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +25,7 @@ import {
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 import { looksLikePhone } from "@/lib/display-name";
+import { useTRPC } from "@/utils/trpc";
 
 import { AppSidebar } from "./app-sidebar";
 
@@ -152,6 +156,34 @@ function HeaderAdminToggle() {
   );
 }
 
+// Кнопка «Контрагенты» в шапке страницы документов. Доступна на любой
+// подписке, кроме разовой — как и смена статусов документов.
+function HeaderCounterparties() {
+  const trpc = useTRPC();
+  const { data: mySubscription } = useQuery(
+    trpc.subscriptions.mySubscription.queryOptions()
+  );
+  const [open, setOpen] = useState(false);
+
+  if (!mySubscription?.isPaid) {
+    return null;
+  }
+  return (
+    <>
+      <Button
+        className="h-8 gap-1.5 rounded-lg px-3 text-sm"
+        onClick={() => setOpen(true)}
+        type="button"
+        variant="outline"
+      >
+        <BookUser className="size-4" />
+        <span className="hidden sm:inline">Контрагенты</span>
+      </Button>
+      <CounterpartiesDialog onOpenChange={setOpen} open={open} />
+    </>
+  );
+}
+
 // Иконка выхода в правом верхнем углу шапки (по макету — рядом с языком).
 function HeaderSignOut() {
   const { data: session } = authClient.useSession();
@@ -220,6 +252,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
             </div>
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
               {/* Временно скрыто: команда (TeamAvatarStack + ShareAccessMenu) */}
+              {isDocuments && <HeaderCounterparties />}
               <LanguageSwitcher />
               <HeaderAdminToggle />
               <HeaderSignOut />

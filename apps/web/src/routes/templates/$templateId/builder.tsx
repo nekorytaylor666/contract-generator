@@ -4,7 +4,13 @@ import {
 } from "@contract-builder/api/constants/template-options";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Check, Loader2, PanelRightClose, PanelRightOpen } from "lucide-react";
+import {
+  Check,
+  DownloadIcon,
+  Loader2,
+  PanelRightClose,
+  PanelRightOpen,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -116,6 +122,51 @@ function variablesForLocale(
     : [];
 }
 
+/** Индикатор в шапке: «Скачан» / «Сохранение…» / кнопка / «Сохранено». */
+function SaveStatus({
+  docLocked,
+  saving,
+  hasChanges,
+  canEdit,
+  onSave,
+}: {
+  docLocked: boolean;
+  saving: boolean;
+  hasChanges: boolean;
+  canEdit: boolean;
+  onSave: () => void;
+}) {
+  if (docLocked) {
+    return (
+      <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
+        <DownloadIcon className="size-4" />
+        Скачан — правки закрыты
+      </span>
+    );
+  }
+  if (saving) {
+    return (
+      <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
+        <Loader2 className="size-4 animate-spin" />
+        Сохранение…
+      </span>
+    );
+  }
+  if (hasChanges) {
+    return (
+      <Button disabled={!canEdit} onClick={onSave} size="sm" variant="outline">
+        Сохранить
+      </Button>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
+      <Check className="size-4 text-green-600" />
+      Сохранено
+    </span>
+  );
+}
+
 function RouteComponent() {
   const { templateId } = Route.useParams();
   const { documentId: initialDocumentId } = Route.useSearch();
@@ -189,6 +240,10 @@ function RouteComponent() {
     ...trpc.documents.getById.queryOptions({ id: documentId ?? "" }),
     enabled: !!documentId,
   });
+
+  // Скачанный договор закрыт для правок: сервер отклонит save, а в шапке
+  // вместо «Сохранить» показываем пометку.
+  const docLocked = Boolean(existingDocument?.downloadedAt);
 
   // Документ из URL недоступен (удалён или лежит в другой организации) —
   // сбрасываем documentId и работаем как с новым документом. Иначе каждое
@@ -365,6 +420,16 @@ function RouteComponent() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        // Сервер пометил документ скачанным — обновляем его и список, чтобы
+        // блокировка редактирования появилась сразу, без перезагрузки.
+        if (documentId) {
+          queryClient.invalidateQueries({
+            queryKey: trpc.documents.getById.queryKey({ id: documentId }),
+          });
+          queryClient.invalidateQueries({
+            queryKey: trpc.documents.list.queryKey(),
+          });
+        }
       },
       onError: (err) => toast.error(err.message),
     })
@@ -432,6 +497,9 @@ function RouteComponent() {
     // admin edit ("the template never updates").
     compileMutation.mutate({
       templateId,
+      // Скачивание сохранённого документа сервер зафиксирует и закроет его
+      // для дальнейших правок.
+      documentId,
       locale: docLocale,
       variables: latestValuesRef.current,
       logo: logo ?? undefined,
@@ -440,10 +508,17 @@ function RouteComponent() {
         preset: documentStyle.preset,
       },
     });
-  }, [templateId, compileMutation.mutate, logo, documentStyle, docLocale]);
+  }, [
+    templateId,
+    documentId,
+    compileMutation.mutate,
+    logo,
+    documentStyle,
+    docLocale,
+  ]);
 
   const handleSave = useCallback(() => {
-    if (!(canEdit && latestValuesRef.current)) {
+    if (docLocked || !(canEdit && latestValuesRef.current)) {
       return;
     }
     saveMutation.mutate({
@@ -466,6 +541,7 @@ function RouteComponent() {
     logo,
     documentStyle,
     canEdit,
+    docLocked,
     docLocale,
   ]);
 
@@ -647,28 +723,13 @@ function RouteComponent() {
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          {saveMutation.isPending && (
-            <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
-              <Loader2 className="size-4 animate-spin" />
-              Сохранение…
-            </span>
-          )}
-          {!saveMutation.isPending && changedVars.size > 0 && (
-            <Button
-              disabled={!canEdit}
-              onClick={handleSave}
-              size="sm"
-              variant="outline"
-            >
-              Сохранить
-            </Button>
-          )}
-          {!(saveMutation.isPending || changedVars.size > 0) && (
-            <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
-              <Check className="size-4 text-green-600" />
-              Сохранено
-            </span>
-          )}
+          <SaveStatus
+            canEdit={canEdit}
+            docLocked={docLocked}
+            hasChanges={changedVars.size > 0}
+            onSave={handleSave}
+            saving={saveMutation.isPending}
+          />
           <Button
             className="bg-primary text-primary-foreground hover:bg-primary/90"
             disabled={compileMutation.isPending}
