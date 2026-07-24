@@ -134,6 +134,13 @@
       "when": 1784887903547,
       "tag": "0018_flashy_gargoyle",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1784890306785,
+      "tag": "0019_unlock_edit_purchased_documents",
+      "breakpoints": true
     }
   ]
 }

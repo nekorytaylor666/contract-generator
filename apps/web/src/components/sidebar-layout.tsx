@@ -216,8 +216,14 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   const { title, icon: TitleIcon } = usePageHeader();
   const isChromeless = useIsChromelessRoute();
   const documentsMatch = useMatch({ from: "/documents", shouldThrow: false });
+  const templatesMatch = useMatch({
+    from: "/templates/",
+    shouldThrow: false,
+  });
   const activeOrg = useActiveOrgBootstrap();
   const isDocuments = Boolean(documentsMatch);
+  // Контрагенты доступны и из каталога шаблонов, и из «Моих документов».
+  const showCounterparties = isDocuments || Boolean(templatesMatch);
 
   if (isChromeless) {
     return <>{children}</>;
@@ -252,7 +258,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
             </div>
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
               {/* Временно скрыто: команда (TeamAvatarStack + ShareAccessMenu) */}
-              {isDocuments && <HeaderCounterparties />}
+              {showCounterparties && <HeaderCounterparties />}
               <LanguageSwitcher />
               <HeaderAdminToggle />
               <HeaderSignOut />

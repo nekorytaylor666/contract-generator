@@ -48,7 +48,10 @@ import {
   isCloudflareImageId,
   uploadCloudflareImage,
 } from "../lib/cloudflare-images";
-import { pinLatestTemplateVersion } from "../lib/document-service";
+import {
+  hasPaidEditPurchase,
+  pinLatestTemplateVersion,
+} from "../lib/document-service";
 import { consumeQuota } from "../lib/subscription";
 import { pluralize } from "../utils/pluralize";
 
@@ -1403,6 +1406,18 @@ async function prepareDocumentDownload(
   // договор может только роль с правом редактирования — просмотрщик скачивает
   // без последствий для документа.
   if (doc.templateId !== templateId || !canEditDocuments(membership.role)) {
+    return { mode: "plain" };
+  }
+  // Купленное редактирование шаблона не «выдаётся»: скачивание — просто
+  // печать текущего состояния, документ остаётся редактируемым. Блокировка
+  // нужна только скачиванию без права редактирования, чтобы одну выдачу не
+  // переделывали бесконечно. Проверяем и скачивающего, и автора документа —
+  // документ мог быть создан по покупке коллеги.
+  const editPurchased =
+    (await hasPaidEditPurchase(session.user.id, doc.templateId)) ||
+    (doc.createdBy !== session.user.id &&
+      (await hasPaidEditPurchase(doc.createdBy, doc.templateId)));
+  if (editPurchased) {
     return { mode: "plain" };
   }
   const [tmpl] = await db
