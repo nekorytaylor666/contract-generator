@@ -28,6 +28,7 @@ import {
   gt,
   ilike,
   inArray,
+  isNotNull,
   isNull,
   lte,
   type SQL,
@@ -49,6 +50,7 @@ import {
   uploadCloudflareImage,
 } from "../lib/cloudflare-images";
 import {
+  createDocumentFromTemplate,
   hasPaidEditPurchase,
   pinLatestTemplateVersion,
 } from "../lib/document-service";
@@ -1317,23 +1319,25 @@ export const templatesRouter = router({
           input.locale
         )
       );
+      let result: { dataUrl: string; fileName: string };
       try {
         if (input.format === "docx") {
           const docx = await compileTypstToDocx(processedContent);
-          return {
+          result = {
             dataUrl: `data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,${docx.toString("base64")}`,
             fileName: `${resolved.title}.docx`,
           };
+        } else {
+          // Same baseline preset the preview photo uses — a set-less template
+          // must download looking like its catalogue photo (justified, 2cm).
+          const pdf = await compileTypst(processedContent, {
+            style: { preset: "default" },
+          });
+          result = {
+            dataUrl: `data:application/pdf;base64,${pdf.toString("base64")}`,
+            fileName: `${resolved.title}.pdf`,
+          };
         }
-        // Same baseline preset the preview photo uses — a set-less template
-        // must download looking like its catalogue photo (justified, 2cm).
-        const pdf = await compileTypst(processedContent, {
-          style: { preset: "default" },
-        });
-        return {
-          dataUrl: `data:application/pdf;base64,${pdf.toString("base64")}`,
-          fileName: `${resolved.title}.pdf`,
-        };
       } catch (error) {
         const fmt = input.format.toUpperCase();
         throw new TRPCError({
@@ -1344,8 +1348,91 @@ export const templatesRouter = router({
               : `Failed to compile ${fmt}`,
         });
       }
+
+      // Скачанный шаблон появляется в «Моих документах» «выданной» карточкой.
+      await materializeTemplateDownload({
+        userId: ctx.session.user.id,
+        activeOrgId: ctx.session.session.activeOrganizationId,
+        templateId: input.templateId,
+        locale: input.locale,
+      });
+
+      return result;
     }),
 });
+
+/**
+ * Скачивание пустого шаблона из каталога материализуется в «Моих документах»
+ * сразу «выданным» документом (downloadedAt проставлен) — карточка появляется
+ * с пониженной прозрачностью как история скачиваний. Купившим редактирование
+ * обычный черновик уже создал платёжный вебхук — им серый дубль не нужен.
+ * Повторные скачивания второй записи не плодят; ошибка здесь не должна
+ * ломать само скачивание.
+ */
+async function materializeTemplateDownload(params: {
+  userId: string;
+  activeOrgId: string | null | undefined;
+  templateId: string;
+  locale?: string;
+}): Promise<void> {
+  try {
+    if (await hasPaidEditPurchase(params.userId, params.templateId)) {
+      return;
+    }
+    // Организация — как в orgProcedure: активная, иначе первое членство с
+    // правом редактирования. Просмотрщики документов не создают.
+    const memberships = await db
+      .select({ organizationId: member.organizationId, role: member.role })
+      .from(member)
+      .where(eq(member.userId, params.userId));
+    const editable = memberships.filter((m) => canEditDocuments(m.role));
+    const membership =
+      editable.find((m) => m.organizationId === params.activeOrgId) ??
+      editable[0];
+    if (!membership) {
+      return;
+    }
+    const [already] = await db
+      .select({ id: document.id })
+      .from(document)
+      .where(
+        and(
+          eq(document.organizationId, membership.organizationId),
+          eq(document.templateId, params.templateId),
+          isNotNull(document.downloadedAt)
+        )
+      )
+      .limit(1);
+    if (already) {
+      return;
+    }
+    const [tmpl] = await db
+      .select()
+      .from(template)
+      .where(eq(template.id, params.templateId))
+      .limit(1);
+    if (!tmpl) {
+      return;
+    }
+    const created = await createDocumentFromTemplate(db, {
+      tmpl,
+      orgId: membership.organizationId,
+      userId: params.userId,
+      locale: params.locale,
+      variables: {},
+    });
+    await db
+      .update(document)
+      .set({ downloadedAt: new Date() })
+      .where(eq(document.id, created.id));
+  } catch (error) {
+    console.error(
+      "Не удалось создать запись о скачанном шаблоне:",
+      params.templateId,
+      error
+    );
+  }
+}
 
 type DocumentDownload =
   /** Обычная компиляция шаблона — документ не затрагивается. */
