@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@contract-builder/db";
 import { counterparty } from "@contract-builder/db/schema/counterparty";
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { editorProcedure, orgProcedure, router } from "../index";
@@ -74,6 +74,21 @@ const counterpartyFields = {
     .max(200),
 };
 
+// Нарушение уникального индекса (organization_id, bin) — ожидаемая ситуация
+// для формы, а не сбой. Drizzle может оборачивать ошибку pg (cause).
+function isUniqueViolation(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const candidate = error as { code?: string; cause?: { code?: string } };
+  return candidate.code === "23505" || candidate.cause?.code === "23505";
+}
+
+const DUPLICATE_BIN_ERROR = new TRPCError({
+  code: "CONFLICT",
+  message: "Контрагент с таким БИН уже есть в справочнике",
+});
+
 export const counterpartiesRouter = router({
   list: orgProcedure.query(async ({ ctx }) => {
     await ensurePaidPlan(ctx.session.user.id);
@@ -89,9 +104,16 @@ export const counterpartiesRouter = router({
     .mutation(async ({ ctx, input }) => {
       await ensurePaidPlan(ctx.session.user.id);
       const id = randomUUID();
-      await db
-        .insert(counterparty)
-        .values({ id, organizationId: ctx.orgId, ...input });
+      try {
+        await db
+          .insert(counterparty)
+          .values({ id, organizationId: ctx.orgId, ...input });
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          throw DUPLICATE_BIN_ERROR;
+        }
+        throw error;
+      }
       return { id };
     }),
 
@@ -100,16 +122,24 @@ export const counterpartiesRouter = router({
     .mutation(async ({ ctx, input }) => {
       await ensurePaidPlan(ctx.session.user.id);
       const { id, ...fields } = input;
-      const updated = await db
-        .update(counterparty)
-        .set(fields)
-        .where(
-          and(
-            eq(counterparty.id, id),
-            eq(counterparty.organizationId, ctx.orgId)
+      let updated: { id: string }[];
+      try {
+        updated = await db
+          .update(counterparty)
+          .set(fields)
+          .where(
+            and(
+              eq(counterparty.id, id),
+              eq(counterparty.organizationId, ctx.orgId)
+            )
           )
-        )
-        .returning({ id: counterparty.id });
+          .returning({ id: counterparty.id });
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          throw DUPLICATE_BIN_ERROR;
+        }
+        throw error;
+      }
       if (updated.length === 0) {
         throw new TRPCError({
           code: "NOT_FOUND",
@@ -117,6 +147,74 @@ export const counterpartiesRouter = router({
         });
       }
       return { id };
+    }),
+
+  // Автосохранение из билдера: секция стороны, заполненная вручную, попадает
+  // в справочник при сохранении договора. Валидация лаксовее create —
+  // обязательны только наименование и БИН (якорь дедупликации), остальные
+  // поля пишутся как есть. Дубликат по (org, БИН) молча пропускается.
+  autosave: editorProcedure
+    .input(
+      z.object({
+        name: z.string().trim().min(1).max(200),
+        bin: z.string().trim().regex(BIN_RE),
+        type: z.enum(["ТОО", "ИП", "АО"]).optional(),
+        address: z.string().trim().max(500).default(""),
+        phone: z.string().trim().max(60).default(""),
+        email: z.string().trim().max(160).default(""),
+        bank: z.string().trim().max(200).default(""),
+        iban: z.string().trim().max(60).default(""),
+        bik: z.string().trim().max(40).default(""),
+        kbe: z.string().trim().max(20).default(""),
+        knp: z.string().trim().max(20).default(""),
+        signatory: z.string().trim().max(200).default(""),
+        position: z.string().trim().max(200).default(""),
+        basis: z.string().trim().max(200).default(""),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await ensurePaidPlan(ctx.session.user.id);
+      const { type, ...fields } = input;
+      const id = randomUUID();
+      // Вставка с onConflictDoNothing по частичному уникальному индексу
+      // (organization_id, bin) — параллельные сохранения не создадут дубль.
+      // Тип не определён → пустая строка, а не дефолт «ТОО»: неверная
+      // классификация хуже незаполненной.
+      const inserted = await db
+        .insert(counterparty)
+        .values({
+          id,
+          organizationId: ctx.orgId,
+          ...fields,
+          iban: fields.iban.toUpperCase(),
+          bik: fields.bik.toUpperCase(),
+          type: type ?? "",
+        })
+        .onConflictDoNothing({
+          target: [counterparty.organizationId, counterparty.bin],
+          where: sql`${counterparty.bin} <> ''`,
+        })
+        .returning({ id: counterparty.id });
+      if (inserted.length > 0) {
+        return { id, created: true };
+      }
+      const [existing] = await db
+        .select({ id: counterparty.id })
+        .from(counterparty)
+        .where(
+          and(
+            eq(counterparty.organizationId, ctx.orgId),
+            eq(counterparty.bin, input.bin)
+          )
+        )
+        .limit(1);
+      if (!existing) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Не удалось сохранить контрагента",
+        });
+      }
+      return { id: existing.id, created: false };
     }),
 
   // Принимает список id — из таблицы можно удалять и по одному, и пачкой

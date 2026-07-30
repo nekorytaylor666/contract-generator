@@ -35,6 +35,14 @@ const HINT_MARKER_REGEX = /^@hint\s+(.+)$/;
 // description under that option in the radio cards. One line per option; other
 // comments and blank lines may sit between the labels and the `#let`.
 const LABEL_MARKER_REGEX = /^@label\s+(.+)$/;
+// `// @counterparty` голым маркером строкой после `// @section` привязывает
+// секцию к справочнику контрагентов — в форме над ней появляется пикер
+// «Выбрать из сохранённых». `// @counterparty <колонка>` на строке `#let`
+// (или строкой ниже) задаёт явный маппинг поля на колонку контрагента,
+// `none` исключает поле из авто-маппинга по суффиксу. Это комментарии Typst —
+// на компиляцию не влияют.
+const COUNTERPARTY_SECTION_REGEX = /^\/\/\s*@counterparty\s*$/;
+const COUNTERPARTY_FIELD_REGEX = /^@counterparty\s+([a-z]+)\s*$/;
 // Strip manual numbering ("1. Стороны" → "Стороны") — numbers are auto-assigned.
 const LEADING_NUMBER_REGEX = /^\d+(?:\.\d+)*[.)]?\s+/;
 // Literals that don't denote select options (empty default, booleans).
@@ -363,6 +371,77 @@ export function parseNativeLets(content: string): TemplateVariable[] {
   return [...byName.values()];
 }
 
+export const COUNTERPARTY_COLUMNS = [
+  "name",
+  "type",
+  "bin",
+  "address",
+  "phone",
+  "email",
+  "bank",
+  "iban",
+  "bik",
+  "kbe",
+  "knp",
+  "signatory",
+  "position",
+  "basis",
+] as const;
+export type CounterpartyColumn = (typeof COUNTERPARTY_COLUMNS)[number];
+
+export interface CounterpartyBinding {
+  /** Все поля привязанной секции (включая подсекции) в порядке объявления —
+   * специально без фильтра по достижимости: поля скрытых веток тоже должны
+   * префиллиться. Первое имя служит стабильным ключом хранения выбора. */
+  allFields: string[];
+  /** Явные `@counterparty <col>` для полей; "none" исключает поле. */
+  fieldColumns: Record<string, CounterpartyColumn | "none">;
+}
+
+// `@counterparty <col>` из комментария на строке #let или строкой ниже.
+function fieldCounterpartyColumn(
+  sameLineComment: string | undefined,
+  nextLine: string | undefined
+): CounterpartyColumn | "none" | null {
+  const nextPayload = nextLine?.startsWith("//")
+    ? nextLine.slice(2).trim()
+    : undefined;
+  for (const candidate of [sameLineComment?.trim(), nextPayload]) {
+    if (!candidate) {
+      continue;
+    }
+    const match = COUNTERPARTY_FIELD_REGEX.exec(candidate);
+    if (!match) {
+      continue;
+    }
+    const column = COUNTERPARTY_COLUMNS.find((col) => col === match[1]);
+    if (column) {
+      return column;
+    }
+    if (match[1] === "none") {
+      return "none";
+    }
+  }
+  return null;
+}
+
+// Регистрирует #let в привязке секции: имя + явная колонка, если указана.
+function bindLetToCounterparty(
+  section: FormSection,
+  letMatch: RegExpExecArray,
+  nextLine: string | undefined
+): void {
+  const binding = section.counterparty;
+  if (!binding) {
+    return;
+  }
+  binding.allFields.push(letMatch[1]);
+  const column = fieldCounterpartyColumn(letMatch[3], nextLine);
+  if (column) {
+    binding.fieldColumns[letMatch[1]] = column;
+  }
+}
+
 export interface FormSubsection {
   title: string;
   /** Field names in this sub-block, in declaration order. */
@@ -375,6 +454,8 @@ export interface FormSection {
   /** Fields directly under the section header (before any subsection). */
   fields: string[];
   subsections: FormSubsection[];
+  /** Секция привязана к справочнику контрагентов (`// @counterparty`). */
+  counterparty?: CounterpartyBinding;
 }
 
 // Fields declared before the first `// @section` land here.
@@ -414,7 +495,8 @@ export function parseNativeSections(content: string): FormSection[] {
     return current;
   };
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     if (depth === 0) {
       const trimmed = line.trim();
       const sectionMarker = SECTION_MARKER_REGEX.exec(trimmed);
@@ -430,10 +512,14 @@ export function parseNativeSections(content: string): FormSection[] {
           fields: [],
         };
         ensureSection().subsections.push(currentSub);
+      } else if (COUNTERPARTY_SECTION_REGEX.test(trimmed)) {
+        ensureSection().counterparty ??= { allFields: [], fieldColumns: {} };
       } else if (letMatch && !seen.has(letMatch[1])) {
         seen.add(letMatch[1]);
-        const target = currentSub ?? ensureSection();
+        const section = ensureSection();
+        const target = currentSub ?? section;
         target.fields.push(letMatch[1]);
+        bindLetToCounterparty(section, letMatch, lines[i + 1]?.trim());
       }
     }
     depth = Math.max(0, depth + depthDelta(line));

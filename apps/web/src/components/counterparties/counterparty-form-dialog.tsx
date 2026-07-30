@@ -509,12 +509,15 @@ interface CounterpartyFormDialogProps {
   onOpenChange: (open: boolean) => void;
   // null — создание нового, иначе редактирование с префиллом.
   counterparty: CounterpartyRecord | null;
+  /** После успешного создания — полная запись нового контрагента. */
+  onCreated?: (record: CounterpartyRecord) => void;
 }
 
 export function CounterpartyFormDialog({
   open,
   onOpenChange,
   counterparty,
+  onCreated,
 }: CounterpartyFormDialogProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -540,9 +543,11 @@ export function CounterpartyFormDialog({
 
   const createMut = useMutation(
     trpc.counterparties.create.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data, vars) => {
         invalidate();
         setShowSuccess(true);
+        // vars — уже нормализованный payload (IBAN без пробелов, trim).
+        onCreated?.({ id: data.id, ...vars });
       },
       onError: (err) => toast.error(err.message),
     })

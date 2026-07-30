@@ -4,6 +4,7 @@ import {
   Check,
   CircleDashed,
   Download,
+  Info,
   MoreHorizontal,
   PenLine,
   Trash2,
@@ -18,6 +19,7 @@ import {
   normalizeDocumentStatus,
   SETTABLE_STATUSES,
 } from "@/components/document-status";
+import { TemplateInfoDialog } from "@/components/template-info-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,7 +45,6 @@ import { useTRPC } from "@/utils/trpc";
 interface DocumentCardProps {
   id: string;
   title: string;
-  templateTitle: string | null;
   templateId: string;
   status: string;
   updatedAt: Date | string;
@@ -51,6 +52,9 @@ interface DocumentCardProps {
   downloadedAt?: Date | string | null;
   /** Смена статуса доступна только на платной подписке. */
   canChangeStatus: boolean;
+  /** Просто скачанный из каталога шаблон (чип «Шаблон»), иначе — документ
+   * из редактора (чип «Редактирование»). */
+  templateDownload: boolean;
 }
 
 // Финальные статусы: документ уже не редактируют, в меню остаются только
@@ -60,17 +64,18 @@ const FINAL_STATUSES = new Set(["signed", "expired", "terminated"]);
 export function DocumentCard({
   id,
   title,
-  templateTitle,
   templateId,
   status,
   updatedAt,
   downloadedAt,
   canChangeStatus,
+  templateDownload,
 }: DocumentCardProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
 
   const currentStatus = normalizeDocumentStatus(status);
   const downloaded = Boolean(downloadedAt);
@@ -124,92 +129,112 @@ export function DocumentCard({
               "transition-all hover:border-foreground/20 hover:shadow-sm"
           )}
         >
-          {/* Counterparty + actions: иконки действий не гасим (по макету) */}
+          {/* Тип + actions: иконки действий не гасим (по макету) */}
           <div className="flex items-start justify-between gap-2">
             <span
               className={cn(
-                "truncate text-muted-foreground text-xs",
+                "inline-flex items-center gap-1 rounded-lg border border-[#e5e5e5] px-2 py-1 font-semibold text-foreground text-xs leading-4",
                 downloaded && "opacity-50"
               )}
             >
-              {templateTitle ?? "—"}
+              {templateDownload ? (
+                <Download className="size-3" />
+              ) : (
+                <PenLine className="size-3" />
+              )}
+              {templateDownload ? "Шаблон" : "Редактирование"}
             </span>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                aria-label="Действия с документом"
-                className="-mt-1 -mr-1 shrink-0 rounded-md p-1 text-muted-foreground outline-none hover:bg-muted hover:text-foreground"
+            <div className="flex items-center gap-0.5">
+              {/* Info — модалка «О договоре» шаблона, как на карточке шаблона */}
+              <button
+                aria-label="О договоре"
+                className="flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  setInfoOpen(true);
                 }}
+                type="button"
               >
-                <MoreHorizontal className="size-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                // Меню рендерится порталом, но в React-дереве остаётся внутри
-                // Link карточки: без stopPropagation клик по пункту всплывает
-                // до ссылки и уводит в конструктор.
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-              >
-                {editable && (
-                  <DropdownMenuItem onSelect={openBuilder}>
-                    <PenLine className="size-4" />
-                    Редактировать
-                  </DropdownMenuItem>
-                )}
-                {canChangeStatus ? (
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <CircleDashed className="mr-2 size-4 text-muted-foreground" />
-                      Поменять статус
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="min-w-36">
-                      {SETTABLE_STATUSES.map((value) => (
-                        <DropdownMenuItem
-                          className="justify-between"
-                          key={value}
-                          onSelect={() =>
-                            setStatusMutation.mutate({
-                              documentId: id,
-                              status: value,
-                            })
-                          }
-                        >
-                          {documentStatusLabel(value)}
-                          {value === currentStatus && (
-                            <Check className="size-4" />
-                          )}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                ) : (
-                  <DropdownMenuItem
-                    className="flex-col items-start gap-0"
-                    disabled
-                  >
-                    <span className="flex items-center gap-2">
-                      <CircleDashed className="size-4" />
-                      Поменять статус
-                    </span>
-                    <span className="pl-6 text-muted-foreground text-xs">
-                      Доступно на платной подписке
-                    </span>
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem
-                  onSelect={() => setConfirmDeleteOpen(true)}
-                  variant="destructive"
+                <Info className="size-4" />
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  aria-label="Действия с документом"
+                  className="-mt-1 -mr-1 shrink-0 rounded-md p-1 text-muted-foreground outline-none hover:bg-muted hover:text-foreground"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
                 >
-                  <Trash2 className="size-4" />
-                  Удалить
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <MoreHorizontal className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  // Меню рендерится порталом, но в React-дереве остаётся внутри
+                  // Link карточки: без stopPropagation клик по пункту всплывает
+                  // до ссылки и уводит в конструктор.
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                >
+                  {editable && (
+                    <DropdownMenuItem onSelect={openBuilder}>
+                      <PenLine className="size-4" />
+                      Редактировать
+                    </DropdownMenuItem>
+                  )}
+                  {canChangeStatus ? (
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <CircleDashed className="mr-2 size-4 text-muted-foreground" />
+                        Поменять статус
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="min-w-36">
+                        {SETTABLE_STATUSES.map((value) => (
+                          <DropdownMenuItem
+                            className="justify-between"
+                            key={value}
+                            onSelect={() =>
+                              setStatusMutation.mutate({
+                                documentId: id,
+                                status: value,
+                              })
+                            }
+                          >
+                            {documentStatusLabel(value)}
+                            {value === currentStatus && (
+                              <Check className="size-4" />
+                            )}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  ) : (
+                    <DropdownMenuItem
+                      className="flex-col items-start gap-0"
+                      disabled
+                    >
+                      <span className="flex items-center gap-2">
+                        <CircleDashed className="size-4" />
+                        Поменять статус
+                      </span>
+                      <span className="pl-6 text-muted-foreground text-xs">
+                        Доступно на платной подписке
+                      </span>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    onSelect={() => setConfirmDeleteOpen(true)}
+                    variant="destructive"
+                  >
+                    <Trash2 className="size-4" />
+                    Удалить
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
           {/* Title */}
@@ -240,6 +265,12 @@ export function DocumentCard({
           </div>
         </div>
       </Link>
+
+      <TemplateInfoDialog
+        onOpenChange={setInfoOpen}
+        open={infoOpen}
+        templateId={templateId}
+      />
 
       <AlertDialog onOpenChange={setConfirmDeleteOpen} open={confirmDeleteOpen}>
         <AlertDialogContent>

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "counterparty_org_bin_unique" ON "counterparty" USING btree ("organization_id","bin") WHERE "counterparty"."bin" <> '';

@@ -123,7 +123,9 @@ function SegmentedSelect({
         return (
           <button
             className={cn(
-              "h-9 px-2 text-center text-sm transition-colors",
+              // min-h вместо фиксированной высоты: длинные подписи («Безналичный
+              // перевод») переносятся, и обе секции растут одинаково.
+              "min-h-9 px-2 py-1.5 text-center text-sm leading-snug transition-colors",
               selected
                 ? "bg-primary font-medium text-primary-foreground"
                 : "bg-background text-foreground hover:bg-muted/60"

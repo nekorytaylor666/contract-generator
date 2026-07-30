@@ -1,4 +1,11 @@
-import { index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  index,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 import { organization } from "./auth";
 
@@ -35,5 +42,10 @@ export const counterparty = pgTable(
   },
   (table) => [
     index("counterparty_organization_id_idx").on(table.organizationId),
+    // БИН уникален внутри организации — закрывает гонку check-then-insert
+    // в autosave (пустой БИН не ограничиваем).
+    uniqueIndex("counterparty_org_bin_unique")
+      .on(table.organizationId, table.bin)
+      .where(sql`${table.bin} <> ''`),
   ]
 );

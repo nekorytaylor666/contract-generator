@@ -4,8 +4,15 @@ import { useRef, useState, useSyncExternalStore } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import type { FormSection } from "@/lib/native-typst";
+import {
+  counterpartyStorageKey,
+  detectLegacyParties,
+  legacyStorageKey,
+  resolveSectionMapping,
+} from "@/lib/counterparty-prefill";
+import type { CounterpartyColumn, FormSection } from "@/lib/native-typst";
 import type { TemplateVariable } from "@/routes/templates";
+import { CounterpartySectionPicker } from "./counterparty-section-picker";
 import { VariableField } from "./variable-field";
 
 function isVariableVisible(
@@ -145,9 +152,17 @@ function ConditionalField({
 }) {
   const depField = variable.dependsOn?.field;
 
-  const subscribe = useRef((cb: () => void) =>
-    form.store.subscribe(cb)
-  ).current;
+  // @tanstack/store возвращает объект { unsubscribe }, а useSyncExternalStore
+  // ждёт функцию очистки — без адаптера React падает «destroy is not a
+  // function» при размонтировании условного поля.
+  const subscribe = useRef((cb: () => void) => {
+    const subscription = form.store.subscribe(cb) as
+      | (() => void)
+      | { unsubscribe: () => void };
+    return typeof subscription === "function"
+      ? subscription
+      : () => subscription.unsubscribe();
+  }).current;
   const getSnapshot = useRef(() => {
     return depField ? form.state.values[depField] : undefined;
   }).current;
@@ -246,6 +261,48 @@ export function TemplateForm({
     variables.map((variable) => [variable.name, variable])
   );
 
+  // Пикеры контрагентов: у нативных секций — из `// @counterparty`-биндинга,
+  // в плоской форме (легаси-шаблоны без секций) — по префиксам ролей.
+  const legacyParties = sections ? [] : detectLegacyParties(variables);
+
+  const renderCounterpartyPicker = (
+    pickerKey: string,
+    label: string,
+    storageKey: string,
+    mapping: Record<string, CounterpartyColumn>
+  ) => (
+    // Префикс ключа — чтобы не столкнуться с renderField переменной,
+    // имя которой совпадает с ролью/ключом.
+    <form.Field key={`counterparty-${pickerKey}`} name={storageKey}>
+      {(field) => (
+        <CounterpartySectionPicker
+          field={field}
+          label={label}
+          mapping={mapping}
+          setFieldValue={(name, value) => form.setFieldValue(name, value)}
+          variablesByName={byName}
+        />
+      )}
+    </form.Field>
+  );
+
+  const sectionPickerFor = (section: FormSection) => {
+    const binding = section.counterparty;
+    if (!binding) {
+      return null;
+    }
+    const storageKey = counterpartyStorageKey(binding);
+    if (!storageKey) {
+      return null;
+    }
+    return renderCounterpartyPicker(
+      storageKey,
+      section.title,
+      storageKey,
+      resolveSectionMapping(binding)
+    );
+  };
+
   const renderNames = (names: string[]) =>
     names
       .map((name) => byName.get(name))
@@ -298,6 +355,7 @@ export function TemplateForm({
                 {/* `contents` keeps the parent flex gap; `hidden` folds the
                     section without unmounting its form fields. */}
                 <div className={isCollapsed ? "hidden" : "contents"}>
+                  {sectionPickerFor(section)}
                   {section.fields.length > 0 && (
                     <div className="flex flex-col gap-3">
                       {renderNames(section.fields)}
@@ -316,7 +374,17 @@ export function TemplateForm({
               </section>
             );
           })
-        : variables.map((variable) => renderField(variable))}
+        : [
+            ...legacyParties.map((party) =>
+              renderCounterpartyPicker(
+                party.role,
+                party.label,
+                legacyStorageKey(party.role),
+                party.mapping
+              )
+            ),
+            ...variables.map((variable) => renderField(variable)),
+          ]}
 
       {onSubmit && (
         <form.Subscribe>

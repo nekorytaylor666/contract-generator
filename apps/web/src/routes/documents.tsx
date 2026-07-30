@@ -105,6 +105,17 @@ interface DocumentListItem {
   status: string;
   updatedAt: Date | string;
   downloadedAt: Date | string | null;
+  currentVersion: number;
+}
+
+// Просто скачанный из каталога шаблон: запись создаётся сразу «выданной» и
+// остаётся на версии 1; отредактированный в билдере документ при выдаче
+// получает версию ≥ 2.
+function isTemplateDownload(doc: {
+  downloadedAt: Date | string | null;
+  currentVersion: number;
+}): boolean {
+  return Boolean(doc.downloadedAt) && doc.currentVersion === 1;
 }
 
 function StatCard({
@@ -162,8 +173,12 @@ function RouteComponent() {
           normalizeDocumentStatus(doc.status) === "draft" && !doc.downloadedAt
       );
     } else if (tab === "completed") {
-      list = list.filter((doc) =>
-        COMPLETED_STATUSES.has(normalizeDocumentStatus(doc.status))
+      // Шаблоны, просто скачанные из каталога (без редактирования), — тоже
+      // завершённые; документы из редактора попадают сюда только по статусу.
+      list = list.filter(
+        (doc) =>
+          COMPLETED_STATUSES.has(normalizeDocumentStatus(doc.status)) ||
+          isTemplateDownload(doc)
       );
     }
     if (selectedStatuses.length > 0) {
@@ -544,8 +559,8 @@ function renderGrid({
           id={doc.id}
           key={doc.id}
           status={doc.status}
+          templateDownload={isTemplateDownload(doc)}
           templateId={doc.templateId}
-          templateTitle={doc.templateTitle}
           title={doc.title}
           updatedAt={doc.updatedAt}
         />

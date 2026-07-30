@@ -247,8 +247,17 @@ export function CounterpartiesDialog({
                           }
                         />
                       </td>
-                      <td className="max-w-[160px] truncate py-3 pr-3 font-medium text-foreground">
-                        {item.name}
+                      <td className="max-w-[180px] py-3 pr-3">
+                        <span className="flex items-center gap-1.5">
+                          <span className="truncate font-medium text-foreground">
+                            {item.name}
+                          </span>
+                          {item.type && (
+                            <span className="shrink-0 rounded border border-border px-1 font-medium text-[10px] text-muted-foreground leading-4">
+                              {item.type}
+                            </span>
+                          )}
+                        </span>
                       </td>
                       <td className="py-3 pr-3 text-foreground">{item.bin}</td>
                       <td

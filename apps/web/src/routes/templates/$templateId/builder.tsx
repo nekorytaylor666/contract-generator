@@ -27,6 +27,10 @@ import { isComplexNative } from "@/components/template-builder/server-typst-prev
 import { VersionHistory } from "@/components/template-builder/version-history";
 import { Button } from "@/components/ui/button";
 import { requireAuth } from "@/lib/auth-guard";
+import {
+  collectPartyBindings,
+  extractCounterpartyDraft,
+} from "@/lib/counterparty-prefill";
 import { remapValuesForLocale } from "@/lib/locale-values";
 import { isNativeTypst, parseNativeLets } from "@/lib/native-typst";
 import type { TemplateVariable } from "@/routes/templates";
@@ -176,6 +180,10 @@ function RouteComponent() {
   const { i18n } = useTranslation();
   const { data: myAccess } = useQuery(trpc.team.myAccess.queryOptions());
   const canEdit = myAccess?.canEdit !== false;
+  // Гейт пикеров/автосейва контрагентов — любой тариф, кроме разового.
+  const { data: mySubscription } = useQuery(
+    trpc.subscriptions.mySubscription.queryOptions()
+  );
   const [logo, setLogo] = useState<string | null>(null);
   // Contract language — starts from the UI language but is switched
   // independently via the «Язык договора» select in the toolbar.
@@ -435,11 +443,64 @@ function RouteComponent() {
     })
   );
 
+  const autosaveMutation = useMutation(
+    trpc.counterparties.autosave.mutationOptions()
+  );
+
+  // Автосохранение контрагентов из заполненных секций сторон (по макету:
+  // «при заполнении договора — реквизиты сохранятся автоматически»).
+  // Дедупликацию по БИН делает сервер; сбой не ломает сохранение договора.
+  const runCounterpartyAutosave = useCallback(async () => {
+    const values = latestValuesRef.current;
+    if (!(template && values && mySubscription?.isPaid)) {
+      return;
+    }
+    const { typstContent } = resolveLocalized(
+      {
+        title: template.title,
+        description: template.description,
+        typstContent: template.typstContent,
+      },
+      template.localizedContent,
+      docLocale
+    );
+    const parties = collectPartyBindings(
+      typstContent,
+      variablesForLocale(template, docLocale)
+    );
+    for (const party of parties) {
+      const draft = extractCounterpartyDraft(party.mapping, values);
+      if (!draft) {
+        continue;
+      }
+      try {
+        const result = await autosaveMutation.mutateAsync(draft);
+        if (result.created) {
+          toast.success(`Контрагент «${draft.name}» сохранён в справочник`);
+          queryClient.invalidateQueries(trpc.counterparties.list.queryFilter());
+        }
+        if (values[party.storageKey] !== result.id) {
+          formApiRef.current?.setFieldValue(party.storageKey, result.id);
+        }
+      } catch {
+        // Сохранение договора важнее — сбой автосейва глотаем молча.
+      }
+    }
+  }, [
+    template,
+    docLocale,
+    mySubscription,
+    autosaveMutation.mutateAsync,
+    queryClient,
+    trpc,
+  ]);
+
   const saveMutation = useMutation(
     trpc.documents.save.mutationOptions({
       onSuccess: (data) => {
         setDocumentId(data.id);
         setCurrentVersion(data.version);
+        runCounterpartyAutosave();
         // Update URL with documentId
         navigate({
           to: "/templates/$templateId/builder",

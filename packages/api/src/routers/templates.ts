@@ -481,17 +481,289 @@ const REFERENCE_DOCX = (() => {
 
 // Drop document metadata (else pandoc emits a stray title heading from <title>).
 const DOC_META_REGEX = /#set document\([^)]*\)\s*/g;
-// Typst HTML export drops `#align`, losing the visible centered title. Convert
-// the `#align(center)[#text(..., weight: "bold")[TITLE]]` pattern into a real
-// heading (`= TITLE`) so it survives and we can style/center it via the
-// reference doc (it becomes <h2> → Word "Heading 2").
-const CENTERED_TITLE_REGEX =
-  /#align\(center\)\[\s*#text\([^\]]*?weight:\s*"bold"[^\]]*?\)\[([^\]]*?)\]\s*\]/g;
+// Typst HTML export молча выбрасывает содержимое #align/#grid/#v — без
+// преобразований DOCX теряет название договора, заголовки секций, шапку
+// «место/дата» и двухколоночные реквизиты. Поэтому перед экспортом:
+//   • #align(center)[*Т*] (и вариант с #text(weight: "bold")) → `= Т`,
+//     заголовок <h2> центрирует стиль Heading 2 из reference.docx;
+//   • прочие align(center|right) → html.elem-див с custom-style
+//     (Centered/RightAligned — параграфные стили в reference.docx);
+//   • grid → table(stroke: none, …) — единственный способ сохранить колонки;
+//   • #v(...) → <br>, строки-подписи из «____» экранируются, иначе typst
+//     парсит их как пустой курсив и теряет.
+const BOLD_STAR_TITLE_REGEX = /^\s*\*([^*]+)\*\s*$/;
+const BOLD_TEXT_TITLE_REGEX =
+  /^\s*#text\([^)]*weight:\s*"bold"[^)]*\)\[([^\][]*)\]\s*$/;
+const GRID_CALL_REGEX = /(#?)\bgrid\(/g;
+const GRID_MEMBER_REGEX = /\bgrid\.(cell|hline|vline)\(/g;
+const V_SPACING_REGEX = /#v\([^)]*\)/g;
+const LINE_CALL_REGEX = /#line\([^)]*\)/g;
+const REPEAT_CALL_REGEX = /#repeat\[([^\][]*)\]/g;
+const H_SPACING_REGEX = /#h\([^)]*\)/g;
+const REPEAT_FILL_COUNT = 24;
+const SIGNATURE_LINE_REGEX = /^([ \t]*)(_{4,})[ \t]*$/gm;
+const SET_PREFIX_REGEX = /set\s+$/;
+const WORDLIKE_REGEX = /[\w.]/;
+const WHITESPACE_RUN_REGEX = /\s+/g;
+const WHITESPACE_CHAR_REGEX = /\s/;
+const ALIGN_CALL = "align(";
+
+/**
+ * Индекс символа сразу после парной закрывающей скобки. Кавычки трактуются
+ * как строки только в code-режиме (аргументы в скобках): внутри контент-блоков
+ * [...] кавычка — обычный текст, и непарная кавычка в значении пользователя
+ * (напр. «труба 5"») не должна ломать разбор.
+ */
+function findBalancedEnd(
+  src: string,
+  openIndex: number,
+  open: string,
+  close: string,
+  stringAware: boolean
+): number {
+  let depth = 0;
+  let inString = false;
+  for (let i = openIndex; i < src.length; i++) {
+    const ch = src[i];
+    if (inString) {
+      if (ch === "\\") {
+        i += 1;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (stringAware && ch === '"') {
+      inString = true;
+    } else if (ch === open) {
+      depth += 1;
+    } else if (ch === close) {
+      depth -= 1;
+      if (depth === 0) {
+        return i + 1;
+      }
+    }
+  }
+  return -1;
+}
+
+/** Первая запятая на верхнем уровне вложенности (для align(center, контент)). */
+function findTopLevelComma(args: string): number {
+  let depth = 0;
+  let inString = false;
+  for (let i = 0; i < args.length; i++) {
+    const ch = args[i];
+    if (inString) {
+      if (ch === "\\") {
+        i += 1;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "(" || ch === "[") {
+      depth += 1;
+      continue;
+    }
+    if (ch === ")" || ch === "]") {
+      depth -= 1;
+      continue;
+    }
+    if (ch === "," && depth === 0) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function replaceAlignBlock(
+  args: string,
+  content: string,
+  hadHash: boolean
+): string {
+  const hash = hadHash ? "#" : "";
+  if (args.includes("center")) {
+    const title =
+      BOLD_STAR_TITLE_REGEX.exec(content) ??
+      BOLD_TEXT_TITLE_REGEX.exec(content);
+    if (title?.[1]) {
+      const heading = `\n= ${title[1].replace(WHITESPACE_RUN_REGEX, " ").trim()}\n`;
+      // В code-контексте (ячейка grid без #) голый `= Т` — синтаксическая
+      // ошибка: нужен контент-блок.
+      return hadHash ? heading : `[${heading}]`;
+    }
+    return `${hash}html.elem("div", attrs: ("custom-style": "Centered"), [${content}])`;
+  }
+  if (args.includes("right")) {
+    return `${hash}html.elem("div", attrs: ("custom-style": "RightAligned"), [${content}])`;
+  }
+  return `${hash}[${content}]`;
+}
+
+// Двухаргументная форма align(center, контент): контент — выражение, а не
+// блок. Оборачиваем в html.elem, иначе HTML-экспорт его выбросит.
+function replaceAlignExpr(
+  spec: string,
+  expr: string,
+  hadHash: boolean
+): string | null {
+  const hash = hadHash ? "#" : "";
+  if (spec.includes("center")) {
+    return `${hash}html.elem("div", attrs: ("custom-style": "Centered"), ${expr})`;
+  }
+  if (spec.includes("right")) {
+    return `${hash}html.elem("div", attrs: ("custom-style": "RightAligned"), ${expr})`;
+  }
+  return null;
+}
+
+// align(center, контент) без контент-блока: ищем запятую верхнего уровня и
+// оборачиваем выражение целиком.
+function tryTwoArgAlign(
+  src: string,
+  parenOpen: number,
+  parenEnd: number,
+  hadHash: boolean
+): string | null {
+  const exprArgs = src.slice(parenOpen + 1, parenEnd - 1);
+  const comma = findTopLevelComma(exprArgs);
+  if (comma === -1) {
+    return null;
+  }
+  const spec = exprArgs.slice(0, comma);
+  const expr = exprArgs.slice(comma + 1).trim();
+  return replaceAlignExpr(spec, expr, hadHash);
+}
+
+interface AlignRewrite {
+  start: number;
+  end: number;
+  replacement: string;
+}
+
+// Разбирает один вызов align(...) начиная с позиции found: и блочную форму
+// align(...)[...], и двухаргументную align(center, контент); `#set align(...)`
+// и обращения вида x.align( пропускает.
+function matchAlignAt(src: string, found: number): AlignRewrite | null {
+  const hadHash = src[found - 1] === "#";
+  const start = hadHash ? found - 1 : found;
+  const prev = start > 0 ? (src[start - 1] as string) : "";
+  const beforeStart = src.slice(Math.max(0, start - 8), start);
+  if (WORDLIKE_REGEX.test(prev) || SET_PREFIX_REGEX.test(beforeStart)) {
+    return null;
+  }
+  const parenOpen = found + ALIGN_CALL.length - 1;
+  const parenEnd = findBalancedEnd(src, parenOpen, "(", ")", true);
+  if (parenEnd === -1) {
+    return null;
+  }
+  let bracketOpen = parenEnd;
+  while (
+    bracketOpen < src.length &&
+    WHITESPACE_CHAR_REGEX.test(src[bracketOpen] as string)
+  ) {
+    bracketOpen += 1;
+  }
+  if (src[bracketOpen] !== "[") {
+    const replacement = tryTwoArgAlign(src, parenOpen, parenEnd, hadHash);
+    return replacement === null ? null : { start, end: parenEnd, replacement };
+  }
+  const bracketEnd = findBalancedEnd(src, bracketOpen, "[", "]", false);
+  if (bracketEnd === -1) {
+    return null;
+  }
+  const args = src.slice(parenOpen + 1, parenEnd - 1);
+  const content = transformAlignsForDocx(
+    src.slice(bracketOpen + 1, bracketEnd - 1)
+  );
+  return {
+    start,
+    end: bracketEnd,
+    replacement: replaceAlignBlock(args, content, hadHash),
+  };
+}
+
+function transformAlignsForDocx(src: string): string {
+  const parts: string[] = [];
+  let cursor = 0;
+  let searchFrom = 0;
+  for (;;) {
+    const found = src.indexOf(ALIGN_CALL, searchFrom);
+    if (found === -1) {
+      break;
+    }
+    searchFrom = found + ALIGN_CALL.length;
+    const match = matchAlignAt(src, found);
+    if (match === null) {
+      continue;
+    }
+    parts.push(src.slice(cursor, match.start), match.replacement);
+    cursor = match.end;
+    searchFrom = match.end;
+  }
+  parts.push(src.slice(cursor));
+  return parts.join("");
+}
 
 function preprocessForDocx(typstContent: string): string {
-  return typstContent
-    .replace(DOC_META_REGEX, "")
-    .replace(CENTERED_TITLE_REGEX, "= $1");
+  return transformAlignsForDocx(typstContent.replace(DOC_META_REGEX, ""))
+    .replace(GRID_MEMBER_REGEX, "table.$1(")
+    .replace(
+      GRID_CALL_REGEX,
+      (_match, hash: string) => `${hash}table(stroke: none, `
+    )
+    .replace(LINE_CALL_REGEX, '#html.elem("hr")')
+    .replace(REPEAT_CALL_REGEX, (_match, body: string) =>
+      body.repeat(REPEAT_FILL_COUNT)
+    )
+    .replace(H_SPACING_REGEX, " ")
+    .replace(V_SPACING_REGEX, '#html.elem("br")')
+    .replace(
+      SIGNATURE_LINE_REGEX,
+      (_match, indent: string, run: string) => indent + "\\_".repeat(run.length)
+    );
+}
+
+// Пост-обработка HTML перед pandoc: typst не задаёт ширины колонок, из-за
+// чего pandoc сжимает таблицы по содержимому — растягиваем на всю страницу
+// равными колонками. Дивы с выравниванием внутри ячеек pandoc игнорирует,
+// поэтому переносим выравнивание на сам <td>.
+const TABLE_BLOCK_REGEX = /<table>([\s\S]*?)<\/table>/g;
+const FIRST_ROW_REGEX = /<tr>([\s\S]*?)<\/tr>/;
+const TD_OPEN_REGEX = /<td[\s>]/g;
+const TD_ALIGNED_DIV_REGEX =
+  /<td>\s*<div custom-style="(RightAligned|Centered)">([\s\S]*?)<\/div>\s*<\/td>/g;
+const FULL_WIDTH_PERCENT = 100;
+
+function postprocessHtmlForDocx(html: string): string {
+  return html
+    .replace(TABLE_BLOCK_REGEX, (match, body: string) => {
+      const firstRow = FIRST_ROW_REGEX.exec(body)?.[1] ?? "";
+      const cellCount = (firstRow.match(TD_OPEN_REGEX) ?? []).length;
+      if (cellCount < 2) {
+        return match;
+      }
+      const width = Math.floor(FULL_WIDTH_PERCENT / cellCount);
+      const cols = `<col width="${width}%"/>`.repeat(cellCount);
+      return `<table><colgroup>${cols}</colgroup>${body}</table>`;
+    })
+    .replace(TD_ALIGNED_DIV_REGEX, (_match, style: string, inner: string) => {
+      const align = style === "RightAligned" ? "right" : "center";
+      return `<td align="${align}">${inner}</td>`;
+    });
+}
+
+// Сообщения exec включают команду и серверные пути tmp-файлов — клиенту они
+// не нужны, вырезаем пути перед пробросом.
+const TMP_FILE_PATH_REGEX = /[^\s"]*[/\\][\w-]+\.(?:typ|html|docx|pdf)/g;
+
+function sanitizeCompileError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.replace(TMP_FILE_PATH_REGEX, "<файл>");
 }
 
 async function compileTypstToDocx(typstContent: string): Promise<Buffer> {
@@ -508,12 +780,18 @@ async function compileTypstToDocx(typstContent: string): Promise<Buffer> {
 
   try {
     await writeFile(inputPath, preprocessForDocx(typstContent), "utf-8");
-    await execAsync(
-      `typst compile --format html --features html "${inputPath}" "${htmlPath}"`
-    );
-    await execAsync(
-      `pandoc "${htmlPath}" -f html -t docx ${refFlag}-o "${docxPath}"`
-    );
+    try {
+      await execAsync(
+        `typst compile --format html --features html "${inputPath}" "${htmlPath}"`
+      );
+      const exportedHtml = await readFile(htmlPath, "utf-8");
+      await writeFile(htmlPath, postprocessHtmlForDocx(exportedHtml), "utf-8");
+      await execAsync(
+        `pandoc "${htmlPath}" -f html -t docx ${refFlag}-o "${docxPath}"`
+      );
+    } catch (error) {
+      throw new Error(sanitizeCompileError(error));
+    }
     return await readFile(docxPath);
   } finally {
     await cleanupFiles(files);
