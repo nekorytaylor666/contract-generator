@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 import { looksLikePhone } from "@/lib/display-name";
+import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
 
 import { AppSidebar } from "./app-sidebar";
@@ -220,8 +221,16 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
     from: "/templates/",
     shouldThrow: false,
   });
+  // В конструкторе своя шапка с названием договора (по макету) — панель
+  // «Конструктор» на десктопе прячем; на мобильных оставляем ради кнопки
+  // сайдбара.
+  const builderMatch = useMatch({
+    from: "/templates/$templateId/builder",
+    shouldThrow: false,
+  });
   const activeOrg = useActiveOrgBootstrap();
   const isDocuments = Boolean(documentsMatch);
+  const isBuilder = Boolean(builderMatch);
   // Контрагенты доступны и из каталога шаблонов, и из «Моих документов».
   const showCounterparties = isDocuments || Boolean(templatesMatch);
 
@@ -234,7 +243,12 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
       <SidebarProvider className="!h-svh !overflow-hidden">
         <AppSidebar />
         <SidebarInset>
-          <header className="flex h-[54px] shrink-0 items-center justify-between gap-2 border-[#e5e5e5] border-b py-2 pr-3 pl-2 sm:pr-6 sm:pl-3">
+          <header
+            className={cn(
+              "flex h-[54px] shrink-0 items-center justify-between gap-2 border-[#e5e5e5] border-b py-2 pr-3 pl-2 sm:pr-6 sm:pl-3",
+              isBuilder && "md:hidden"
+            )}
+          >
             <div className="flex min-w-0 items-center gap-1.5 px-1 py-2 text-sm sm:px-3">
               {/* На мобильных сайдбар живёт в Sheet — без этой кнопки его не открыть */}
               <SidebarTrigger className="size-8 shrink-0 text-foreground md:hidden" />

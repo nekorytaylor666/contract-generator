@@ -273,6 +273,35 @@ export const documentsRouter = router({
       return updated;
     }),
 
+  // Переименование из шапки конструктора: только метаданные — без снапшота
+  // версии и без блокировки «выданных» документов (контент не меняется).
+  rename: editorProcedure
+    .input(
+      z.object({
+        documentId: z.string(),
+        title: z.string().trim().min(1, "Укажите название").max(200),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const [updated] = await db
+        .update(document)
+        .set({ title: input.title })
+        .where(
+          and(
+            eq(document.id, input.documentId),
+            eq(document.organizationId, ctx.orgId)
+          )
+        )
+        .returning({ id: document.id, title: document.title });
+      if (!updated) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Document not found",
+        });
+      }
+      return updated;
+    }),
+
   // Удаление документа из меню карточки (версии уйдут каскадом).
   delete: editorProcedure
     .input(z.object({ documentId: z.string() }))

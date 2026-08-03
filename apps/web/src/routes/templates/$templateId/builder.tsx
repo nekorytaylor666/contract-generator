@@ -7,9 +7,11 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Check,
   DownloadIcon,
+  Info,
   Loader2,
   PanelRightClose,
   PanelRightOpen,
+  PenLine,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -25,6 +27,7 @@ import { NativeInlinePreview } from "@/components/template-builder/native-inline
 import { PreviewErrorBoundary } from "@/components/template-builder/preview-error-boundary";
 import { isComplexNative } from "@/components/template-builder/server-typst-preview";
 import { VersionHistory } from "@/components/template-builder/version-history";
+import { TemplateInfoDialog } from "@/components/template-info-dialog";
 import { Button } from "@/components/ui/button";
 import { requireAuth } from "@/lib/auth-guard";
 import {
@@ -171,6 +174,68 @@ function SaveStatus({
   );
 }
 
+// Название договора в хлебных крошках: клик — инлайн-редактирование,
+// Enter/blur сохраняет, Escape отменяет.
+function EditableDocTitle({
+  value,
+  onCommit,
+}: {
+  value: string;
+  onCommit: (next: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  const commit = () => {
+    setEditing(false);
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== value) {
+      onCommit(trimmed);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <button
+        className="group/title flex min-w-0 items-center gap-1.5 text-left"
+        onClick={() => {
+          setDraft(value);
+          setEditing(true);
+        }}
+        title="Переименовать договор"
+        type="button"
+      >
+        <span className="truncate font-medium text-foreground">{value}</span>
+        <PenLine className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/title:opacity-100" />
+      </button>
+    );
+  }
+  return (
+    <input
+      className="w-[280px] min-w-0 rounded-md border border-border bg-background px-2 py-0.5 font-medium text-foreground text-sm outline-none focus:border-ring"
+      onBlur={commit}
+      onChange={(e) => setDraft(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          commit();
+        } else if (e.key === "Escape") {
+          setEditing(false);
+        }
+      }}
+      ref={inputRef}
+      value={draft}
+    />
+  );
+}
+
 function RouteComponent() {
   const { templateId } = Route.useParams();
   const { documentId: initialDocumentId } = Route.useSearch();
@@ -195,6 +260,10 @@ function RouteComponent() {
   const [documentId, setDocumentId] = useState<string | undefined>(
     initialDocumentId
   );
+  // Кастомное название договора (null — ещё не задано, показываем название
+  // шаблона на языке договора).
+  const [docTitle, setDocTitle] = useState<string | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [currentVersion, setCurrentVersion] = useState(1);
   const [formKey, setFormKey] = useState(0);
   const [initialValues, setInitialValues] = useState<Record<
@@ -313,6 +382,7 @@ function RouteComponent() {
       return;
     }
     loadedDocIdRef.current = existingDocument.id;
+    setDocTitle(existingDocument.title);
     const rawVars = existingDocument.variables as Record<string, unknown>;
     // Hydrate date strings back to Date objects
     const dateFields = new Set(
@@ -578,6 +648,33 @@ function RouteComponent() {
     docLocale,
   ]);
 
+  const renameMutation = useMutation(
+    trpc.documents.rename.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: trpc.documents.list.queryKey(),
+        });
+      },
+      onError: (err) => toast.error(err.message),
+    })
+  );
+
+  const handleTitleCommit = useCallback(
+    (next: string) => {
+      const trimmed = next.trim();
+      if (!trimmed) {
+        return;
+      }
+      setDocTitle(trimmed);
+      // Существующий документ переименовываем сразу; новый получит название
+      // при первом сохранении (documents.save принимает title).
+      if (documentId) {
+        renameMutation.mutate({ documentId, title: trimmed });
+      }
+    },
+    [documentId, renameMutation.mutate]
+  );
+
   const handleSave = useCallback(() => {
     if (docLocked || !(canEdit && latestValuesRef.current)) {
       return;
@@ -585,6 +682,7 @@ function RouteComponent() {
     saveMutation.mutate({
       documentId: documentId ?? undefined,
       templateId,
+      title: docTitle ?? undefined,
       // Names a newly created document after the template's title in the
       // selected contract language.
       locale: docLocale,
@@ -604,6 +702,7 @@ function RouteComponent() {
     canEdit,
     docLocked,
     docLocale,
+    docTitle,
   ]);
 
   const handleLogoChange = useCallback((newLogo: string | null) => {
@@ -779,9 +878,23 @@ function RouteComponent() {
             Мои документы
           </Link>
           <span className="text-muted-foreground">/</span>
-          <span className="truncate font-medium text-foreground">
-            {localized.title}
-          </span>
+          <EditableDocTitle
+            onCommit={handleTitleCommit}
+            value={docTitle ?? localized.title}
+          />
+          <button
+            aria-label="О договоре"
+            className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground"
+            onClick={() => setInfoOpen(true)}
+            type="button"
+          >
+            <Info className="size-4" />
+          </button>
+          <TemplateInfoDialog
+            onOpenChange={setInfoOpen}
+            open={infoOpen}
+            templateId={templateId}
+          />
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <SaveStatus
