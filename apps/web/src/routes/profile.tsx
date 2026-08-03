@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { ChangePasswordDialog } from "@/components/change-password-dialog";
 import { DeleteAccountDialog } from "@/components/delete-account-dialog";
 import { ForgotPasswordDialog } from "@/components/forgot-password-dialog";
+import { SubscriptionManageDialog } from "@/components/subscription-manage-dialog";
 import { TwoFactorDialog } from "@/components/two-factor-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -343,10 +344,35 @@ function UsageCard({
   );
 }
 
+// Подпись под названием тарифа. Автосписаний нет — честная формулировка
+// «действует до», а не «следующее списание»; отменённая подписка живёт до
+// конца оплаченного периода.
+function subscriptionSubtitle(
+  my:
+    | {
+        isPaid: boolean;
+        expiresAt: Date | string | null;
+        cancelledAt: Date | string | null;
+      }
+    | undefined
+): string {
+  if (!my?.isPaid) {
+    return "Бесплатный тариф — без ограничения по сроку";
+  }
+  if (!my.expiresAt) {
+    return "Подписка без ограничения по сроку";
+  }
+  if (my.cancelledAt) {
+    return `Подписка отменена — активна до ${formatPurchaseDate(my.expiresAt)}`;
+  }
+  return `Действует до ${formatPurchaseDate(my.expiresAt)}`;
+}
+
 function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
   const navigate = useNavigate();
   const [period, setPeriod] = useState<PeriodKey>("monthly");
   const [successOpen, setSuccessOpen] = useState(Boolean(justPaid));
+  const [manageOpen, setManageOpen] = useState(false);
   const trpc = useTRPC();
   const { data: dbPlans = [] } = useQuery(
     trpc.subscriptions.plans.queryOptions()
@@ -388,16 +414,12 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
             {my?.planName ?? "Без подписки"}
           </h3>
           <p className="text-muted-foreground text-sm">
-            {my?.expiresAt
-              ? `Следующее списание ${formatPurchaseDate(my.expiresAt)}`
-              : "Бесплатный тариф — без ограничения по сроку"}
+            {subscriptionSubtitle(my)}
           </p>
         </div>
         <Button
           className={OUTLINE_BTN}
-          onClick={() =>
-            toast.info("Управление подпиской скоро будет доступно")
-          }
+          onClick={() => setManageOpen(true)}
           size="lg"
           type="button"
           variant="outline"
@@ -406,6 +428,12 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
           Управлять подпиской
         </Button>
       </div>
+
+      <SubscriptionManageDialog
+        checksQuota={checksQuota}
+        onOpenChange={setManageOpen}
+        open={manageOpen}
+      />
 
       {/* Usage */}
       {my && (
@@ -550,7 +578,7 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
               <p className="text-muted-foreground text-sm leading-relaxed">
                 Тариф «{my?.planName}» активирован.
                 {my?.expiresAt &&
-                  ` Следующее списание — ${formatExpiryFull(my.expiresAt)}.`}
+                  ` Действует до ${formatExpiryFull(my.expiresAt)}.`}
               </p>
             </div>
           </div>

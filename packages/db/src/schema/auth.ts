@@ -36,6 +36,9 @@ export const user = pgTable("user", {
   subscriptionPlanId: text("subscription_plan_id"),
   subscriptionPeriod: text("subscription_period"),
   subscriptionExpiresAt: timestamp("subscription_expires_at"),
+  // Отмена подписки: автосписаний нет, поэтому это пометка «не продлевать» —
+  // доступ сохраняется до subscriptionExpiresAt, «Восстановить» снимает её.
+  subscriptionCancelledAt: timestamp("subscription_cancelled_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()

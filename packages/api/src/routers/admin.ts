@@ -191,6 +191,9 @@ export const adminRouter = router({
           subscriptionExpiresAt: input.expiresAt
             ? new Date(input.expiresAt)
             : null,
+          // Назначение/снятие тарифа админом сбрасывает пометку «отменена»,
+          // как и оплата через вебхук.
+          subscriptionCancelledAt: null,
         })
         .where(eq(user.id, input.userId));
       return { userId: input.userId };

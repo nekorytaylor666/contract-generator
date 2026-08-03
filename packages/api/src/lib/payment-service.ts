@@ -203,6 +203,8 @@ export async function processRobokassaResult(input: {
               paidAt,
               found.subscriptionPeriod
             ),
+            // Новая оплата снимает пометку «отменена».
+            subscriptionCancelledAt: null,
           })
           .where(eq(user.id, found.userId));
       }

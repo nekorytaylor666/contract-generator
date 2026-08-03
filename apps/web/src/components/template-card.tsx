@@ -23,6 +23,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -158,7 +161,17 @@ export function TemplateCard({
                 >
                   <MoreHorizontal className="size-4" />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-[180px]">
+                <DropdownMenuContent
+                  align="end"
+                  className="min-w-[180px]"
+                  // Меню рендерится порталом, но в React-дереве остаётся
+                  // внутри Link карточки: без stopPropagation клик по пункту
+                  // всплывает до ссылки и уводит на страницу шаблона.
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                >
                   <DropdownMenuItem
                     onSelect={() =>
                       navigate({
@@ -170,18 +183,38 @@ export function TemplateCard({
                     <Pencil className="size-4" />
                     {t("templates.edit")}
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={downloadMutation.isPending}
-                    onSelect={() =>
-                      downloadMutation.mutate({
-                        templateId: id,
-                        locale: i18n.language,
-                      })
-                    }
-                  >
-                    <Download className="size-4" />
-                    {t("templates.download")}
-                  </DropdownMenuItem>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <Download className="mr-2 size-4 text-muted-foreground" />
+                      {t("templates.download")}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="min-w-40">
+                      <DropdownMenuItem
+                        disabled={downloadMutation.isPending}
+                        onSelect={() =>
+                          downloadMutation.mutate({
+                            templateId: id,
+                            locale: i18n.language,
+                            format: "pdf",
+                          })
+                        }
+                      >
+                        Скачать в PDF
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={downloadMutation.isPending}
+                        onSelect={() =>
+                          downloadMutation.mutate({
+                            templateId: id,
+                            locale: i18n.language,
+                            format: "docx",
+                          })
+                        }
+                      >
+                        Скачать в DocX
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                   <DropdownMenuItem
                     disabled={bookmarkMutation.isPending}
                     onSelect={() => bookmarkMutation.mutate({ templateId: id })}
