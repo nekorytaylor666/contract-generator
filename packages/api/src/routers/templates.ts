@@ -472,11 +472,21 @@ async function compileTypst(
 // 11pt, justified body, centered/black headings, A4 with 2cm margins). Falls
 // back to pandoc defaults if the asset can't be resolved.
 const REFERENCE_DOCX = (() => {
+  const candidates: string[] = [];
   try {
-    return fileURLToPath(new URL("../assets/reference.docx", import.meta.url));
+    candidates.push(
+      fileURLToPath(new URL("../assets/reference.docx", import.meta.url))
+    );
   } catch {
-    return "";
+    // import.meta.url может не резолвиться в бандле — идём по фолбэкам.
   }
+  // Прод запускает бандл dist/index.mjs, относительный путь из него не
+  // существует — берём файл из репозитория (pm2 стартует из apps/server).
+  candidates.push(
+    join(process.cwd(), "../../packages/api/src/assets/reference.docx"),
+    join(process.cwd(), "packages/api/src/assets/reference.docx")
+  );
+  return candidates.find((path) => existsSync(path)) ?? "";
 })();
 
 // Drop document metadata (else pandoc emits a stray title heading from <title>).
