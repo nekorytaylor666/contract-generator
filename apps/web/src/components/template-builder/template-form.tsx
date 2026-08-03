@@ -15,6 +15,17 @@ import type { TemplateVariable } from "@/routes/templates";
 import { CounterpartySectionPicker } from "./counterparty-section-picker";
 import { VariableField } from "./variable-field";
 
+// «Раздел N.» на языке договора: kk — «N-бөлім.», en — «Section N.».
+function sectionHeading(locale: string | undefined, index: number): string {
+  if (locale === "kk") {
+    return `${index}-бөлім.`;
+  }
+  if (locale === "en") {
+    return `Section ${index}.`;
+  }
+  return `Раздел ${index}.`;
+}
+
 function isVariableVisible(
   variable: TemplateVariable,
   values: Record<string, unknown>
@@ -326,7 +337,7 @@ export function TemplateForm({
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <h3 className="font-semibold text-[17px] text-foreground leading-snug">
-                      Раздел {sIdx + 1}. {section.title}
+                      {sectionHeading(locale, sIdx + 1)} {section.title}
                     </h3>
                     {section.description && !isCollapsed && (
                       <p className="mt-1.5 text-[13px] text-muted-foreground leading-snug">

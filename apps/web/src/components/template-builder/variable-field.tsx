@@ -47,7 +47,7 @@ const PLACEHOLDER_TEXTS: Record<
     choose: (label) => `Выберите ${label.toLowerCase()}`,
   },
   kk: {
-    enter: (label) => `${label} енгізіңіз`,
+    enter: (label) => `${label} туралы ақпаратты енгізіңіз`,
     choose: (label) => `${label} таңдаңыз`,
   },
   en: {
