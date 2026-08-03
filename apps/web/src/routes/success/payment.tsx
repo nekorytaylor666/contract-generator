@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { CheckCircle2, Download, Loader2, Pencil } from "lucide-react";
 import { useEffect } from "react";
@@ -58,6 +58,17 @@ function PaymentSuccess() {
   const isSubscription = data?.purpose === "subscription";
 
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  // Оплата подтверждена вебхуком: тариф/квоты изменились на сервере, а SPA
+  // не перезагружалась — сбрасываем кэш, иначе виджет «Использование» и
+  // профиль показывают старые данные до ручного обновления страницы.
+  useEffect(() => {
+    if (paid) {
+      queryClient.invalidateQueries(
+        trpc.subscriptions.mySubscription.queryFilter()
+      );
+    }
+  }, [paid, queryClient, trpc]);
   // A paid subscription shows its success as a modal on the profile tab.
   useEffect(() => {
     if (paid && isSubscription) {

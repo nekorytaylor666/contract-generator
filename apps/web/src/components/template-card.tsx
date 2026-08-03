@@ -90,6 +90,10 @@ export function TemplateCard({
         link.href = result.dataUrl;
         link.download = result.fileName;
         link.click();
+        // Скачивание может списать квоту — обновляем «Использование».
+        queryClient.invalidateQueries(
+          trpc.subscriptions.mySubscription.queryFilter()
+        );
       },
       onError: (err) => toast.error(err.message),
     })

@@ -580,6 +580,11 @@ function RouteComponent() {
         setDocumentId(data.id);
         setCurrentVersion(data.version);
         runCounterpartyAutosave();
+        // Создание документа списывает квоту редактирования — обновляем
+        // виджет «Использование» в сайдбаре.
+        queryClient.invalidateQueries(
+          trpc.subscriptions.mySubscription.queryFilter()
+        );
         // Update URL with documentId
         navigate({
           to: "/templates/$templateId/builder",

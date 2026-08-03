@@ -3,7 +3,7 @@ import {
   DOCUMENT_TYPE_LABELS,
   resolveLocalized,
 } from "@contract-builder/api/constants/template-options";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { CircleAlert, Download, Pencil, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -47,6 +47,7 @@ export function TemplateInfoDialog({
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
 
   const { data: template, isLoading } = useQuery({
     ...trpc.templates.getById.queryOptions({ id: templateId }),
@@ -60,6 +61,10 @@ export function TemplateInfoDialog({
         link.href = result.dataUrl;
         link.download = result.fileName;
         link.click();
+        // Скачивание может списать квоту — обновляем «Использование».
+        queryClient.invalidateQueries(
+          trpc.subscriptions.mySubscription.queryFilter()
+        );
       },
       onError: (err) => toast.error(err.message),
     })
