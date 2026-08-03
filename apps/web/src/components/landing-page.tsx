@@ -1,15 +1,19 @@
+import {
+  CATEGORY_LABEL_BY_SLUG,
+  categoryGroupOf,
+  mostSpecificCategory,
+} from "@contract-builder/api/constants/template-options";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
   ArrowUpRight,
+  Briefcase,
   ChevronDown,
   CircleCheck,
-  CodeXml,
-  Coins,
+  FileText,
   FileUser,
   Globe,
-  Hammer,
-  House,
   type LucideIcon,
   Megaphone,
   Menu,
@@ -21,10 +25,12 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
+import { useTRPC } from "@/utils/trpc";
 
 // Палитра лендинга из Figma (Landing, node 4264:23659): тёплый фон страницы,
 // песочные акценты и чернильный текст. Бордовый — общий токен --landing.
@@ -564,74 +570,109 @@ function Steps() {
   );
 }
 
-interface LibraryCard {
-  date: string;
-  title: string;
-  desc: string;
-  tag: string;
-  icon: LucideIcon;
-}
+// Иконка карточки библиотеки по верхнеуровневой группе категории шаблона.
+const LIBRARY_GROUP_ICONS: Record<string, LucideIcon> = {
+  dogovory: FileText,
+  korporativnye: Briefcase,
+  trudovye: FileUser,
+  pretenzii: Megaphone,
+  sudebnoe: Scale,
+  inye: Tags,
+};
 
-const LIBRARY_CARDS: LibraryCard[] = [
-  {
-    date: "Март 2025",
-    title: "Договор аренды жилого помещения",
-    desc: "С описью имущества, актом приёма-передачи и порядком возврата депозита",
-    tag: "Недвижимость",
-    icon: House,
-  },
-  {
-    date: "Апр 2025",
-    title: "Договор возмездного оказания услуг по разработке ПО",
-    desc: "С передачей исключительных прав, поэтапной оплатой и актом сдачи-приёмки",
-    tag: "Разработка",
-    icon: CodeXml,
-  },
-  {
-    date: "Сентябрь 2024",
-    title: "Договор подряда на строительные работы",
-    desc: "С локальной сметой, актами КС-2 и гарантийными обязательствами подрядчика",
-    tag: "Строительство",
-    icon: Hammer,
-  },
-  {
-    date: "Май 2023",
-    title: "Договор займа между физическими лицами",
-    desc: "С графиком возврата, процентной ставкой и штрафами за просрочку",
-    tag: "Финансы",
-    icon: Coins,
-  },
-  {
-    date: "Июнь 2023",
-    title: "Договор на оказание маркетинговых услуг",
-    desc: "С перечнем услуг, KPI и порядком сдачи результата для проектной работы",
-    tag: "Маркетинг",
-    icon: Megaphone,
-  },
-  {
-    date: "Октябрь 2024",
-    title: "Трудовой договор с дистанционным сотрудником",
-    desc: "С режимом работы, постановкой задач и условиями расторжения по ТК РК",
-    tag: "Кадры",
-    icon: FileUser,
-  },
-  {
-    date: "Июль 2023",
-    title: "Договор поставки товаров и продукции",
-    desc: "С условиями доставки, порядком приёмки и ответственностью за недостачу",
-    tag: "Торговля",
-    icon: Tags,
-  },
-  {
-    date: "Март 2025",
-    title: "Договор об оказании юридических услуг",
-    desc: "С объёмом правовой помощи, стоимостью и условиями досрочного расторжения",
-    tag: "Юриспруденция",
-    icon: Scale,
-  },
+// Стабильные ключи скелетонов на время загрузки каталога (сетка 4×2).
+const LIBRARY_SKELETON_KEYS = [
+  "lib-skeleton-1",
+  "lib-skeleton-2",
+  "lib-skeleton-3",
+  "lib-skeleton-4",
+  "lib-skeleton-5",
+  "lib-skeleton-6",
+  "lib-skeleton-7",
+  "lib-skeleton-8",
 ];
 
+// «Март 2025» — как в макете карточек библиотеки.
+function formatLibraryDate(value: Date | string): string {
+  const date = new Date(value);
+  const month = date.toLocaleDateString("ru-RU", { month: "long" });
+  return `${month.charAt(0).toUpperCase()}${month.slice(1)} ${date.getFullYear()}`;
+}
+
+interface LibraryTemplate {
+  id: string;
+  title: string;
+  description: string | null;
+  categories: string[] | null;
+  updatedAt: Date | string;
+}
+
+// Карточка каталога: авторизованному открывает шаблон, гостю — регистрацию.
+// Тексты шаблона тут только карточные (landingCatalog не отдаёт тела).
+function LibraryCard({
+  tpl,
+  authed,
+}: {
+  tpl: LibraryTemplate;
+  authed: boolean;
+}) {
+  const slug = mostSpecificCategory(tpl.categories);
+  const tag = (slug && CATEGORY_LABEL_BY_SLUG[slug]) || "Договоры";
+  const group = slug ? categoryGroupOf(slug) : undefined;
+  const Icon = (group && LIBRARY_GROUP_ICONS[group]) || FileText;
+  const cardClassName =
+    "flex h-[242px] flex-col overflow-hidden rounded-2xl bg-white p-5 transition-shadow hover:shadow-md";
+  const body = (
+    <>
+      <div className="flex h-6 items-center justify-between">
+        <span className="flex items-center gap-2.5 font-medium text-[#0a0a0a] text-sm">
+          <RefreshCw className="size-4" />
+          {formatLibraryDate(tpl.updatedAt)}
+        </span>
+        <MoreHorizontal className="size-4 text-[#0a0a0a]" />
+      </div>
+      <h3 className="mt-4 line-clamp-2 font-semibold text-base text-black leading-5">
+        {tpl.title}
+      </h3>
+      <p className="mt-2 line-clamp-3 font-medium text-[#a3a3a3] text-sm leading-[18px]">
+        {tpl.description}
+      </p>
+      <span className="mt-auto flex items-center gap-2 pt-4 font-medium text-[#0a0a0a] text-sm">
+        <Icon className="size-4" />
+        {tag}
+      </span>
+    </>
+  );
+  if (authed) {
+    return (
+      <Link
+        className={cardClassName}
+        params={{ templateId: tpl.id }}
+        to="/templates/$templateId"
+      >
+        {body}
+      </Link>
+    );
+  }
+  return (
+    <Link className={cardClassName} to="/register">
+      {body}
+    </Link>
+  );
+}
+
 function Library() {
+  // Карточки — реальные шаблоны каталога (лёгкая публичная выборка).
+  const { data: session, isPending } = authClient.useSession();
+  const { i18n } = useTranslation();
+  const trpc = useTRPC();
+  const { data: templates } = useQuery(
+    trpc.templates.landingCatalog.queryOptions({ locale: i18n.language })
+  );
+  // Пока не готовы И данные каталога, И сессия — держим скелетоны: иначе
+  // авторизованному на миг покажутся карточки, ведущие на /register.
+  const ready = Boolean(templates) && !isPending;
+
   return (
     <section
       className="scroll-mt-20 py-12"
@@ -653,37 +694,32 @@ function Library() {
             className="h-9 shrink-0 rounded-full border-[#404040] bg-transparent px-4 font-medium text-[#0a0a0a] text-sm hover:bg-black/5"
             variant="outline"
           >
-            <Link to="/register">
-              Открыть каталог
-              <ArrowRight className="size-4" />
-            </Link>
+            {/* Пока сессия грузится, ведём на витрину как гостя — иначе
+                авторизованный на миг увидит ссылку на /register. */}
+            {!isPending && session ? (
+              <Link to="/templates">
+                Открыть каталог
+                <ArrowRight className="size-4" />
+              </Link>
+            ) : (
+              <Link to="/register">
+                Открыть каталог
+                <ArrowRight className="size-4" />
+              </Link>
+            )}
           </Button>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {LIBRARY_CARDS.map((card) => (
-            <div
-              className="flex h-[242px] flex-col overflow-hidden rounded-2xl bg-white p-5"
-              key={card.title}
-            >
-              <div className="flex h-6 items-center justify-between">
-                <span className="flex items-center gap-2.5 font-medium text-[#0a0a0a] text-sm">
-                  <RefreshCw className="size-4" />
-                  {card.date}
-                </span>
-                <MoreHorizontal className="size-4 text-[#0a0a0a]" />
-              </div>
-              <h3 className="mt-4 line-clamp-2 font-semibold text-base text-black leading-5">
-                {card.title}
-              </h3>
-              <p className="mt-2 line-clamp-3 font-medium text-[#a3a3a3] text-sm leading-[18px]">
-                {card.desc}
-              </p>
-              <span className="mt-auto flex items-center gap-2 pt-4 font-medium text-[#0a0a0a] text-sm">
-                <card.icon className="size-4" />
-                {card.tag}
-              </span>
-            </div>
-          ))}
+          {ready && templates
+            ? templates.map((tpl) => (
+                <LibraryCard authed={Boolean(session)} key={tpl.id} tpl={tpl} />
+              ))
+            : LIBRARY_SKELETON_KEYS.map((key) => (
+                <div
+                  className="h-[242px] animate-pulse rounded-2xl bg-white/70"
+                  key={key}
+                />
+              ))}
         </div>
       </div>
     </section>

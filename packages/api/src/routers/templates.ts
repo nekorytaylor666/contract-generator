@@ -24,6 +24,7 @@ import { TRPCError } from "@trpc/server";
 import {
   and,
   arrayOverlaps,
+  desc,
   eq,
   gt,
   ilike,
@@ -62,22 +63,41 @@ const typstCompiler = NodeCompiler.create();
 const DATE_ISO_REGEX = /^\d{4}-\d{2}-\d{2}/;
 const DATA_URL_PREFIX_REGEX = /^data:image\/\w+;base64,/;
 
-// How many leading blocks of a document to expose as a free teaser. Splitting on
-// blank lines keeps blocks (paragraphs, grids) intact so the client typst parser
-// still renders cleanly; the rest never leaves the server for unpaid users.
+// Free teaser: only the leading slice of a document leaves the server for unpaid
+// users — never enough to reconstruct it. Templates are admin-authored free-form
+// typst, so splitting on blank lines ALONE is unsafe: a body written with
+// single-newline paragraphs is one block, and block-truncation would return the
+// whole thing. So we bound by blocks, by line count, AND by half the source
+// length, taking the tightest. Cuts land on line boundaries so the lenient
+// client teaser parser (used only as a photo-load fallback) still renders.
 const PREVIEW_TEASER_BLOCKS = 6;
+const PREVIEW_TEASER_MAX_LINES = 14;
 const BLANK_LINE_REGEX = /\n\s*\n/;
+
+// Сколько карточек отдаёт landingCatalog — сетка лендинга 4×2.
+const LANDING_CATALOG_SIZE = 8;
 
 function truncateTypstForPreview(typst: string): string {
   if (!typst) {
     return typst;
   }
-  const blocks = typst.split(BLANK_LINE_REGEX);
-  if (blocks.length <= PREVIEW_TEASER_BLOCKS) {
-    const keep = Math.max(1, Math.ceil(blocks.length / 2));
-    return blocks.slice(0, keep).join("\n\n");
+  const byBlocks = typst
+    .split(BLANK_LINE_REGEX)
+    .slice(0, PREVIEW_TEASER_BLOCKS)
+    .join("\n\n");
+  let teaser = byBlocks
+    .split("\n")
+    .slice(0, PREVIEW_TEASER_MAX_LINES)
+    .join("\n");
+  // Жёсткий потолок: не более половины исходника, иначе короткий/плотно
+  // свёрстанный шаблон утёк бы целиком. Обрезаем по границе строки.
+  const halfLen = Math.floor(typst.length / 2);
+  if (teaser.length > halfLen) {
+    const clipped = teaser.slice(0, halfLen);
+    const lastBreak = clipped.lastIndexOf("\n");
+    teaser = lastBreak > 0 ? clipped.slice(0, lastBreak) : clipped;
   }
-  return blocks.slice(0, PREVIEW_TEASER_BLOCKS).join("\n\n");
+  return teaser;
 }
 
 function truncateLocalizedForPreview(
@@ -96,6 +116,33 @@ function truncateLocalizedForPreview(
   return out;
 }
 
+async function hasAnyPaidPurchase(
+  userId: string,
+  templateId: string
+): Promise<boolean> {
+  const [paid] = await db
+    .select({ id: payment.id })
+    .from(payment)
+    .where(
+      and(
+        eq(payment.userId, userId),
+        eq(payment.templateId, templateId),
+        eq(payment.status, "paid")
+      )
+    )
+    .limit(1);
+  return Boolean(paid);
+}
+
+async function isAdminUser(userId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ isAdmin: user.isAdmin })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+  return Boolean(row?.isAdmin);
+}
+
 // Whether `userId` may see the full document (vs. a truncated teaser): free
 // templates, anything they've purchased, or an active subscription.
 async function canSeeFullTemplate(
@@ -108,18 +155,7 @@ async function canSeeFullTemplate(
   if (!userId) {
     return false;
   }
-  const [paid] = await db
-    .select({ id: payment.id })
-    .from(payment)
-    .where(
-      and(
-        eq(payment.userId, userId),
-        eq(payment.templateId, tpl.id),
-        eq(payment.status, "paid")
-      )
-    )
-    .limit(1);
-  if (paid) {
+  if (await hasAnyPaidPurchase(userId, tpl.id)) {
     return true;
   }
   const [sub] = await db
@@ -135,6 +171,66 @@ async function canSeeFullTemplate(
     return true;
   }
   return Boolean(sub?.planId && (!sub.expiresAt || sub.expiresAt > new Date()));
+}
+
+// Право компилировать шаблон вне контекста сохранённого документа (preview и
+// compile без documentId): опубликованный — по обычным правилам платного
+// доступа, неопубликованный черновик — только админу или уже купившему (он
+// мог оплатить до снятия шаблона с публикации).
+async function canCompileTemplate(
+  userId: string | undefined,
+  tpl: { id: string; price: number; isPublished: boolean }
+): Promise<boolean> {
+  if (tpl.isPublished) {
+    return await canSeeFullTemplate(userId, tpl);
+  }
+  if (!userId) {
+    return false;
+  }
+  if (await isAdminUser(userId)) {
+    return true;
+  }
+  return await hasAnyPaidPurchase(userId, tpl.id);
+}
+
+// Гейт compile вне печати документа. Порядок важен: сперва проверяем доступ
+// (бесплатный опубликованный шаблон компилируется даже гостю), затем прячем
+// неопубликованные черновики за NOT_FOUND (не палим существование посторонним),
+// и только потом различаем анонима (UNAUTHORIZED) и авторизованного без прав
+// (FORBIDDEN).
+async function assertCompileAccess(
+  userId: string | undefined,
+  templateId: string
+): Promise<void> {
+  const [tmpl] = await db
+    .select({
+      id: template.id,
+      price: template.price,
+      isPublished: template.isPublished,
+    })
+    .from(template)
+    .where(eq(template.id, templateId))
+    .limit(1);
+  if (!tmpl) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Template not found" });
+  }
+  if (await canCompileTemplate(userId, tmpl)) {
+    return;
+  }
+  if (!tmpl.isPublished) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Template not found" });
+  }
+  if (!userId) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Войдите, чтобы скачать документ",
+    });
+  }
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message:
+      "Нет доступа к шаблону — сохраните документ, оформите подписку или купите шаблон.",
+  });
 }
 
 function formatValue(value: unknown): string | null {
@@ -1070,6 +1166,12 @@ async function generateTemplatePreview(
   if (!row) {
     return null;
   }
+  // preview.png — публичный HTTP-маршрут без сессии: неопубликованный черновик
+  // рендерить нельзя, иначе любой анонимный запрос вытянет фото первой страницы
+  // непубличного шаблона. Публичные превью — часть витрины и остаются открытыми.
+  if (!row.isPublished) {
+    return null;
+  }
 
   const key = locale && PHOTO_LOCALES.has(locale) ? locale : "default";
   const cached = row.previewImages?.[key];
@@ -1272,6 +1374,49 @@ export const templatesRouter = router({
       });
     }),
 
+  // Каталог для лендинга: только карточные поля (без variables и тел
+  // документов) — выдача публичная, анонимному посетителю больше не нужно.
+  landingCatalog: publicProcedure
+    .input(z.object({ locale: z.string().optional() }).optional())
+    .query(async ({ input }) => {
+      // Популярность — число оплаченных покупок, как в сортировке каталога.
+      const popularity = sql<number>`(
+        SELECT COUNT(*)::int FROM ${payment}
+        WHERE ${payment.templateId} = ${template.id}
+          AND ${payment.status} = 'paid'
+      )`;
+      const rows = await db
+        .select({
+          id: template.id,
+          title: template.title,
+          description: template.description,
+          localizedContent: template.localizedContent,
+          categories: template.categories,
+          updatedAt: template.updatedAt,
+        })
+        .from(template)
+        .where(eq(template.isPublished, true))
+        .orderBy(desc(popularity), desc(template.updatedAt))
+        .limit(LANDING_CATALOG_SIZE);
+
+      return rows.map(({ localizedContent, ...rest }) => {
+        const resolved = resolveLocalized(
+          {
+            title: rest.title,
+            description: rest.description,
+            typstContent: "",
+          },
+          localizedContent,
+          input?.locale
+        );
+        return {
+          ...rest,
+          title: resolved.title,
+          description: resolved.description,
+        };
+      });
+    }),
+
   getById: publicProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -1286,6 +1431,22 @@ export const templatesRouter = router({
           code: "NOT_FOUND",
           message: "Template not found",
         });
+      }
+
+      // Неопубликованный черновик не должен открываться по прямой ссылке:
+      // только админу или тому, кто купил шаблон до снятия с публикации.
+      if (!found.isPublished) {
+        const viewerId = ctx.session?.user.id;
+        const allowed = viewerId
+          ? (await isAdminUser(viewerId)) ||
+            (await hasAnyPaidPurchase(viewerId, found.id))
+          : false;
+        if (!allowed) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Template not found",
+          });
+        }
       }
 
       // The cached photo PNGs are served by /templates/:id/preview.png —
@@ -1400,12 +1561,41 @@ export const templatesRouter = router({
           .optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      // Тот же пейволл, что и в getById: без оплаты рендерим только тизер —
+      // полный текст шаблона (даже картинкой) не покидает сервер.
+      const [tmpl] = await db
+        .select({
+          id: template.id,
+          price: template.price,
+          isPublished: template.isPublished,
+        })
+        .from(template)
+        .where(eq(template.id, input.templateId))
+        .limit(1);
+      if (!tmpl) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Template not found",
+        });
+      }
+      const fullAccess = await canCompileTemplate(ctx.session?.user.id, tmpl);
+      // Неопубликованные черновики посторонним не рендерим вовсе.
+      if (!(tmpl.isPublished || fullAccess)) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Template not found",
+        });
+      }
+
       const source = await loadTemplateSource(
         input.templateId,
         input.templateVersionId,
         input.locale
       );
+      const sourceTypst = fullAccess
+        ? source.typstContent
+        : truncateTypstForPreview(source.typstContent);
 
       const changedSet = new Set(input.changedVariables ?? []);
       const templateVars = (source.variables ?? []) as TemplateVariable[];
@@ -1414,12 +1604,12 @@ export const templatesRouter = router({
       const substituted =
         changedSet.size > 0
           ? replaceVariablesWithHighlight(
-              source.typstContent,
+              sourceTypst,
               vars,
               changedSet,
               templateVars
             )
-          : replaceVariables(source.typstContent, vars, templateVars);
+          : replaceVariables(sourceTypst, vars, templateVars);
       const processedContent = applyNativeLetValues(substituted, vars);
 
       try {
@@ -1461,13 +1651,20 @@ export const templatesRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const download = input.documentId
+      const download: DocumentDownload = input.documentId
         ? await prepareDocumentDownload(
             input.documentId,
             input.templateId,
             ctx.session
           )
-        : ({ mode: "plain" } as const);
+        : { mode: "plain" };
+
+      // Компиляция вне печати документа организации — это скачивание самого
+      // шаблона: анониму и не оплатившему запрещаем, иначе весь каталог можно
+      // выкачать прямым вызовом процедуры, минуя пейволл getById.
+      if (download.mode === "plain" && !download.viaDocument) {
+        await assertCompileAccess(ctx.session?.user.id, input.templateId);
+      }
 
       // Скачанный («выданный») документ печатаем строго из сохранённого
       // состояния — присланные с клиента значения игнорируются, иначе одну
@@ -1734,8 +1931,12 @@ async function materializeTemplateDownload(params: {
 }
 
 type DocumentDownload =
-  /** Обычная компиляция шаблона — документ не затрагивается. */
-  | { mode: "plain" }
+  /**
+   * Обычная компиляция шаблона — документ не затрагивается. viaDocument
+   * означает, что право печати даёт членство в организации документа;
+   * без него compile отдельно проверяет доступ к самому шаблону.
+   */
+  | { mode: "plain"; viaDocument?: boolean }
   /** Документ уже «выдан»: печатаем только его сохранённое состояние. */
   | { mode: "locked"; doc: typeof document.$inferSelect }
   /** Первое скачивание: после компиляции фиксируем версию и ставим отметку. */
@@ -1788,11 +1989,15 @@ async function prepareDocumentDownload(
   if (doc.downloadedAt) {
     return { mode: "locked", doc };
   }
-  // Шаблон в запросе обязан совпадать с шаблоном документа, а «выдать»
-  // договор может только роль с правом редактирования — просмотрщик скачивает
-  // без последствий для документа.
-  if (doc.templateId !== templateId || !canEditDocuments(membership.role)) {
+  // Шаблон в запросе обязан совпадать с шаблоном документа — иначе это не
+  // печать документа, а попытка выдать чужой шаблон за него.
+  if (doc.templateId !== templateId) {
     return { mode: "plain" };
+  }
+  // «Выдать» договор может только роль с правом редактирования — просмотрщик
+  // печатает документ организации без последствий для документа.
+  if (!canEditDocuments(membership.role)) {
+    return { mode: "plain", viaDocument: true };
   }
   // Купленное редактирование шаблона не «выдаётся»: скачивание — просто
   // печать текущего состояния, документ остаётся редактируемым. Блокировка
@@ -1804,14 +2009,14 @@ async function prepareDocumentDownload(
     (doc.createdBy !== session.user.id &&
       (await hasPaidEditPurchase(doc.createdBy, doc.templateId)));
   if (editPurchased) {
-    return { mode: "plain" };
+    return { mode: "plain", viaDocument: true };
   }
   // Активная платная подписка — тоже право редактирования: документ из
   // редактора не «выдаётся» при скачивании. Блокировка остаётся только у
   // скачиваний без прав правки (разовый тариф).
   const plan = await getEffectivePlan(session.user.id);
   if (plan && !plan.isDefault) {
-    return { mode: "plain" };
+    return { mode: "plain", viaDocument: true };
   }
   const [tmpl] = await db
     .select()
@@ -1819,7 +2024,7 @@ async function prepareDocumentDownload(
     .where(eq(template.id, doc.templateId))
     .limit(1);
   if (!tmpl) {
-    return { mode: "plain" };
+    return { mode: "plain", viaDocument: true };
   }
   return { mode: "issue", doc, tmpl, userId: session.user.id };
 }

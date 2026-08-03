@@ -386,6 +386,11 @@ function RouteComponent() {
         queryClient.invalidateQueries({
           queryKey: trpc.documents.list.queryKey(),
         });
+        // Создание документа списало квоту редактирования — обновляем
+        // счётчик «Использование» в сайдбаре сразу, без перезагрузки.
+        queryClient.invalidateQueries(
+          trpc.subscriptions.mySubscription.queryFilter()
+        );
         navigate({
           to: "/templates/$templateId/builder",
           params: { templateId },

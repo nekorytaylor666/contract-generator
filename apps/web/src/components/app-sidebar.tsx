@@ -142,6 +142,11 @@ function SidebarUsageCard() {
   const { data: sub } = useQuery({
     ...trpc.subscriptions.mySubscription.queryOptions(),
     enabled: Boolean(session),
+    // Квоты меняются в других вкладках и на сервере (вебхук оплаты) —
+    // держим виджет живым: свежий фетч при возврате фокуса и раз в минуту.
+    staleTime: 0,
+    refetchOnWindowFocus: "always",
+    refetchInterval: 60_000,
   });
 
   if (!sub || (sub.downloadQuota === 0 && sub.editQuota === 0)) {
