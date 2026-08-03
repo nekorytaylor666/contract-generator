@@ -1441,6 +1441,7 @@ export const templatesRouter = router({
         locale: z.string().optional(),
         variables: z.record(z.string(), z.unknown()),
         logo: z.string().optional(),
+        format: z.enum(["pdf", "docx"]).default("pdf"),
         style: z
           .object({
             font: z.string().optional(),
@@ -1493,30 +1494,40 @@ export const templatesRouter = router({
         vars
       );
 
-      let pdf: Buffer;
+      // DOCX собирается из того же контента с подставленными значениями;
+      // разметка страницы/логотип в нём не участвуют (ограничение экспорта).
+      let dataUrl: string;
+      let fileName: string;
       try {
-        pdf = await compileTypst(processedContent, {
-          logoBase64: compileArgs.logo,
-          style: compileArgs.style,
-        });
+        if (input.format === "docx") {
+          const docx = await compileTypstToDocx(processedContent);
+          dataUrl = `data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,${docx.toString("base64")}`;
+          fileName = `${source.title}.docx`;
+        } else {
+          const pdf = await compileTypst(processedContent, {
+            logoBase64: compileArgs.logo,
+            style: compileArgs.style,
+          });
+          dataUrl = `data:application/pdf;base64,${pdf.toString("base64")}`;
+          fileName = `${source.title}.pdf`;
+        }
       } catch (error) {
+        const fmt = input.format.toUpperCase();
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
             error instanceof Error
-              ? `Failed to compile PDF: ${error.message}`
-              : "Failed to compile PDF",
+              ? `Failed to compile ${fmt}: ${error.message}`
+              : `Failed to compile ${fmt}`,
         });
       }
       // Первое скачивание фиксируем на сервере, а не с клиента: вкладку могут
-      // закрыть или обновить раньше, чем ушла бы отдельная отметка.
+      // закрыть или обновить раньше, чем ушла бы отдельная отметка. DOCX
+      // «выдаёт» документ так же, как PDF.
       if (download.mode === "issue") {
         await issueDocumentDownload(download, compileArgs);
       }
-      return {
-        pdfDataUrl: `data:application/pdf;base64,${pdf.toString("base64")}`,
-        fileName: `${source.title}.pdf`,
-      };
+      return { dataUrl, fileName };
     }),
 
   /**

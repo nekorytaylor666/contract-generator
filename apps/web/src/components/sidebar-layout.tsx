@@ -186,7 +186,8 @@ function HeaderCounterparties() {
 }
 
 // Иконка выхода в правом верхнем углу шапки (по макету — рядом с языком).
-function HeaderSignOut() {
+// Экспортируется: конструктор рендерит её в собственной шапке.
+export function HeaderSignOut() {
   const { data: session } = authClient.useSession();
   if (!session) {
     return null;

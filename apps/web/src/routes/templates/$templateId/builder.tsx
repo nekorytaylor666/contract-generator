@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Check,
+  ChevronDown,
   DownloadIcon,
   Info,
   Loader2,
@@ -16,6 +17,8 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { HeaderSignOut } from "@/components/sidebar-layout";
 import {
   type DocumentStyle,
   DocumentStyleSettings,
@@ -29,6 +32,12 @@ import { isComplexNative } from "@/components/template-builder/server-typst-prev
 import { VersionHistory } from "@/components/template-builder/version-history";
 import { TemplateInfoDialog } from "@/components/template-info-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { requireAuth } from "@/lib/auth-guard";
 import {
   collectPartyBindings,
@@ -493,7 +502,7 @@ function RouteComponent() {
     trpc.templates.compile.mutationOptions({
       onSuccess: (data) => {
         const link = document.createElement("a");
-        link.href = data.pdfDataUrl;
+        link.href = data.dataUrl;
         link.download = data.fileName;
         document.body.appendChild(link);
         link.click();
@@ -618,35 +627,39 @@ function RouteComponent() {
     [triggerHighlight]
   );
 
-  const handleDownload = useCallback(() => {
-    if (!latestValuesRef.current) {
-      return;
-    }
-    // Always compile the LIVE template — the on-screen preview and the form
-    // already render it, so the downloaded PDF must match. Pinning the
-    // document's templateVersionId here served week-old snapshots after every
-    // admin edit ("the template never updates").
-    compileMutation.mutate({
+  const handleDownload = useCallback(
+    (format: "pdf" | "docx") => {
+      if (!latestValuesRef.current) {
+        return;
+      }
+      // Always compile the LIVE template — the on-screen preview and the form
+      // already render it, so the downloaded PDF must match. Pinning the
+      // document's templateVersionId here served week-old snapshots after every
+      // admin edit ("the template never updates").
+      compileMutation.mutate({
+        templateId,
+        // Скачивание сохранённого документа сервер зафиксирует и закроет его
+        // для дальнейших правок.
+        documentId,
+        locale: docLocale,
+        variables: latestValuesRef.current,
+        logo: logo ?? undefined,
+        format,
+        style: {
+          font: documentStyle.font,
+          preset: documentStyle.preset,
+        },
+      });
+    },
+    [
       templateId,
-      // Скачивание сохранённого документа сервер зафиксирует и закроет его
-      // для дальнейших правок.
       documentId,
-      locale: docLocale,
-      variables: latestValuesRef.current,
-      logo: logo ?? undefined,
-      style: {
-        font: documentStyle.font,
-        preset: documentStyle.preset,
-      },
-    });
-  }, [
-    templateId,
-    documentId,
-    compileMutation.mutate,
-    logo,
-    documentStyle,
-    docLocale,
-  ]);
+      compileMutation.mutate,
+      logo,
+      documentStyle,
+      docLocale,
+    ]
+  );
 
   const renameMutation = useMutation(
     trpc.documents.rename.mutationOptions({
@@ -904,13 +917,36 @@ function RouteComponent() {
             onSave={handleSave}
             saving={saveMutation.isPending}
           />
-          <Button
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-            disabled={compileMutation.isPending}
-            onClick={handleDownload}
-          >
-            {compileMutation.isPending ? "Скачивание…" : "Скачать договор"}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                disabled={compileMutation.isPending}
+              >
+                {compileMutation.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <DownloadIcon className="size-4" />
+                )}
+                {compileMutation.isPending ? "Скачивание…" : "Скачать договор"}
+                <ChevronDown className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44">
+              <DropdownMenuItem onSelect={() => handleDownload("docx")}>
+                <DownloadIcon className="size-4" />
+                Скачать в DocX
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleDownload("pdf")}>
+                <DownloadIcon className="size-4" />
+                Скачать в PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {/* Язык интерфейса и выход — по макету в шапке конструктора
+              (панель «Конструктор» на десктопе скрыта). */}
+          <LanguageSwitcher />
+          <HeaderSignOut />
         </div>
       </div>
 
