@@ -54,7 +54,7 @@ import {
   hasPaidEditPurchase,
   pinLatestTemplateVersion,
 } from "../lib/document-service";
-import { consumeQuota } from "../lib/subscription";
+import { consumeQuota, getEffectivePlan } from "../lib/subscription";
 import { pluralize } from "../utils/pluralize";
 
 const execAsync = promisify(exec);
@@ -1804,6 +1804,13 @@ async function prepareDocumentDownload(
     (doc.createdBy !== session.user.id &&
       (await hasPaidEditPurchase(doc.createdBy, doc.templateId)));
   if (editPurchased) {
+    return { mode: "plain" };
+  }
+  // Активная платная подписка — тоже право редактирования: документ из
+  // редактора не «выдаётся» при скачивании. Блокировка остаётся только у
+  // скачиваний без прав правки (разовый тариф).
+  const plan = await getEffectivePlan(session.user.id);
+  if (plan && !plan.isDefault) {
     return { mode: "plain" };
   }
   const [tmpl] = await db
