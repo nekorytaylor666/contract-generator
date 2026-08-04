@@ -1,4 +1,5 @@
 import { Check, Download, Loader2, PenLine, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 
@@ -66,6 +67,125 @@ export function InfoRow({
         {value}
       </span>
     </div>
+  );
+}
+
+/** Карточка-«радио» (разовая покупка / повышение тарифа, выбор тарифа). */
+export function ChoiceCard({
+  title,
+  hint,
+  selected,
+  onSelect,
+}: {
+  title: string;
+  hint: string;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      aria-pressed={selected}
+      className={cn(
+        "flex w-full gap-3 rounded-[10px] border p-3 text-left transition-colors",
+        selected ? "border-[#9e1f5a]" : "border-[#e5e5e5] hover:bg-muted/40"
+      )}
+      onClick={onSelect}
+      type="button"
+    >
+      <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border border-[#d4d4d4]">
+        {selected && <span className="size-2 rounded-full bg-[#9e1f5a]" />}
+      </span>
+      <span className="flex flex-col gap-0.5">
+        <span className="font-medium text-foreground text-sm leading-[18px]">
+          {title}
+        </span>
+        <span className="text-muted-foreground text-xs leading-4">{hint}</span>
+      </span>
+    </button>
+  );
+}
+
+export interface PlanOption {
+  id: string;
+  name: string;
+  downloadQuota: number;
+  editQuota: number;
+}
+
+/** Шаг выбора нового тарифа при повышении — общий для модалок скачивания и
+ * редактирования (заголовок «Выберите новый тариф», стопка карточек-радио,
+ * футер «Назад» + «Продолжить»). */
+export function PlansStep({
+  options,
+  choice,
+  onChoose,
+  onBack,
+  onContinue,
+  busy,
+}: {
+  options: PlanOption[];
+  choice: string | null;
+  onChoose: (planId: string) => void;
+  onBack: () => void;
+  onContinue: () => void;
+  busy: boolean;
+}) {
+  const { t } = useTranslation();
+
+  const planLabel = (plan: PlanOption) => {
+    const downloads =
+      plan.downloadQuota === -1
+        ? t("downloadDialog.planDownloadsUnlimited")
+        : t("downloadDialog.planDownloads", { count: plan.downloadQuota });
+    const edits =
+      plan.editQuota === -1
+        ? t("downloadDialog.planEditsUnlimited")
+        : t("downloadDialog.planEdits", { count: plan.editQuota });
+    return `${downloads} · ${edits}`;
+  };
+
+  return (
+    <>
+      <div className="flex flex-col gap-3 px-4 py-2">
+        <div className="flex flex-col gap-2">
+          <h2 className="font-semibold text-foreground text-xl leading-6">
+            {t("downloadDialog.choosePlan")}
+          </h2>
+          <p className="text-muted-foreground text-sm leading-[18px]">
+            {t("downloadDialog.choosePlanHint")}
+          </p>
+        </div>
+        <div className="flex flex-col gap-2">
+          {options.map((plan) => (
+            <ChoiceCard
+              hint={planLabel(plan)}
+              key={plan.id}
+              onSelect={() => onChoose(plan.id)}
+              selected={choice === plan.id}
+              title={plan.name}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="flex justify-end gap-2 p-4">
+        <button
+          className={OUTLINE_BUTTON_CLASS}
+          disabled={busy}
+          onClick={onBack}
+          type="button"
+        >
+          {t("downloadDialog.back")}
+        </button>
+        <button
+          className={PRIMARY_BUTTON_CLASS}
+          disabled={choice === null || busy}
+          onClick={onContinue}
+          type="button"
+        >
+          {t("downloadDialog.continue")}
+        </button>
+      </div>
+    </>
   );
 }
 

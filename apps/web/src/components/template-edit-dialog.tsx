@@ -6,10 +6,11 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
+  ChoiceCard,
   formatTenge,
   InfoRow,
   MODAL_POLL_INTERVAL_MS,
-  OUTLINE_BUTTON_CLASS,
+  PlansStep,
   PRIMARY_BUTTON_CLASS,
   parseInvIdFromPaymentUrl,
   StatusView,
@@ -23,16 +24,22 @@ import {
 } from "@/components/ui/dialog";
 import {
   clearDownloadReturn,
+  type DownloadReturnFlow,
   type InitialPayment,
+  readDownloadReturn,
   saveDownloadReturn,
 } from "@/lib/download-return";
+import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
 
-// Шаги модалки «Редактирование договора» (по макетам «Разовый» и «Подписка»):
-// сводка стоимости, платёжные статусы Робокассы (когда квота не покрывает) и
-// создание копии договора (creating → created / createFailed).
+// Шаги модалки «Редактирование договора»: сводка стоимости, экран исчерпанного
+// лимита с выбором «разовая покупка / повысить тариф», выбор нового тарифа,
+// платёжные статусы Робокассы и создание копии договора
+// (creating → created / createFailed).
 type Step =
   | "info"
+  | "limit"
+  | "plans"
   | "redirect"
   | "checking"
   | "failed"
@@ -54,10 +61,52 @@ function initialStepFor(payment: InitialPayment | null | undefined): Step {
   return "checking";
 }
 
+// Заголовок модалки: сводка — «Редактирование договора», ветка апгрейда —
+// «Повышение тарифа», остальные шаги — «Редактировать договор».
+function headerTitleKey(step: Step, upgradeContext: boolean): string {
+  if (upgradeContext && step !== "info" && step !== "limit") {
+    return "downloadDialog.upgradeTitle";
+  }
+  return step === "info" ? "editDialog.title" : "editDialog.actionTitle";
+}
+
+/** Доступ к редактированию: чем покрыт (покупка/бесплатно/квота) и итог. */
+interface EditAccess {
+  hasEdit: boolean;
+  quota: number;
+  remaining: number;
+  unlimited: boolean;
+  covered: boolean;
+  total: number;
+}
+
+function computeEditAccess({
+  hasEdit,
+  price,
+  quota,
+  remaining,
+}: {
+  hasEdit: boolean;
+  price: number;
+  quota: number;
+  remaining: number;
+}): EditAccess {
+  const unlimited = quota === -1 || remaining === -1;
+  const covered = hasEdit || price === 0 || unlimited || remaining > 0;
+  return {
+    hasEdit,
+    quota,
+    remaining,
+    unlimited,
+    covered,
+    total: covered ? 0 : price,
+  };
+}
+
 /** Шаг сводки. «Разовый» тариф (по его макету): стоимость, экономия по
- * тарифу, остаток квоты, итог и кнопка «Тарифы». Платная подписка (по макету
- * «Подписка»): только стоимость и остаток квоты, одна кнопка «Перейти к
- * редактированию». */
+ * тарифу, остаток квоты и итог. Платная подписка (по макету «Подписка»):
+ * только стоимость и остаток квоты. Одна кнопка: покрыто — в редактирование,
+ * лимит исчерпан — «Продолжить» к выбору покупки/тарифа. */
 function EditInfoStep({
   templateTitle,
   price,
@@ -69,7 +118,6 @@ function EditInfoStep({
   unlimited,
   total,
   busy,
-  onPlans,
   onPrimary,
 }: {
   templateTitle: string;
@@ -82,7 +130,6 @@ function EditInfoStep({
   unlimited: boolean;
   total: number;
   busy: boolean;
-  onPlans: () => void;
   onPrimary: () => void;
 }) {
   const { t } = useTranslation();
@@ -101,14 +148,16 @@ function EditInfoStep({
   const quotaValue = unlimited
     ? t("downloadDialog.downloadsUnlimited")
     : t("editDialog.editsLeft", { count: remaining, total: quota });
-  const showPlansButton = !(isPaidPlan && covered);
-  // У подписки кнопка одна и широкая — длинный лейбл по макету; у «Разового»
-  // рядом «Тарифы», длинный текст в 320px не помещается.
+
+  // Покрыто — идём редактировать; исчерпанная квота — «Продолжить» к выбору
+  // «разовая покупка / повысить тариф»; тариф вовсе без квоты — сразу оплата.
   let primaryLabel = t("downloadDialog.goToPayment");
   if (covered) {
     primaryLabel = isPaidPlan
       ? t("editDialog.goToEditor")
       : t("templates.edit");
+  } else if (quota !== 0) {
+    primaryLabel = t("downloadDialog.continue");
   }
 
   return (
@@ -141,17 +190,7 @@ function EditInfoStep({
           )}
         </div>
       </div>
-      <div className="flex justify-end gap-2 p-4">
-        {showPlansButton && (
-          <button
-            className={OUTLINE_BUTTON_CLASS}
-            disabled={busy}
-            onClick={onPlans}
-            type="button"
-          >
-            {t("editDialog.plans")}
-          </button>
-        )}
+      <div className="flex justify-end p-4">
         <button
           className={PRIMARY_BUTTON_CLASS}
           disabled={busy}
@@ -165,12 +204,78 @@ function EditInfoStep({
   );
 }
 
+/** Экран исчерпанного лимита редактирований: иллюстрация, объяснение и выбор
+ * пути — разовая покупка или повышение тарифа (как в модалке скачивания). */
+function EditLimitStep({
+  quota,
+  hasUpgradeOption,
+  choice,
+  onChoose,
+  onContinue,
+}: {
+  quota: number;
+  hasUpgradeOption: boolean;
+  choice: "buy" | "upgrade" | null;
+  onChoose: (choice: "buy" | "upgrade") => void;
+  onContinue: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      <div className="flex flex-col items-center gap-4 px-4 py-8 text-center">
+        <div className="flex size-16 items-center justify-center rounded-full bg-[#ffe2e2]">
+          <X className="size-6 text-[#7f1d1d]" />
+        </div>
+        <div className="flex flex-col gap-2">
+          <p className="font-medium text-foreground text-sm leading-[18px]">
+            {t("editDialog.limitTitle")}
+          </p>
+          <p className="mx-auto max-w-[260px] text-muted-foreground text-sm leading-[18px]">
+            {t("editDialog.limitDescription", { count: quota })}
+          </p>
+        </div>
+        <div
+          className={cn(
+            "grid w-full gap-2",
+            hasUpgradeOption && "sm:grid-cols-2"
+          )}
+        >
+          <ChoiceCard
+            hint={t("downloadDialog.buyOptionHint")}
+            onSelect={() => onChoose("buy")}
+            selected={choice === "buy"}
+            title={t("editDialog.buyOption")}
+          />
+          {hasUpgradeOption && (
+            <ChoiceCard
+              hint={t("editDialog.upgradeOptionHint")}
+              onSelect={() => onChoose("upgrade")}
+              selected={choice === "upgrade"}
+              title={t("downloadDialog.upgradeOption")}
+            />
+          )}
+        </div>
+      </div>
+      <div className="flex justify-end p-4">
+        <button
+          className={PRIMARY_BUTTON_CLASS}
+          disabled={choice === null}
+          onClick={onContinue}
+          type="button"
+        >
+          {t("downloadDialog.continue")}
+        </button>
+      </div>
+    </>
+  );
+}
+
 /**
- * Модалка «Редактирование договора» (по макету): для пользователя без платной
- * подписки показывает стоимость разовой покупки, экономию по тарифу (когда
- * редактирование покрыто квотой), остаток квоты и итог. Оплата через Робокассу
- * не покидает флоу — статусы «Переходим к оплате», «Проверяем оплату»,
- * ошибка/успех показываются внутри модалки; успех ведёт в конструктор.
+ * Модалка «Редактирование договора» (по макету): сводка стоимости с экономией
+ * по тарифу; при исчерпанном лимите — разовая покупка или повышение тарифа с
+ * оплатой через Робокассу, не покидая флоу; покрытое редактирование создаёт
+ * копию договора и ведёт в конструктор.
  */
 export function TemplateEditDialog({
   templateId,
@@ -196,6 +301,18 @@ export function TemplateEditDialog({
   const [checkingInvId, setCheckingInvId] = useState<number | null>(() =>
     initialPayment && !initialPayment.failed ? initialPayment.invId : null
   );
+  const [limitChoice, setLimitChoice] = useState<"buy" | "upgrade" | null>(
+    null
+  );
+  const [planChoice, setPlanChoice] = useState<string | null>(null);
+  // Ветка апгрейда озаглавлена «Повышение тарифа»; разовая покупка остаётся
+  // под «Редактировать договор».
+  const [upgradeContext, setUpgradeContext] = useState(false);
+
+  const lastFlowRef = useRef<{
+    flow: Extract<DownloadReturnFlow, "edit" | "edit-upgrade">;
+    planId: string | null;
+  } | null>(null);
 
   const { data: purchases = [] } = useQuery({
     ...trpc.payments.myPurchases.queryOptions(),
@@ -203,6 +320,10 @@ export function TemplateEditDialog({
   });
   const { data: sub } = useQuery({
     ...trpc.subscriptions.mySubscription.queryOptions(),
+    enabled: open,
+  });
+  const { data: plans = [] } = useQuery({
+    ...trpc.subscriptions.plans.queryOptions(),
     enabled: open,
   });
 
@@ -214,15 +335,24 @@ export function TemplateEditDialog({
       query.state.data?.status === "pending" ? MODAL_POLL_INTERVAL_MS : false,
   });
 
-  const hasEdit = purchases.some(
-    (p) => p.templateId === templateId && p.kind === "edit"
+  const { hasEdit, quota, remaining, unlimited, covered, total } =
+    computeEditAccess({
+      hasEdit: purchases.some(
+        (p) => p.templateId === templateId && p.kind === "edit"
+      ),
+      price,
+      quota: sub?.editQuota ?? 0,
+      remaining: sub?.editRemaining ?? 0,
+    });
+
+  // Тарифы, на которые есть смысл повышаться: активные платные с большей
+  // квотой редактирований, чем текущая.
+  const planOptions = plans.filter(
+    (p) =>
+      !p.isDefault &&
+      p.id !== sub?.planId &&
+      (p.editQuota === -1 || p.editQuota > quota)
   );
-  const quota = sub?.editQuota ?? 0;
-  const remaining = sub?.editRemaining ?? 0;
-  const unlimited = quota === -1 || remaining === -1;
-  // Редактирование покрыто: куплено, бесплатно или есть квота тарифа.
-  const covered = hasEdit || price === 0 || unlimited || remaining > 0;
-  const total = covered ? 0 : price;
 
   const invalidateAccess = () => {
     queryClient.invalidateQueries(
@@ -290,18 +420,70 @@ export function TemplateEditDialog({
     })
   );
 
+  const subCheckoutMutation = useMutation(
+    trpc.payments.createSubscriptionCheckout.mutationOptions({
+      onSuccess: (result, vars) => {
+        saveDownloadReturn({
+          templateId,
+          invId: parseInvIdFromPaymentUrl(result.url),
+          format: "pdf",
+          flow: "edit-upgrade",
+          planId: vars.planId,
+        });
+        window.location.href = result.url;
+      },
+      onError: () => setStep("unavailable"),
+    })
+  );
+
   const startPurchase = () => {
+    lastFlowRef.current = { flow: "edit", planId: null };
+    setUpgradeContext(false);
     setStep("redirect");
     checkoutMutation.mutate({ templateId, kind: "edit" });
   };
 
-  // Возврат с Робокассы: контекст одноразовый, чистим его. Эффект срабатывает
+  const startUpgrade = (planId: string) => {
+    lastFlowRef.current = { flow: "edit-upgrade", planId };
+    setUpgradeContext(true);
+    setStep("redirect");
+    subCheckoutMutation.mutate({ planId, period: "monthly" });
+  };
+
+  // «Попробовать снова» / «Повторить попытку» — повторяем последний чекаут.
+  const retryLastFlow = () => {
+    const last = lastFlowRef.current;
+    if (last?.flow === "edit-upgrade") {
+      if (last.planId) {
+        startUpgrade(last.planId);
+      } else {
+        setStep("plans");
+      }
+      return;
+    }
+    startPurchase();
+  };
+
+  // Возврат с Робокассы: восстанавливаем ветку (покупка/апгрейд) из контекста,
+  // сохранённого перед редиректом; контекст одноразовый. Эффект срабатывает
   // один раз на маунт (initialPayment фиксируется страницей при загрузке).
   useEffect(() => {
-    if (initialPayment) {
-      clearDownloadReturn();
+    if (!initialPayment) {
+      return;
     }
-  }, [initialPayment]);
+    const stored = readDownloadReturn();
+    clearDownloadReturn();
+    if (stored?.templateId !== templateId) {
+      return;
+    }
+    const isUpgrade = stored.flow === "edit-upgrade";
+    setUpgradeContext(isUpgrade);
+    lastFlowRef.current = {
+      flow: isUpgrade ? "edit-upgrade" : "edit",
+      planId: stored.planId ?? null,
+    };
+    setPlanChoice(stored.planId ?? null);
+  }, [initialPayment, templateId]);
 
   // Повторное открытие модалки (после закрытия) начинается со сводки.
   const wasOpenRef = useRef(open);
@@ -309,13 +491,17 @@ export function TemplateEditDialog({
     if (open && !wasOpenRef.current) {
       setStep("info");
       setCheckingInvId(null);
+      setLimitChoice(null);
+      setPlanChoice(null);
+      setUpgradeContext(false);
     }
     wasOpenRef.current = open;
   }, [open]);
 
-  // Платёж подтверждён вебхуком: доступ выдан, черновик создан на сервере —
-  // обновляем кэш и показываем экран успеха. invalidateAccess стабилен по
-  // смыслу — эффект должен срабатывать только на смену статуса платежа.
+  // Платёж подтверждён вебхуком. Разовая покупка: черновик создан на сервере —
+  // экран успеха. Апгрейд тарифа: квота обновилась — создаём копию сами.
+  // Колбэки стабильны по смыслу — эффект должен срабатывать только на смену
+  // статуса платежа.
   // biome-ignore lint/correctness/useExhaustiveDependencies: см. выше
   useEffect(() => {
     if (step !== "checking" || !payStatus) {
@@ -323,6 +509,10 @@ export function TemplateEditDialog({
     }
     if (payStatus.status === "paid") {
       invalidateAccess();
+      if (lastFlowRef.current?.flow === "edit-upgrade") {
+        startDraftCreation();
+        return;
+      }
       setStep("success");
       return;
     }
@@ -331,28 +521,46 @@ export function TemplateEditDialog({
     }
   }, [payStatus?.status, step]);
 
-  const busy = checkoutMutation.isPending || createDraftMutation.isPending;
+  const busy =
+    checkoutMutation.isPending ||
+    subCheckoutMutation.isPending ||
+    createDraftMutation.isPending;
 
   const handlePrimaryAction = () => {
-    if (total === 0) {
+    if (covered) {
       startDraftCreation();
+      return;
+    }
+    // Тариф в принципе даёт редактирования — предлагаем выбор «купить/повысить»;
+    // без квоты (теоретический тариф с нулём) — сразу разовая покупка.
+    if (quota !== 0) {
+      setStep("limit");
       return;
     }
     startPurchase();
   };
 
-  const handlePlansClick = () => {
-    onOpenChange(false);
-    navigate({ to: "/profile", search: { tab: "subscription" } });
+  const handleLimitContinue = () => {
+    if (limitChoice === "buy") {
+      startPurchase();
+      return;
+    }
+    if (limitChoice === "upgrade") {
+      setUpgradeContext(true);
+      setStep("plans");
+    }
   };
 
-  const headerTitle =
-    step === "info" ? t("editDialog.title") : t("editDialog.actionTitle");
+  const wide = step === "limit" || step === "plans";
+  const headerTitle = t(headerTitleKey(step, upgradeContext));
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent
-        className="flex flex-col gap-0 overflow-hidden rounded-[10px] border-[#e5e5e5] p-0 sm:max-w-[320px]"
+        className={cn(
+          "flex flex-col gap-0 overflow-hidden rounded-[10px] border-[#e5e5e5] p-0",
+          wide ? "sm:max-w-[450px]" : "sm:max-w-[320px]"
+        )}
         showCloseButton={false}
       >
         <DialogHeader className="flex-row items-center justify-between border-[#e5e5e5] border-b p-4">
@@ -373,7 +581,6 @@ export function TemplateEditDialog({
             covered={covered}
             hasEdit={hasEdit}
             isPaidPlan={Boolean(sub?.isPaid)}
-            onPlans={handlePlansClick}
             onPrimary={handlePrimaryAction}
             price={price}
             quota={quota}
@@ -381,6 +588,34 @@ export function TemplateEditDialog({
             templateTitle={templateTitle}
             total={total}
             unlimited={unlimited}
+          />
+        )}
+
+        {step === "limit" && (
+          <EditLimitStep
+            choice={limitChoice}
+            hasUpgradeOption={planOptions.length > 0}
+            onChoose={setLimitChoice}
+            onContinue={handleLimitContinue}
+            quota={quota}
+          />
+        )}
+
+        {step === "plans" && (
+          <PlansStep
+            busy={busy}
+            choice={planChoice}
+            onBack={() => {
+              setUpgradeContext(false);
+              setStep("limit");
+            }}
+            onChoose={setPlanChoice}
+            onContinue={() => {
+              if (planChoice) {
+                startUpgrade(planChoice);
+              }
+            }}
+            options={planOptions}
           />
         )}
 
@@ -439,7 +674,7 @@ export function TemplateEditDialog({
             action={{
               label: t("downloadDialog.retry"),
               disabled: busy,
-              onClick: startPurchase,
+              onClick: retryLastFlow,
             }}
             hint={t("downloadDialog.failedHint")}
             title={t("downloadDialog.failedTitle")}
@@ -452,7 +687,7 @@ export function TemplateEditDialog({
             action={{
               label: t("downloadDialog.retryAttempt"),
               disabled: busy,
-              onClick: startPurchase,
+              onClick: retryLastFlow,
             }}
             hint={t("downloadDialog.unavailableHint")}
             title={t("downloadDialog.unavailableTitle")}

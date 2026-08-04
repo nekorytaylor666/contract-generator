@@ -90,10 +90,14 @@ export function TemplateCard({
         link.href = result.dataUrl;
         link.download = result.fileName;
         link.click();
-        // Скачивание может списать квоту — обновляем «Использование».
+        // Скачивание может списать квоту — обновляем «Использование», а в
+        // «Моих документах» появилась/поднялась «выданная» карточка.
         queryClient.invalidateQueries(
           trpc.subscriptions.mySubscription.queryFilter()
         );
+        queryClient.invalidateQueries({
+          queryKey: trpc.documents.list.queryKey(),
+        });
       },
       onError: (err) => toast.error(err.message),
     })

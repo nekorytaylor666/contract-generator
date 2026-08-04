@@ -29,6 +29,8 @@ export const subscriptionPlan = pgTable("subscription_plan", {
   // Enforced quotas per calendar month. -1 = unlimited.
   downloadQuota: integer("download_quota").notNull().default(0),
   editQuota: integer("edit_quota").notNull().default(0),
+  // «Проверка юристом»: сколько договоров в месяц можно отправить на проверку.
+  reviewQuota: integer("review_quota").notNull().default(0),
   // Display-only capability rows (Поддержка, Риск-аналитика, …).
   features: jsonb("features").$type<PlanFeature[]>().notNull().default([]),
   sortOrder: integer("sort_order").notNull().default(0),
@@ -54,6 +56,7 @@ export const subscriptionUsage = pgTable(
     periodKey: text("period_key").notNull(),
     downloadsUsed: integer("downloads_used").notNull().default(0),
     editsUsed: integer("edits_used").notNull().default(0),
+    reviewsUsed: integer("reviews_used").notNull().default(0),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()

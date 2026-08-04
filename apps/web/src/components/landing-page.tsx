@@ -848,12 +848,12 @@ function Faq() {
               key={item.q}
             >
               <summary className="flex cursor-pointer list-none items-start justify-between gap-12">
-                <span className="flex-1 font-medium text-2xl text-[#0a0a0a] leading-7">
+                <span className="flex-1 font-medium text-[#0a0a0a] text-base leading-5">
                   {item.q}
                 </span>
-                <ChevronDown className="mt-1 size-6 shrink-0 text-[#0a0a0a] transition-transform group-open:rotate-180" />
+                <ChevronDown className="mt-0.5 size-5 shrink-0 text-[#0a0a0a] transition-transform group-open:rotate-180" />
               </summary>
-              <p className="mt-4 pr-12 font-normal text-[#0a0a0a] text-base leading-5">
+              <p className="mt-3 pr-12 font-normal text-[#0a0a0a] text-sm leading-[18px]">
                 {item.a}
               </p>
             </details>

@@ -8,8 +8,18 @@ import {
 } from "@contract-builder/db/schema/subscription";
 import { and, eq, sql } from "drizzle-orm";
 
-export type QuotaKind = "download" | "edit";
+export type QuotaKind = "download" | "edit" | "review";
 type Plan = typeof subscriptionPlan.$inferSelect;
+
+function planQuota(plan: Plan, kind: QuotaKind): number {
+  if (kind === "download") {
+    return plan.downloadQuota;
+  }
+  if (kind === "edit") {
+    return plan.editQuota;
+  }
+  return plan.reviewQuota;
+}
 
 /** Current calendar month as "YYYY-MM" — the quota reset window. */
 export function currentPeriodKey(): string {
@@ -53,11 +63,12 @@ export async function getEffectivePlan(userId: string): Promise<Plan | null> {
 export async function getUsage(
   userId: string,
   periodKey: string
-): Promise<{ downloadsUsed: number; editsUsed: number }> {
+): Promise<{ downloadsUsed: number; editsUsed: number; reviewsUsed: number }> {
   const [row] = await db
     .select({
       downloadsUsed: subscriptionUsage.downloadsUsed,
       editsUsed: subscriptionUsage.editsUsed,
+      reviewsUsed: subscriptionUsage.reviewsUsed,
     })
     .from(subscriptionUsage)
     .where(
@@ -67,7 +78,20 @@ export async function getUsage(
       )
     )
     .limit(1);
-  return row ?? { downloadsUsed: 0, editsUsed: 0 };
+  return row ?? { downloadsUsed: 0, editsUsed: 0, reviewsUsed: 0 };
+}
+
+function usedFor(
+  usage: { downloadsUsed: number; editsUsed: number; reviewsUsed: number },
+  kind: QuotaKind
+): number {
+  if (kind === "download") {
+    return usage.downloadsUsed;
+  }
+  if (kind === "edit") {
+    return usage.editsUsed;
+  }
+  return usage.reviewsUsed;
 }
 
 /**
@@ -82,14 +106,20 @@ export async function consumeQuota(
   if (!plan) {
     return { allowed: false, remaining: 0 };
   }
-  const quota = kind === "download" ? plan.downloadQuota : plan.editQuota;
+  const quota = planQuota(plan, kind);
   const periodKey = currentPeriodKey();
   const usage = await getUsage(userId, periodKey);
-  const used = kind === "download" ? usage.downloadsUsed : usage.editsUsed;
+  const used = usedFor(usage, kind);
 
   if (quota !== -1 && used >= quota) {
     return { allowed: false, remaining: 0 };
   }
+
+  const increments = {
+    download: { downloadsUsed: sql`${subscriptionUsage.downloadsUsed} + 1` },
+    edit: { editsUsed: sql`${subscriptionUsage.editsUsed} + 1` },
+    review: { reviewsUsed: sql`${subscriptionUsage.reviewsUsed} + 1` },
+  } as const;
 
   await db
     .insert(subscriptionUsage)
@@ -99,13 +129,11 @@ export async function consumeQuota(
       periodKey,
       downloadsUsed: kind === "download" ? 1 : 0,
       editsUsed: kind === "edit" ? 1 : 0,
+      reviewsUsed: kind === "review" ? 1 : 0,
     })
     .onConflictDoUpdate({
       target: [subscriptionUsage.userId, subscriptionUsage.periodKey],
-      set:
-        kind === "download"
-          ? { downloadsUsed: sql`${subscriptionUsage.downloadsUsed} + 1` }
-          : { editsUsed: sql`${subscriptionUsage.editsUsed} + 1` },
+      set: increments[kind],
     });
 
   return { allowed: true, remaining: quota === -1 ? -1 : quota - used - 1 };

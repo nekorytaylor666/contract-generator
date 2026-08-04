@@ -37,6 +37,14 @@ export async function sendMail(opts: {
   subject: string;
   html: string;
   text: string;
+  /** Вложения (например, PDF договора для проверки юристом). */
+  attachments?: {
+    filename: string;
+    content: Buffer;
+    contentType?: string;
+  }[];
+  /** Адрес для ответа (например, почта клиента в письме юристу). */
+  replyTo?: string;
 }): Promise<void> {
   const from = env.SMTP_FROM ?? env.SMTP_USER;
   await getTransporter().sendMail({
@@ -45,6 +53,8 @@ export async function sendMail(opts: {
     subject: opts.subject,
     html: opts.html,
     text: opts.text,
+    attachments: opts.attachments,
+    replyTo: opts.replyTo,
   });
 }
 

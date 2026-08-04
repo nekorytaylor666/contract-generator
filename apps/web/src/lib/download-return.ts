@@ -3,8 +3,13 @@
 // запоминает контекст, а страницы возврата по нему возвращают пользователя
 // на страницу шаблона и снова открывают модалку в нужном состоянии.
 
-// purchase/upgrade — модалка скачивания; edit — модалка редактирования.
-export type DownloadReturnFlow = "purchase" | "upgrade" | "edit";
+// purchase/upgrade — модалка скачивания; edit/edit-upgrade — модалка
+// редактирования (разовая покупка либо повышение тарифа из неё).
+export type DownloadReturnFlow =
+  | "purchase"
+  | "upgrade"
+  | "edit"
+  | "edit-upgrade";
 
 export interface DownloadReturn {
   templateId: string;

@@ -13,11 +13,13 @@ import {
   PanelRightClose,
   PanelRightOpen,
   PenLine,
+  Share,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { LawyerReviewDialog } from "@/components/lawyer-review-dialog";
 import { HeaderSignOut } from "@/components/sidebar-layout";
 import {
   type DocumentStyle,
@@ -38,6 +40,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { requireAuth } from "@/lib/auth-guard";
 import {
   collectPartyBindings,
@@ -245,13 +252,82 @@ function EditableDocTitle({
   );
 }
 
+// Месяцы для «Обновится 1 …» в тултипе лимита проверок.
+const REVIEW_RESET_MONTHS = [
+  "января",
+  "февраля",
+  "марта",
+  "апреля",
+  "мая",
+  "июня",
+  "июля",
+  "августа",
+  "сентября",
+  "октября",
+  "ноября",
+  "декабря",
+];
+
+/** Кнопка «На проверку юристу» (по макету): активна при остатке квоты
+ * проверок тарифа; при исчерпании — задизейблена с тултипом о дате сброса. */
+function LawyerReviewButton({
+  quota,
+  remaining,
+  onOpen,
+}: {
+  quota: number;
+  remaining: number;
+  onOpen: () => void;
+}) {
+  const available = remaining === -1 || remaining > 0;
+  if (available) {
+    return (
+      <button
+        className="inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-lg px-3 font-medium text-foreground text-sm transition-colors hover:bg-muted"
+        onClick={onOpen}
+        type="button"
+      >
+        <Share className="size-4" />
+        На проверку юристу
+      </button>
+    );
+  }
+  const now = new Date();
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const hint =
+    quota === 0
+      ? "Проверка юриста доступна на платных тарифах"
+      : `Лимит проверок исчерпан. Обновится 1 ${REVIEW_RESET_MONTHS[nextMonth.getMonth()]}`;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex">
+          <button
+            className="pointer-events-none inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-lg px-3 font-medium text-foreground text-sm opacity-50"
+            disabled
+            type="button"
+          >
+            <Share className="size-4" />
+            На проверку юристу
+          </button>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-[200px] text-center">
+        {hint}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function RouteComponent() {
   const { templateId } = Route.useParams();
   const { documentId: initialDocumentId } = Route.useSearch();
+  const { session } = Route.useRouteContext();
   const navigate = useNavigate();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const { i18n } = useTranslation();
+  const [lawyerOpen, setLawyerOpen] = useState(false);
   const { data: myAccess } = useQuery(trpc.team.myAccess.queryOptions());
   const canEdit = myAccess?.canEdit !== false;
   // Гейт пикеров/автосейва контрагентов — любой тариф, кроме разового.
@@ -666,6 +742,26 @@ function RouteComponent() {
     ]
   );
 
+  // «На проверку юристу»: тот же набор данных, что и при скачивании, — юрист
+  // получает PDF ровно той версии, которую пользователь видит в конструкторе.
+  const buildLawyerPayload = useCallback(
+    () =>
+      latestValuesRef.current
+        ? {
+            templateId,
+            documentId,
+            locale: docLocale,
+            variables: latestValuesRef.current,
+            logo: logo ?? undefined,
+            style: {
+              font: documentStyle.font,
+              preset: documentStyle.preset,
+            },
+          }
+        : null,
+    [templateId, documentId, docLocale, logo, documentStyle]
+  );
+
   const renameMutation = useMutation(
     trpc.documents.rename.mutationOptions({
       onSuccess: () => {
@@ -921,6 +1017,17 @@ function RouteComponent() {
             hasChanges={changedVars.size > 0}
             onSave={handleSave}
             saving={saveMutation.isPending}
+          />
+          <LawyerReviewButton
+            onOpen={() => setLawyerOpen(true)}
+            quota={mySubscription?.reviewQuota ?? 0}
+            remaining={mySubscription?.reviewRemaining ?? 0}
+          />
+          <LawyerReviewDialog
+            buildPayload={buildLawyerPayload}
+            onOpenChange={setLawyerOpen}
+            open={lawyerOpen}
+            userEmail={session.user.email}
           />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

@@ -76,12 +76,17 @@ export const subscriptionsRouter = router({
       price: plan && isPaid ? priceForPeriod(plan, row?.period ?? null) : 0,
       downloadQuota: plan?.downloadQuota ?? 0,
       editQuota: plan?.editQuota ?? 0,
+      reviewQuota: plan?.reviewQuota ?? 0,
       downloadsUsed: usage.downloadsUsed,
       editsUsed: usage.editsUsed,
+      reviewsUsed: usage.reviewsUsed,
       downloadRemaining: plan
         ? remaining(plan.downloadQuota, usage.downloadsUsed)
         : 0,
       editRemaining: plan ? remaining(plan.editQuota, usage.editsUsed) : 0,
+      reviewRemaining: plan
+        ? remaining(plan.reviewQuota, usage.reviewsUsed)
+        : 0,
     };
   }),
 

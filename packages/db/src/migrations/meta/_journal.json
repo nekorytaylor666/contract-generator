@@ -162,6 +162,13 @@
       "when": 1785740496958,
       "tag": "0022_unlock_subscriber_documents",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1785843922104,
+      "tag": "0023_premium_whirlwind",
+      "breakpoints": true
     }
   ]
 }

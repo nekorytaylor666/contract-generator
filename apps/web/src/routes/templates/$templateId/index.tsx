@@ -284,9 +284,10 @@ function RouteComponent() {
       ? { invId: payInvId ?? null, failed: Boolean(payFailed) }
       : null
   );
-  const [paymentTarget] = useState<"download" | "edit">(() =>
-    readDownloadReturn()?.flow === "edit" ? "edit" : "download"
-  );
+  const [paymentTarget] = useState<"download" | "edit">(() => {
+    const flow = readDownloadReturn()?.flow;
+    return flow === "edit" || flow === "edit-upgrade" ? "edit" : "download";
+  });
   const [downloadOpen, setDownloadOpen] = useState(
     initialPayment != null && paymentTarget === "download"
   );

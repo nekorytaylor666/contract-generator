@@ -6,8 +6,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { isMailerConfigured } from "@contract-builder/auth/mailer";
 import { db } from "@contract-builder/db";
-import { member, user } from "@contract-builder/db/schema/auth";
+import { member, organization, user } from "@contract-builder/db/schema/auth";
 import {
   document,
   documentVersion,
@@ -55,7 +56,13 @@ import {
   hasPaidEditPurchase,
   pinLatestTemplateVersion,
 } from "../lib/document-service";
-import { consumeQuota, getEffectivePlan } from "../lib/subscription";
+import { sendLawyerReviewEmail } from "../lib/mailer";
+import {
+  consumeQuota,
+  currentPeriodKey,
+  getEffectivePlan,
+  getUsage,
+} from "../lib/subscription";
 import { pluralize } from "../utils/pluralize";
 
 const execAsync = promisify(exec);
@@ -231,6 +238,77 @@ async function assertCompileAccess(
     message:
       "Нет доступа к шаблону — сохраните документ, оформите подписку или купите шаблон.",
   });
+}
+
+/** Проверяет месячную квоту «проверок юристом»; возвращает действующий тариф. */
+async function assertReviewQuota(userId: string) {
+  const plan = await getEffectivePlan(userId);
+  const reviewQuota = plan?.reviewQuota ?? 0;
+  const usage = await getUsage(userId, currentPeriodKey());
+  if (reviewQuota !== -1 && usage.reviewsUsed >= reviewQuota) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Лимит проверок юриста исчерпан",
+    });
+  }
+  return plan;
+}
+
+/** Право отправить договор на проверку + контекст письма (название документа
+ * и организации). Документ должен принадлежать организации пользователя. */
+async function resolveReviewContext(params: {
+  userId: string;
+  templateId: string;
+  documentId?: string;
+  activeOrgId: string | null;
+}): Promise<{ documentTitle: string | null; orgName: string }> {
+  let documentTitle: string | null = null;
+  let orgId = params.activeOrgId;
+
+  if (params.documentId) {
+    const [docRow] = await db
+      .select({
+        organizationId: document.organizationId,
+        title: document.title,
+      })
+      .from(document)
+      .where(eq(document.id, params.documentId))
+      .limit(1);
+    if (!docRow) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Документ не найден" });
+    }
+    const [membership] = await db
+      .select({ id: member.id })
+      .from(member)
+      .where(
+        and(
+          eq(member.userId, params.userId),
+          eq(member.organizationId, docRow.organizationId)
+        )
+      )
+      .limit(1);
+    if (!membership) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Нет доступа к документу",
+      });
+    }
+    documentTitle = docRow.title;
+    orgId = docRow.organizationId;
+  } else {
+    await assertCompileAccess(params.userId, params.templateId);
+  }
+
+  let orgName = "—";
+  if (orgId) {
+    const [org] = await db
+      .select({ name: organization.name })
+      .from(organization)
+      .where(eq(organization.id, orgId))
+      .limit(1);
+    orgName = org?.name ?? "—";
+  }
+  return { documentTitle, orgName };
 }
 
 function formatValue(value: unknown): string | null {
@@ -1735,6 +1813,101 @@ export const templatesRouter = router({
         await issueDocumentDownload(download, compileArgs);
       }
       return { dataUrl, fileName };
+    }),
+
+  /**
+   * «На проверку юристу»: компилирует текущую версию договора в PDF и
+   * отправляет его вместе с данными клиента на рабочую почту компании
+   * (LAWYER_EMAIL, по умолчанию SMTP_USER). Документ при этом не «выдаётся»
+   * и не блокируется. Списывает месячную квоту проверок тарифа — после
+   * успешной отправки, чтобы неудачное письмо не съедало попытку.
+   */
+  sendToLawyer: protectedProcedure
+    .input(
+      z.object({
+        templateId: z.string(),
+        documentId: z.string().optional(),
+        locale: z.string().optional(),
+        variables: z.record(z.string(), z.unknown()),
+        logo: z.string().optional(),
+        style: z
+          .object({
+            font: z.string().optional(),
+            preset: z.string().optional(),
+          })
+          .optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!isMailerConfigured()) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Отправка почты не настроена — обратитесь в поддержку",
+        });
+      }
+      const userId = ctx.session.user.id;
+
+      // Квоту проверяем до компиляции, а списываем после успешной отправки.
+      const plan = await assertReviewQuota(userId);
+      const { documentTitle, orgName } = await resolveReviewContext({
+        userId,
+        templateId: input.templateId,
+        documentId: input.documentId,
+        activeOrgId: ctx.session.session.activeOrganizationId ?? null,
+      });
+
+      // Компилируем живую версию шаблона с текущими значениями — то же, что
+      // видит пользователь в предпросмотре конструктора.
+      const source = await loadTemplateSource(
+        input.templateId,
+        undefined,
+        input.locale
+      );
+      const templateVars = (source.variables ?? []) as TemplateVariable[];
+      const vars = computeDerivedVariables(input.variables, templateVars);
+      const processedContent = applyNativeLetValues(
+        replaceVariables(source.typstContent, vars, templateVars),
+        vars
+      );
+      let pdf: Buffer;
+      try {
+        pdf = await compileTypst(processedContent, {
+          logoBase64: input.logo,
+          style: input.style,
+        });
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? `Не удалось собрать PDF: ${error.message}`
+              : "Не удалось собрать PDF",
+        });
+      }
+
+      try {
+        await sendLawyerReviewEmail({
+          clientName: ctx.session.user.name || ctx.session.user.email,
+          clientEmail: ctx.session.user.email,
+          orgName,
+          planName: plan?.name ?? "—",
+          documentTitle: documentTitle ?? source.title,
+          documentId: input.documentId ?? null,
+          locale: input.locale ?? "ru",
+          pdf,
+        });
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? `Не удалось отправить письмо: ${error.message}`
+              : "Не удалось отправить письмо",
+        });
+      }
+
+      await consumeQuota(userId, "review");
+      return { sentTo: ctx.session.user.email };
     }),
 
   /**
