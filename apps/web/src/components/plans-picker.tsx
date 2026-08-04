@@ -50,6 +50,22 @@ interface PlanCardData {
 
 const NOT_INCLUDED = "—";
 
+// Под разделителем в карточке показываем только эти три возможности — как в
+// макете. Остальные фичи плана остаются в БД (лимиты, админка), но карточку не
+// раздувают. Порядок строк задаётся этим списком.
+const CARD_FEATURES = [
+  "Поддержка",
+  "Сохранение реквизитов",
+  "Проверка документов",
+];
+
+function cardFeatures(features: PlanFeature[]): PlanFeature[] {
+  return CARD_FEATURES.map(
+    (label) =>
+      features.find((f) => f.label === label) ?? { label, value: NOT_INCLUDED }
+  );
+}
+
 function FeatureRow({ label, value }: PlanFeature) {
   const included = value !== NOT_INCLUDED;
 
@@ -207,7 +223,7 @@ export function dbPlanToCard(
       { label: "Скачивание", value: quotaText(p.downloadQuota) },
       { label: "Редактирование", value: quotaText(p.editQuota) },
     ],
-    features: p.features ?? [],
+    features: cardFeatures(p.features ?? []),
   };
 }
 
