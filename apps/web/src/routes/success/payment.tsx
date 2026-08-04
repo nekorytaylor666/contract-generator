@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { readDownloadReturn } from "@/lib/download-return";
 import { useTRPC } from "@/utils/trpc";
 
 export const Route = createFileRoute("/success/payment")({
@@ -28,6 +29,26 @@ function PaymentSuccess() {
   const { t } = useTranslation();
   const { invId } = Route.useSearch();
   const trpc = useTRPC();
+  const navigate = useNavigate();
+
+  // Платёж начат из модалки скачивания на странице шаблона — возвращаем
+  // пользователя туда: модалка откроется в состоянии «Проверяем оплату» и
+  // сама доведёт флоу до скачивания (см. TemplateDownloadDialog).
+  useEffect(() => {
+    if (invId == null) {
+      return;
+    }
+    const stored = readDownloadReturn();
+    if (!stored || (stored.invId != null && stored.invId !== invId)) {
+      return;
+    }
+    navigate({
+      to: "/templates/$templateId",
+      params: { templateId: stored.templateId },
+      search: { payInvId: invId },
+      replace: true,
+    });
+  }, [invId, navigate]);
 
   const { data } = useQuery({
     ...trpc.payments.getByInvId.queryOptions({ invId: invId ?? 0 }),
@@ -57,7 +78,6 @@ function PaymentSuccess() {
   const isDownload = data?.purpose === "template_download";
   const isSubscription = data?.purpose === "subscription";
 
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   // Оплата подтверждена вебхуком: тариф/квоты изменились на сервере, а SPA
   // не перезагружалась — сбрасываем кэш, иначе виджет «Использование» и

@@ -9,27 +9,25 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Bookmark,
-  ChevronDown,
-  ChevronRight,
   CircleAlert,
   Download,
   FileText,
   FolderOpen,
+  PenLine,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { HeaderSignOut } from "@/components/sidebar-layout";
 import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
 import { NativeInlinePreview } from "@/components/template-builder/native-inline-preview";
 import { isComplexNative } from "@/components/template-builder/server-typst-preview";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { TemplateDownloadDialog } from "@/components/template-download-dialog";
+import { TemplateEditDialog } from "@/components/template-edit-dialog";
 import { requireAuth } from "@/lib/auth-guard";
+import { type InitialPayment, readDownloadReturn } from "@/lib/download-return";
 import { isNativeTypst } from "@/lib/native-typst";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
@@ -246,6 +244,25 @@ function TemplateInfoSidebar({
 
 export const Route = createFileRoute("/templates/$templateId/")({
   component: RouteComponent,
+  // ?payInvId / ?payFailed — возврат с оплаты Робокассы: модалка скачивания
+  // открывается сразу в состоянии «Проверяем оплату» / «Не удалось провести
+  // оплату» (см. TemplateDownloadDialog).
+  validateSearch: (
+    search: Record<string, unknown>
+  ): { payInvId?: number; payFailed?: boolean } => {
+    const result: { payInvId?: number; payFailed?: boolean } = {};
+    const raw = search.payInvId;
+    if (raw != null && raw !== "") {
+      const parsed = Number(raw);
+      if (!Number.isNaN(parsed)) {
+        result.payInvId = parsed;
+      }
+    }
+    if (search.payFailed) {
+      result.payFailed = true;
+    }
+    return result;
+  },
   beforeLoad: async () => {
     const { session, organizations } = await requireAuth();
     return { session, organizations };
@@ -256,6 +273,26 @@ function RouteComponent() {
   const { templateId } = Route.useParams();
   const trpc = useTRPC();
   const { t, i18n } = useTranslation();
+
+  // Контекст возврата с оплаты фиксируем один раз при монтировании — search
+  // сразу чистится (replace), чтобы обновление страницы не открывало модалку
+  // заново. Какую модалку открыть (скачивание или редактирование), решаем по
+  // сохранённой перед редиректом ветке (см. download-return.ts).
+  const { payInvId, payFailed } = Route.useSearch();
+  const [initialPayment] = useState<InitialPayment | null>(() =>
+    payInvId != null || payFailed
+      ? { invId: payInvId ?? null, failed: Boolean(payFailed) }
+      : null
+  );
+  const [paymentTarget] = useState<"download" | "edit">(() =>
+    readDownloadReturn()?.flow === "edit" ? "edit" : "download"
+  );
+  const [downloadOpen, setDownloadOpen] = useState(
+    initialPayment != null && paymentTarget === "download"
+  );
+  const [editOpen, setEditOpen] = useState(
+    initialPayment != null && paymentTarget === "edit"
+  );
 
   const {
     data: template,
@@ -317,66 +354,18 @@ function RouteComponent() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: purchases = [] } = useQuery(
-    trpc.payments.myPurchases.queryOptions()
-  );
-  const hasEdit = purchases.some(
-    (p) => p.templateId === templateId && p.kind === "edit"
-  );
-  // Any purchase (edit or download) unlocks the download.
-  const hasDownload = purchases.some((p) => p.templateId === templateId);
-
-  // The subscription covers edit/download while there's quota left (-1 = ∞).
-  const { data: mySub } = useQuery(
-    trpc.subscriptions.mySubscription.queryOptions()
-  );
-  const hasEditQuota =
-    mySub?.editRemaining === -1 || (mySub?.editRemaining ?? 0) > 0;
-  const hasDownloadQuota =
-    mySub?.downloadRemaining === -1 || (mySub?.downloadRemaining ?? 0) > 0;
-
-  const [isPaying, setIsPaying] = useState(false);
-
-  const goToBuilder = () =>
-    navigate({ to: "/templates/$templateId/builder", params: { templateId } });
-
-  const checkoutMutation = useMutation(
-    trpc.payments.createTemplateCheckout.mutationOptions({
-      onSuccess: (result, vars) => {
-        if (result.alreadyPurchased) {
-          queryClient.invalidateQueries({
-            queryKey: trpc.payments.myPurchases.queryKey(),
-          });
-          if (vars.kind !== "download") {
-            goToBuilder();
-          }
-          setIsPaying(false);
-          return;
-        }
-        window.location.href = result.url;
-      },
-      onError: (error) => {
-        toast.error(error.message);
-        setIsPaying(false);
-      },
-    })
-  );
-
-  const downloadMutation = useMutation(
-    trpc.templates.downloadPurchased.mutationOptions({
-      onSuccess: (result) => {
-        const link = document.createElement("a");
-        link.href = result.dataUrl;
-        link.download = result.fileName;
-        link.click();
-        // Скачивание может списать квоту — обновляем «Использование».
-        queryClient.invalidateQueries(
-          trpc.subscriptions.mySubscription.queryFilter()
-        );
-      },
-      onError: (err) => toast.error(err.message),
-    })
-  );
+  // Search-параметры возврата с оплаты одноразовые — сразу убираем их из URL.
+  useEffect(() => {
+    if (payInvId == null && !payFailed) {
+      return;
+    }
+    navigate({
+      to: "/templates/$templateId",
+      params: { templateId },
+      search: {},
+      replace: true,
+    });
+  }, [payInvId, payFailed, navigate, templateId]);
 
   // Create the document up-front so it shows in "Мои документы" immediately,
   // then open the builder editing it (further changes update the same doc).
@@ -416,38 +405,22 @@ function RouteComponent() {
     })
   );
 
-  // Edit: if already paid (edit) or free, open the builder; else start an
-  // edit-kind checkout (which forwards to the builder once paid).
+  // Edit: платные шаблоны идут через модалку «Редактирование договора» по
+  // макетам («Разовый» — стоимость/экономия/итог и оплата, «Подписка» —
+  // сводка и создание копии). Бесплатные — сразу черновик и конструктор.
   const handleEdit = () => {
     if (!template) {
       return;
     }
-    if (hasEdit || template.price === 0 || hasEditQuota) {
-      createDraftMutation.mutate({
-        templateId,
-        title: template.title,
-        variables: {},
-      });
+    if (template.price > 0) {
+      setEditOpen(true);
       return;
     }
-    setIsPaying(true);
-    checkoutMutation.mutate({ templateId, kind: "edit" });
-  };
-
-  const canDownload =
-    hasDownload || template?.downloadPrice === 0 || hasDownloadQuota;
-
-  // Download a finished copy in the chosen format: if already paid (any
-  // purchase) or free, fetch the file; otherwise start a download-kind checkout.
-  const handleDownload = (format: "pdf" | "docx") => {
-    if (!template) {
-      return;
-    }
-    if (canDownload) {
-      downloadMutation.mutate({ templateId, locale: i18n.language, format });
-      return;
-    }
-    checkoutMutation.mutate({ templateId, kind: "download" });
+    createDraftMutation.mutate({
+      templateId,
+      title: template.title,
+      variables: {},
+    });
   };
 
   // "4 999 ₸" — matches the catalogue card; free templates show a label.
@@ -492,66 +465,67 @@ function RouteComponent() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header: breadcrumb + actions; на мобильных кнопки уходят под хлебные крошки */}
-      <div className="flex flex-col gap-3 border-border border-b bg-background px-4 py-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
-        <nav className="flex min-w-0 items-center gap-1 text-sm">
+      {/* Header: по макету единая шапка — хлебные крошки + действия + язык и
+          выход (панель приложения на десктопе скрыта); на мобильных кнопки
+          уходят под хлебные крошки */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-[#e5e5e5] border-b bg-background py-2 pr-4 pl-3 sm:pr-6 md:min-h-[54px] md:flex-nowrap">
+        <nav className="flex min-w-0 items-center text-sm">
           <Link
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-foreground transition-colors hover:bg-muted"
             to="/templates"
           >
             <FolderOpen className="size-4" />
             Шаблоны
           </Link>
-          <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/50" />
-          <span className="truncate px-1.5 font-medium text-foreground">
+          <span className="shrink-0 text-muted-foreground">/</span>
+          <span className="truncate px-3 py-2 text-foreground">
             {localized.title}
           </span>
         </nav>
-        {/* Action buttons: Сохранить + Скачать (secondary) + Редактировать */}
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <button
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#ececec] px-4 font-medium text-foreground text-sm transition-colors hover:bg-muted disabled:opacity-60"
-            disabled={bookmarkMutation.isPending}
-            onClick={() => bookmarkMutation.mutate({ templateId })}
-            type="button"
-          >
-            <Bookmark
-              className={isBookmarked ? "size-4 fill-current" : "size-4"}
-            />
-            {isBookmarked ? t("templates.bookmarked") : t("templates.bookmark")}
-          </button>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#f5f5f5] px-4 font-medium text-[#171717] text-sm outline-none transition-colors hover:bg-[#ececec] disabled:opacity-60"
-              disabled={downloadMutation.isPending}
+        {/* Action buttons: Сохранить + Скачать + Редактировать */}
+        <div className="flex shrink-0 items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-[#d4d4d4] px-3 font-medium text-foreground text-sm shadow-xs transition-colors hover:bg-muted disabled:opacity-60"
+              disabled={bookmarkMutation.isPending}
+              onClick={() => bookmarkMutation.mutate({ templateId })}
+              type="button"
+            >
+              <Bookmark
+                className={isBookmarked ? "size-4 fill-current" : "size-4"}
+              />
+              {isBookmarked
+                ? t("templates.bookmarked")
+                : t("templates.bookmark")}
+            </button>
+            {/* «Скачать» открывает модалку по макету: формат, стоимость/квота
+                и оплата, если доступ не покрыт. */}
+            <button
+              className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg border border-[#d4d4d4] bg-background px-3 font-medium text-foreground text-sm shadow-xs transition-colors hover:bg-muted"
+              onClick={() => setDownloadOpen(true)}
+              type="button"
             >
               <Download className="size-4" />
-              {canDownload
-                ? t("templates.download")
-                : `${t("templates.download")} — ${formatPrice(template.downloadPrice)}`}
-              <ChevronDown className="size-4 text-muted-foreground" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[180px]">
-              <DropdownMenuItem onSelect={() => handleDownload("docx")}>
-                <Download className="size-4" />
-                Скачать в DocX
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleDownload("pdf")}>
-                <Download className="size-4" />
-                Скачать в PDF
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button
-            className="inline-flex h-10 items-center justify-center rounded-lg bg-[#9e1f5a] px-4 font-medium text-[#fafafa] text-sm transition-colors hover:bg-[#8b1a50] disabled:opacity-60"
-            disabled={isPaying || createDraftMutation.isPending}
-            onClick={handleEdit}
-            type="button"
-          >
-            {hasEdit || template.price === 0 || hasEditQuota
-              ? t("templates.edit")
-              : `${t("templates.edit")} — ${formatPrice(template.price)}`}
-          </button>
+              {t("templates.download")}
+            </button>
+            {/* Цена не в подписи, а в модалке «Редактирование договора» —
+                платные шаблоны всегда открывают её. */}
+            <button
+              className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg bg-[#9e1f5a] px-3 font-medium text-[#fafafa] text-sm transition-colors hover:bg-[#8b1a50] disabled:opacity-60"
+              disabled={createDraftMutation.isPending}
+              onClick={handleEdit}
+              type="button"
+            >
+              <PenLine className="size-4" />
+              {t("templates.edit")}
+            </button>
+          </div>
+          {/* Язык интерфейса и выход — по макету в шапке страницы шаблона.
+              На мобильных их уже показывает панель приложения. */}
+          <div className="hidden items-center gap-2 md:flex">
+            <LanguageSwitcher />
+            <HeaderSignOut />
+          </div>
         </div>
       </div>
 
@@ -583,7 +557,7 @@ function RouteComponent() {
                   </p>
                   <button
                     className="inline-flex h-10 items-center justify-center rounded-lg bg-[#9e1f5a] px-4 font-medium text-[#fafafa] text-sm transition-colors hover:bg-[#8b1a50] disabled:opacity-60"
-                    disabled={isPaying || createDraftMutation.isPending}
+                    disabled={createDraftMutation.isPending}
                     onClick={handleEdit}
                     type="button"
                   >
@@ -605,6 +579,23 @@ function RouteComponent() {
           updatedAt={template.updatedAt}
         />
       </div>
+
+      <TemplateDownloadDialog
+        downloadPrice={template.downloadPrice}
+        initialPayment={paymentTarget === "download" ? initialPayment : null}
+        onOpenChange={setDownloadOpen}
+        open={downloadOpen}
+        templateId={templateId}
+        templateTitle={localized.title}
+      />
+      <TemplateEditDialog
+        initialPayment={paymentTarget === "edit" ? initialPayment : null}
+        onOpenChange={setEditOpen}
+        open={editOpen}
+        price={template.price}
+        templateId={templateId}
+        templateTitle={localized.title}
+      />
     </div>
   );
 }

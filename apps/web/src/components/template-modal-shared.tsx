@@ -1,0 +1,149 @@
+import { Check, Download, Loader2, PenLine, X } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+
+// Общие детали модалок страницы шаблона («Скачать договор», «Редактирование
+// договора»): кнопки, статусные экраны платёжного флоу и утилиты Робокассы.
+
+export const MODAL_POLL_INTERVAL_MS = 2000;
+
+export const PRIMARY_BUTTON_CLASS =
+  "inline-flex h-9 items-center justify-center whitespace-nowrap rounded-lg bg-[#171717] px-4 font-medium text-[#fafafa] text-sm transition-colors hover:bg-[#171717]/90 disabled:opacity-50";
+export const OUTLINE_BUTTON_CLASS =
+  "inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-[#d4d4d4] px-4 font-medium text-foreground text-sm transition-colors hover:bg-muted disabled:opacity-60";
+
+// Ссылка Robokassa содержит InvId создаваемого платежа — запоминаем его,
+// чтобы страница возврата отличала «наш» платёж от постороннего.
+export function parseInvIdFromPaymentUrl(url: string): number | null {
+  try {
+    const raw = new URL(url).searchParams.get("InvId");
+    if (!raw) {
+      return null;
+    }
+    const parsed = Number(raw);
+    return Number.isNaN(parsed) ? null : parsed;
+  } catch {
+    return null;
+  }
+}
+
+// «4 999 ₸» — как на карточках каталога.
+export function formatTenge(tenge: number): string {
+  return `${tenge.toLocaleString("ru-RU")} ₸`;
+}
+
+/** Строка «ключ — значение» в сводке модалки (Стоимость / Скачивание /
+ * Редактирование / Итого): подпись слева серым, значение справа без переноса —
+ * длинный счётчик («43 редактирования из 50») не ломает строку. Если места
+ * совсем нет, ужимается подпись (многоточием), а не значение. */
+export function InfoRow({
+  label,
+  value,
+  valueClassName,
+  withBottomBorder,
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+  withBottomBorder?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-2 border-[#f5f5f5] border-t py-3",
+        withBottomBorder && "border-b"
+      )}
+    >
+      <span className="min-w-0 truncate font-medium text-muted-foreground">
+        {label}
+      </span>
+      <span
+        className={cn(
+          "shrink-0 whitespace-nowrap text-right font-medium text-foreground",
+          valueClassName
+        )}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// Иконка и цвета круга-иллюстрации для платёжных статусов — по макету.
+export type StatusTone = "redirect" | "checking" | "failed" | "success";
+
+const STATUS_CIRCLE: Record<StatusTone, string> = {
+  redirect: "bg-[#f3f4f6]",
+  checking: "bg-[#fef9c3]",
+  failed: "bg-[#ffe2e2]",
+  success: "bg-[#dcfce7]",
+};
+
+function StatusIcon({ tone }: { tone: StatusTone }) {
+  if (tone === "failed") {
+    return <X className="size-6 text-[#7f1d1d]" />;
+  }
+  if (tone === "success") {
+    return <Check className="size-6 text-[#14532d]" />;
+  }
+  return (
+    <Loader2
+      className={cn(
+        "size-6 animate-spin",
+        tone === "checking" ? "text-[#854d0e]" : "text-muted-foreground"
+      )}
+    />
+  );
+}
+
+/** Центрированный статусный экран: круг-иллюстрация, заголовок, подпись и
+ * необязательная кнопка действия. */
+export function StatusView({
+  tone,
+  title,
+  hint,
+  action,
+}: {
+  tone: StatusTone;
+  title: string;
+  hint: string;
+  action?: {
+    label: string;
+    icon?: "download" | "edit";
+    disabled?: boolean;
+    onClick: () => void;
+  };
+}) {
+  return (
+    <div className="flex flex-col items-center gap-4 px-4 py-8 text-center">
+      <div
+        className={cn(
+          "flex size-16 items-center justify-center rounded-full",
+          STATUS_CIRCLE[tone]
+        )}
+      >
+        <StatusIcon tone={tone} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <p className="font-medium text-foreground text-sm leading-[18px]">
+          {title}
+        </p>
+        <p className="mx-auto max-w-[240px] text-muted-foreground text-sm leading-[18px]">
+          {hint}
+        </p>
+      </div>
+      {action && (
+        <button
+          className={OUTLINE_BUTTON_CLASS}
+          disabled={action.disabled}
+          onClick={action.onClick}
+          type="button"
+        >
+          {action.icon === "download" && <Download className="size-4" />}
+          {action.icon === "edit" && <PenLine className="size-4" />}
+          {action.label}
+        </button>
+      )}
+    </div>
+  );
+}

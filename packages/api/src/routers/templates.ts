@@ -1900,6 +1900,13 @@ async function materializeTemplateDownload(params: {
       )
       .limit(1);
     if (already) {
+      // Повторное скачивание: дубль не плодим, но поднимаем существующую
+      // карточку наверх «Моих документов» свежей датой выдачи — иначе
+      // скачивание выглядит так, будто документ не появился.
+      await db
+        .update(document)
+        .set({ downloadedAt: new Date(), updatedAt: new Date() })
+        .where(eq(document.id, already.id));
       return;
     }
     const [tmpl] = await db

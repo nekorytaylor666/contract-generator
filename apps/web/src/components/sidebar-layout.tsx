@@ -41,6 +41,12 @@ function usePageHeader(): { title: string; icon: LucideIcon } {
     from: "/templates/",
     shouldThrow: false,
   });
+  // Страница шаблона показывает панель только на мобильных — но и там она
+  // должна называться «Шаблоны», а не «Конструктор».
+  const templateDetailMatch = useMatch({
+    from: "/templates/$templateId/",
+    shouldThrow: false,
+  });
   const documentsMatch = useMatch({
     from: "/documents",
     shouldThrow: false,
@@ -54,7 +60,7 @@ function usePageHeader(): { title: string; icon: LucideIcon } {
     shouldThrow: false,
   });
 
-  if (templatesMatch) {
+  if (templatesMatch || templateDetailMatch) {
     return { title: t("nav.templates"), icon: FolderOpen };
   }
 
@@ -222,16 +228,20 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
     from: "/templates/",
     shouldThrow: false,
   });
-  // В конструкторе своя шапка с названием договора (по макету) — панель
-  // «Конструктор» на десктопе прячем; на мобильных оставляем ради кнопки
+  // В конструкторе и на странице шаблона своя шапка (по макету) — панель
+  // приложения на десктопе прячем; на мобильных оставляем ради кнопки
   // сайдбара.
   const builderMatch = useMatch({
     from: "/templates/$templateId/builder",
     shouldThrow: false,
   });
+  const templateDetailMatch = useMatch({
+    from: "/templates/$templateId/",
+    shouldThrow: false,
+  });
   const activeOrg = useActiveOrgBootstrap();
   const isDocuments = Boolean(documentsMatch);
-  const isBuilder = Boolean(builderMatch);
+  const hasOwnHeader = Boolean(builderMatch || templateDetailMatch);
   // Контрагенты доступны и из каталога шаблонов, и из «Моих документов».
   const showCounterparties = isDocuments || Boolean(templatesMatch);
 
@@ -247,7 +257,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           <header
             className={cn(
               "flex h-[54px] shrink-0 items-center justify-between gap-2 border-[#e5e5e5] border-b py-2 pr-3 pl-2 sm:pr-6 sm:pl-3",
-              isBuilder && "md:hidden"
+              hasOwnHeader && "md:hidden"
             )}
           >
             <div className="flex min-w-0 items-center gap-1.5 px-1 py-2 text-sm sm:px-3">
