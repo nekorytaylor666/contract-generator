@@ -1,6 +1,11 @@
 import { Check, Download, Loader2, PenLine, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import {
+  type DbPlan,
+  type PeriodKey,
+  PlansPicker,
+} from "@/components/plans-picker";
 import { cn } from "@/lib/utils";
 
 // Общие детали модалок страницы шаблона («Скачать договор», «Редактирование
@@ -105,69 +110,33 @@ export function ChoiceCard({
   );
 }
 
-export interface PlanOption {
-  id: string;
-  name: string;
-  downloadQuota: number;
-  editQuota: number;
-}
-
-/** Шаг выбора нового тарифа при повышении — общий для модалок скачивания и
- * редактирования (заголовок «Выберите новый тариф», стопка карточек-радио,
- * футер «Назад» + «Продолжить»). */
-export function PlansStep({
-  options,
-  choice,
-  onChoose,
+/** Широкий шаг «Тарифы» в модалках: сетка «Доступные планы» с периодами
+ * (общая с профилем) и футер «Назад». Клик «Перейти на X» сразу ведёт к
+ * оплате выбранного плана и периода. */
+export function PlansDialogStep({
+  plans,
+  currentPlanId,
+  onSelectPlan,
   onBack,
-  onContinue,
   busy,
 }: {
-  options: PlanOption[];
-  choice: string | null;
-  onChoose: (planId: string) => void;
+  plans: DbPlan[];
+  currentPlanId: string | null;
+  onSelectPlan: (planId: string, period: PeriodKey) => void;
   onBack: () => void;
-  onContinue: () => void;
   busy: boolean;
 }) {
   const { t } = useTranslation();
-
-  const planLabel = (plan: PlanOption) => {
-    const downloads =
-      plan.downloadQuota === -1
-        ? t("downloadDialog.planDownloadsUnlimited")
-        : t("downloadDialog.planDownloads", { count: plan.downloadQuota });
-    const edits =
-      plan.editQuota === -1
-        ? t("downloadDialog.planEditsUnlimited")
-        : t("downloadDialog.planEdits", { count: plan.editQuota });
-    return `${downloads} · ${edits}`;
-  };
-
   return (
     <>
-      <div className="flex flex-col gap-3 px-4 py-2">
-        <div className="flex flex-col gap-2">
-          <h2 className="font-semibold text-foreground text-xl leading-6">
-            {t("downloadDialog.choosePlan")}
-          </h2>
-          <p className="text-muted-foreground text-sm leading-[18px]">
-            {t("downloadDialog.choosePlanHint")}
-          </p>
-        </div>
-        <div className="flex flex-col gap-2">
-          {options.map((plan) => (
-            <ChoiceCard
-              hint={planLabel(plan)}
-              key={plan.id}
-              onSelect={() => onChoose(plan.id)}
-              selected={choice === plan.id}
-              title={plan.name}
-            />
-          ))}
-        </div>
+      <div className="max-h-[70vh] overflow-y-auto p-4">
+        <PlansPicker
+          currentPlanId={currentPlanId}
+          onSelectPlan={onSelectPlan}
+          plans={plans}
+        />
       </div>
-      <div className="flex justify-end gap-2 p-4">
+      <div className="flex justify-end border-[#e5e5e5] border-t p-4">
         <button
           className={OUTLINE_BUTTON_CLASS}
           disabled={busy}
@@ -175,14 +144,6 @@ export function PlansStep({
           type="button"
         >
           {t("downloadDialog.back")}
-        </button>
-        <button
-          className={PRIMARY_BUTTON_CLASS}
-          disabled={choice === null || busy}
-          onClick={onContinue}
-          type="button"
-        >
-          {t("downloadDialog.continue")}
         </button>
       </div>
     </>

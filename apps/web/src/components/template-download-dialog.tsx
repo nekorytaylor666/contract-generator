@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import type { DbPlan, PeriodKey } from "@/components/plans-picker";
 import {
   ChoiceCard,
   formatTenge,
   InfoRow,
   MODAL_POLL_INTERVAL_MS,
   OUTLINE_BUTTON_CLASS,
-  PlansStep,
+  PlansDialogStep,
   PRIMARY_BUTTON_CLASS,
   parseInvIdFromPaymentUrl,
   StatusView,
@@ -64,6 +65,28 @@ function initialStepFor(payment: InitialPayment | null | undefined): Step {
     return "failed";
   }
   return "checking";
+}
+
+// Ширина модалки: попап «Тарифы» — широкий, экран лимита — средний.
+function dialogWidthClass(step: Step): string {
+  if (step === "plans") {
+    return "sm:max-w-[1000px]";
+  }
+  if (step === "limit") {
+    return "sm:max-w-[450px]";
+  }
+  return "sm:max-w-[320px]";
+}
+
+// Заголовок: попап тарифов — «Тарифы», ветка апгрейда — «Повышение тарифа».
+function headerTitleKey(step: Step, upgradeContext: boolean): string {
+  if (step === "plans") {
+    return "editDialog.plans";
+  }
+  if (upgradeContext && step !== "limit") {
+    return "downloadDialog.upgradeTitle";
+  }
+  return "downloadDialog.title";
 }
 
 function triggerFileDownload(dataUrl: string, fileName: string): void {
@@ -336,7 +359,6 @@ export function TemplateDownloadDialog({
   const [limitChoice, setLimitChoice] = useState<"buy" | "upgrade" | null>(
     null
   );
-  const [planChoice, setPlanChoice] = useState<string | null>(null);
   // Платёжные статусы озаглавлены «Повышение тарифа», когда пришли из ветки
   // апгрейда, и «Скачать договор» — из разовой покупки.
   const [upgradeContext, setUpgradeContext] = useState(false);
@@ -353,6 +375,7 @@ export function TemplateDownloadDialog({
   const lastFlowRef = useRef<{
     flow: DownloadReturnFlow;
     planId: string | null;
+    period: PeriodKey;
   } | null>(null);
 
   const { data: purchases = [] } = useQuery({
@@ -385,13 +408,10 @@ export function TemplateDownloadDialog({
   });
   const payModeView = buyChosen || access.needsUpfrontPayment;
 
-  // Тарифы, на которые есть смысл повышаться: активные платные с большей
-  // квотой скачиваний, чем текущая.
-  const planOptions = plans.filter(
-    (p) =>
-      !p.isDefault &&
-      p.id !== sub?.planId &&
-      (p.downloadQuota === -1 || p.downloadQuota > quota)
+  // Есть ли платные тарифы, отличные от текущего, — гейт карточки
+  // «Повысить тариф» на экране лимита.
+  const hasUpgradeOption = plans.some(
+    (p) => !p.isDefault && p.id !== sub?.planId
   );
 
   const invalidateAccess = () => {
@@ -458,6 +478,7 @@ export function TemplateDownloadDialog({
           format,
           flow: "upgrade",
           planId: vars.planId,
+          period: vars.period,
         });
         window.location.href = result.url;
       },
@@ -470,17 +491,17 @@ export function TemplateDownloadDialog({
   };
 
   const startPurchase = () => {
-    lastFlowRef.current = { flow: "purchase", planId: null };
+    lastFlowRef.current = { flow: "purchase", planId: null, period: "monthly" };
     setUpgradeContext(false);
     setStep("redirect");
     checkoutMutation.mutate({ templateId, kind: "download" });
   };
 
-  const startUpgrade = (planId: string) => {
-    lastFlowRef.current = { flow: "upgrade", planId };
+  const startUpgrade = (planId: string, period: PeriodKey) => {
+    lastFlowRef.current = { flow: "upgrade", planId, period };
     setUpgradeContext(true);
     setStep("redirect");
-    subCheckoutMutation.mutate({ planId, period: "monthly" });
+    subCheckoutMutation.mutate({ planId, period });
   };
 
   // «Попробовать снова» / «Повторить попытку» — повторяем последний чекаут.
@@ -488,7 +509,7 @@ export function TemplateDownloadDialog({
     const last = lastFlowRef.current;
     if (last?.flow === "upgrade") {
       if (last.planId) {
-        startUpgrade(last.planId);
+        startUpgrade(last.planId, last.period);
       } else {
         setStep("plans");
       }
@@ -515,8 +536,8 @@ export function TemplateDownloadDialog({
     lastFlowRef.current = {
       flow: stored.flow,
       planId: stored.planId ?? null,
+      period: stored.period ?? "monthly",
     };
-    setPlanChoice(stored.planId ?? null);
   }, [initialPayment, templateId]);
 
   // Повторное открытие модалки (после закрытия) начинается с чистого шага
@@ -528,7 +549,6 @@ export function TemplateDownloadDialog({
       setStep("format");
       setBuyChosen(false);
       setLimitChoice(null);
-      setPlanChoice(null);
       setUpgradeContext(false);
       setCheckingInvId(null);
       autoDownloadedRef.current = false;
@@ -598,11 +618,7 @@ export function TemplateDownloadDialog({
     downloadNow();
   };
 
-  const wide = step === "limit" || step === "plans";
-  const showUpgradeTitle = upgradeContext && step !== "limit";
-  const headerTitle = showUpgradeTitle
-    ? t("downloadDialog.upgradeTitle")
-    : t("downloadDialog.title");
+  const headerTitle = t(headerTitleKey(step, upgradeContext));
 
   const successHint = `${
     upgradeContext && sub?.planName
@@ -615,7 +631,7 @@ export function TemplateDownloadDialog({
       <DialogContent
         className={cn(
           "flex flex-col gap-0 overflow-hidden rounded-[10px] border-[#e5e5e5] p-0",
-          wide ? "sm:max-w-[450px]" : "sm:max-w-[320px]"
+          dialogWidthClass(step)
         )}
         showCloseButton={false}
       >
@@ -652,7 +668,7 @@ export function TemplateDownloadDialog({
         {step === "limit" && (
           <LimitStep
             choice={limitChoice}
-            hasUpgradeOption={planOptions.length > 0}
+            hasUpgradeOption={hasUpgradeOption}
             onChoose={setLimitChoice}
             onContinue={handleLimitContinue}
             quota={quota}
@@ -660,20 +676,15 @@ export function TemplateDownloadDialog({
         )}
 
         {step === "plans" && (
-          <PlansStep
+          <PlansDialogStep
             busy={busy}
-            choice={planChoice}
+            currentPlanId={sub?.planId ?? null}
             onBack={() => {
               setUpgradeContext(false);
               setStep("limit");
             }}
-            onChoose={setPlanChoice}
-            onContinue={() => {
-              if (planChoice) {
-                startUpgrade(planChoice);
-              }
-            }}
-            options={planOptions}
+            onSelectPlan={startUpgrade}
+            plans={plans as DbPlan[]}
           />
         )}
 

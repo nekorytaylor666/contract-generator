@@ -5,12 +5,13 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import type { DbPlan, PeriodKey } from "@/components/plans-picker";
 import {
   ChoiceCard,
   formatTenge,
   InfoRow,
   MODAL_POLL_INTERVAL_MS,
-  PlansStep,
+  PlansDialogStep,
   PRIMARY_BUTTON_CLASS,
   parseInvIdFromPaymentUrl,
   StatusView,
@@ -61,13 +62,28 @@ function initialStepFor(payment: InitialPayment | null | undefined): Step {
   return "checking";
 }
 
-// Заголовок модалки: сводка — «Редактирование договора», ветка апгрейда —
-// «Повышение тарифа», остальные шаги — «Редактировать договор».
+// Заголовок модалки: сводка — «Редактирование договора», попап тарифов —
+// «Тарифы», ветка апгрейда — «Повышение тарифа», остальное — «Редактировать
+// договор».
 function headerTitleKey(step: Step, upgradeContext: boolean): string {
+  if (step === "plans") {
+    return "editDialog.plans";
+  }
   if (upgradeContext && step !== "info" && step !== "limit") {
     return "downloadDialog.upgradeTitle";
   }
   return step === "info" ? "editDialog.title" : "editDialog.actionTitle";
+}
+
+// Ширина модалки: попап «Тарифы» — широкий, экран лимита — средний.
+function dialogWidthClass(step: Step): string {
+  if (step === "plans") {
+    return "sm:max-w-[1000px]";
+  }
+  if (step === "limit") {
+    return "sm:max-w-[450px]";
+  }
+  return "sm:max-w-[320px]";
 }
 
 /** Доступ к редактированию: чем покрыт (покупка/бесплатно/квота) и итог. */
@@ -304,7 +320,6 @@ export function TemplateEditDialog({
   const [limitChoice, setLimitChoice] = useState<"buy" | "upgrade" | null>(
     null
   );
-  const [planChoice, setPlanChoice] = useState<string | null>(null);
   // Ветка апгрейда озаглавлена «Повышение тарифа»; разовая покупка остаётся
   // под «Редактировать договор».
   const [upgradeContext, setUpgradeContext] = useState(false);
@@ -312,6 +327,7 @@ export function TemplateEditDialog({
   const lastFlowRef = useRef<{
     flow: Extract<DownloadReturnFlow, "edit" | "edit-upgrade">;
     planId: string | null;
+    period: PeriodKey;
   } | null>(null);
 
   const { data: purchases = [] } = useQuery({
@@ -345,13 +361,10 @@ export function TemplateEditDialog({
       remaining: sub?.editRemaining ?? 0,
     });
 
-  // Тарифы, на которые есть смысл повышаться: активные платные с большей
-  // квотой редактирований, чем текущая.
-  const planOptions = plans.filter(
-    (p) =>
-      !p.isDefault &&
-      p.id !== sub?.planId &&
-      (p.editQuota === -1 || p.editQuota > quota)
+  // Есть ли платные тарифы, отличные от текущего, — гейт карточки
+  // «Повысить тариф» на экране лимита.
+  const hasUpgradeOption = plans.some(
+    (p) => !p.isDefault && p.id !== sub?.planId
   );
 
   const invalidateAccess = () => {
@@ -437,17 +450,17 @@ export function TemplateEditDialog({
   );
 
   const startPurchase = () => {
-    lastFlowRef.current = { flow: "edit", planId: null };
+    lastFlowRef.current = { flow: "edit", planId: null, period: "monthly" };
     setUpgradeContext(false);
     setStep("redirect");
     checkoutMutation.mutate({ templateId, kind: "edit" });
   };
 
-  const startUpgrade = (planId: string) => {
-    lastFlowRef.current = { flow: "edit-upgrade", planId };
+  const startUpgrade = (planId: string, period: PeriodKey) => {
+    lastFlowRef.current = { flow: "edit-upgrade", planId, period };
     setUpgradeContext(true);
     setStep("redirect");
-    subCheckoutMutation.mutate({ planId, period: "monthly" });
+    subCheckoutMutation.mutate({ planId, period });
   };
 
   // «Попробовать снова» / «Повторить попытку» — повторяем последний чекаут.
@@ -455,7 +468,7 @@ export function TemplateEditDialog({
     const last = lastFlowRef.current;
     if (last?.flow === "edit-upgrade") {
       if (last.planId) {
-        startUpgrade(last.planId);
+        startUpgrade(last.planId, last.period);
       } else {
         setStep("plans");
       }
@@ -481,8 +494,8 @@ export function TemplateEditDialog({
     lastFlowRef.current = {
       flow: isUpgrade ? "edit-upgrade" : "edit",
       planId: stored.planId ?? null,
+      period: stored.period ?? "monthly",
     };
-    setPlanChoice(stored.planId ?? null);
   }, [initialPayment, templateId]);
 
   // Повторное открытие модалки (после закрытия) начинается со сводки.
@@ -492,7 +505,6 @@ export function TemplateEditDialog({
       setStep("info");
       setCheckingInvId(null);
       setLimitChoice(null);
-      setPlanChoice(null);
       setUpgradeContext(false);
     }
     wasOpenRef.current = open;
@@ -551,7 +563,6 @@ export function TemplateEditDialog({
     }
   };
 
-  const wide = step === "limit" || step === "plans";
   const headerTitle = t(headerTitleKey(step, upgradeContext));
 
   return (
@@ -559,7 +570,7 @@ export function TemplateEditDialog({
       <DialogContent
         className={cn(
           "flex flex-col gap-0 overflow-hidden rounded-[10px] border-[#e5e5e5] p-0",
-          wide ? "sm:max-w-[450px]" : "sm:max-w-[320px]"
+          dialogWidthClass(step)
         )}
         showCloseButton={false}
       >
@@ -594,7 +605,7 @@ export function TemplateEditDialog({
         {step === "limit" && (
           <EditLimitStep
             choice={limitChoice}
-            hasUpgradeOption={planOptions.length > 0}
+            hasUpgradeOption={hasUpgradeOption}
             onChoose={setLimitChoice}
             onContinue={handleLimitContinue}
             quota={quota}
@@ -602,20 +613,15 @@ export function TemplateEditDialog({
         )}
 
         {step === "plans" && (
-          <PlansStep
+          <PlansDialogStep
             busy={busy}
-            choice={planChoice}
+            currentPlanId={sub?.planId ?? null}
             onBack={() => {
               setUpgradeContext(false);
               setStep("limit");
             }}
-            onChoose={setPlanChoice}
-            onContinue={() => {
-              if (planChoice) {
-                startUpgrade(planChoice);
-              }
-            }}
-            options={planOptions}
+            onSelectPlan={startUpgrade}
+            plans={plans as DbPlan[]}
           />
         )}
 
