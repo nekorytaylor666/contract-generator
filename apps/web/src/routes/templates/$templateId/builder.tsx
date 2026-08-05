@@ -271,10 +271,14 @@ const REVIEW_RESET_MONTHS = [
 /** Кнопка «На проверку юристу» (по макету): активна при остатке квоты
  * проверок тарифа; при исчерпании — задизейблена с тултипом о дате сброса. */
 function LawyerReviewButton({
+  isPaid,
+  loading,
   quota,
   remaining,
   onOpen,
 }: {
+  isPaid: boolean;
+  loading: boolean;
   quota: number;
   remaining: number;
   onOpen: () => void;
@@ -294,23 +298,36 @@ function LawyerReviewButton({
   }
   const now = new Date();
   const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const hint =
-    quota === 0
-      ? "Проверка юриста доступна на платных тарифах"
-      : `Лимит проверок исчерпан. Обновится 1 ${REVIEW_RESET_MONTHS[nextMonth.getMonth()]}`;
+  // Пока тариф не загрузился, квоты ещё нули — кнопку блокируем, но подсказку
+  // не показываем, иначе платный подписчик видит «доступна на платных тарифах».
+  let hint: string | null = null;
+  if (!loading) {
+    if (isPaid) {
+      hint =
+        quota === 0
+          ? "Проверка юриста не входит в ваш тариф"
+          : `Лимит проверок исчерпан. Обновится 1 ${REVIEW_RESET_MONTHS[nextMonth.getMonth()]}`;
+    } else {
+      hint = "Проверка юриста доступна на платных тарифах";
+    }
+  }
+  const disabledButton = (
+    <button
+      className="pointer-events-none inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-lg px-3 font-medium text-foreground text-sm opacity-50"
+      disabled
+      type="button"
+    >
+      <Share className="size-4" />
+      На проверку юристу
+    </button>
+  );
+  if (!hint) {
+    return disabledButton;
+  }
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="inline-flex">
-          <button
-            className="pointer-events-none inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-lg px-3 font-medium text-foreground text-sm opacity-50"
-            disabled
-            type="button"
-          >
-            <Share className="size-4" />
-            На проверку юристу
-          </button>
-        </span>
+        <span className="inline-flex">{disabledButton}</span>
       </TooltipTrigger>
       <TooltipContent className="max-w-[200px] text-center">
         {hint}
@@ -1019,6 +1036,8 @@ function RouteComponent() {
             saving={saveMutation.isPending}
           />
           <LawyerReviewButton
+            isPaid={mySubscription?.isPaid ?? false}
+            loading={!mySubscription}
             onOpen={() => setLawyerOpen(true)}
             quota={mySubscription?.reviewQuota ?? 0}
             remaining={mySubscription?.reviewRemaining ?? 0}

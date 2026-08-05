@@ -20,6 +20,9 @@ const subscriptionPlans = [
     discountLabel: null as string | null,
     downloadQuota: 1,
     editQuota: 1,
+    // Держим в паре с фичей «Проверка документов» ниже — гейт кнопки
+    // «На проверку юристу» читает именно колонку, а не текст фичи.
+    reviewQuota: 0,
     sortOrder: 0,
     isDefault: true,
     features: [
@@ -44,6 +47,7 @@ const subscriptionPlans = [
     discountLabel: "-20%",
     downloadQuota: 15,
     editQuota: 5,
+    reviewQuota: 1,
     sortOrder: 1,
     isDefault: false,
     features: [
@@ -66,6 +70,7 @@ const subscriptionPlans = [
     discountLabel: "-20%",
     downloadQuota: -1,
     editQuota: 20,
+    reviewQuota: 3,
     sortOrder: 2,
     isDefault: false,
     features: [
@@ -88,6 +93,7 @@ const subscriptionPlans = [
     discountLabel: "-20%",
     downloadQuota: -1,
     editQuota: 50,
+    reviewQuota: 5,
     sortOrder: 3,
     isDefault: false,
     features: [

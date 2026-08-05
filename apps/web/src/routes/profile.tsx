@@ -65,7 +65,6 @@ const PROFILE_TABS: { id: ProfileTab; label: string }[] = [
 
 // Карточки тарифов и переключатель периода живут в общем компоненте
 // PlansPicker (используется и попапом «Тарифы» в модалках шаблона).
-const NOT_INCLUDED = "—";
 
 const MONTHS_RU = [
   "января",
@@ -90,17 +89,6 @@ function formatPurchaseDate(value: Date | string): string {
 function formatExpiryFull(value: Date | string): string {
   const d = new Date(value);
   return `${d.getDate()} ${MONTHS_RU[d.getMonth()]} ${d.getFullYear()} года`;
-}
-
-function parseQuotaValue(value: string | undefined): number {
-  if (!value || value === NOT_INCLUDED) {
-    return 0;
-  }
-  if (value === "∞") {
-    return -1;
-  }
-  const n = Number.parseInt(value, 10);
-  return Number.isNaN(n) ? 0 : n;
 }
 
 function statusMeta(status: string): { label: string; className: string } {
@@ -185,10 +173,10 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
   );
 
   const typedPlans = dbPlans as DbPlan[];
-  const currentPlan = typedPlans.find((p) => p.id === my?.planId);
-  const checksQuota = parseQuotaValue(
-    currentPlan?.features?.find((f) => f.label === "Проверка документов")?.value
-  );
+  // Квота проверок — из колонки тарифа, а не из текста фичи «Проверка
+  // документов»: гейт кнопки «На проверку юристу» считает по ней же, и при
+  // расхождении профиль обещал бы проверки, которых сервер не даёт.
+  const checksQuota = my?.reviewQuota ?? 0;
 
   const checkout = useMutation(
     trpc.payments.createSubscriptionCheckout.mutationOptions({
@@ -248,7 +236,7 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
           <UsageCard
             label="Использовано проверок"
             quota={checksQuota}
-            used={0}
+            used={my.reviewsUsed}
           />
         </div>
       )}
