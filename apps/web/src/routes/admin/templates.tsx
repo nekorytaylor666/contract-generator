@@ -90,7 +90,7 @@ interface FormState {
   isPublished: boolean;
   categories: string[];
   documentType: string;
-  // Per-locale overrides (kk/ru/en). Empty fields fall back to the defaults.
+  // Per-locale overrides (kk/ru). Empty fields fall back to the defaults.
   localizedContent: Record<string, LocaleForm>;
 }
 

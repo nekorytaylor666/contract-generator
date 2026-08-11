@@ -61,7 +61,7 @@ const upsertInput = z.object({
   // Full ancestor path slugs (group/subcategory/leaf) — see template-options.ts.
   categories: z.array(z.string()).default([]),
   documentType: z.string().nullable().optional(),
-  // Per-locale overrides of title/description/typstContent (kk/ru/en),
+  // Per-locale overrides of title/description/typstContent (kk/ru),
   // plus that locale's own form variables when its typst differs.
   localizedContent: z
     .record(

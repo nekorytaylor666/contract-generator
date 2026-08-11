@@ -12,7 +12,7 @@ import {
 import { user } from "./auth";
 
 // Per-language overrides of the document. Missing fields fall back to the
-// template's default title/description/typstContent. Keyed by locale (kk/ru/en).
+// template's default title/description/typstContent. Keyed by locale (kk/ru).
 export interface LocaleContent {
   title?: string;
   description?: string | null;
@@ -29,7 +29,8 @@ export const template = pgTable(
     // Price to buy a finished copy for download/view (no editing). 0 = free.
     downloadPrice: integer("download_price").notNull().default(0),
     typstContent: text("typst_content").notNull(),
-    // Localized overrides per locale: { kk?: {...}, ru?: {...}, en?: {...} }.
+    // Localized overrides per locale: { kk?: {...}, ru?: {...} }. Записи снятых
+    // языков (en) остаются в базе, но не читаются — см. normalizeLocale.
     localizedContent: jsonb("localized_content")
       .$type<Record<string, LocaleContent>>()
       .notNull()

@@ -28,6 +28,7 @@ export const onboardingRouter = router({
         outreach: user.onboardingOutreach,
         policyAcceptedAt: user.onboardingPolicyAcceptedAt,
         completedAt: user.onboardingCompletedAt,
+        tourCompletedAt: user.productTourCompletedAt,
       })
       .from(user)
       .where(eq(user.id, ctx.session.user.id))
@@ -67,4 +68,13 @@ export const onboardingRouter = router({
         .where(eq(user.id, ctx.session.user.id));
       return { ok: true as const };
     }),
+
+  // Тур завершён или пропущен — больше не показываем на любых устройствах.
+  completeTour: protectedProcedure.mutation(async ({ ctx }) => {
+    await db
+      .update(user)
+      .set({ productTourCompletedAt: new Date() })
+      .where(eq(user.id, ctx.session.user.id));
+    return { ok: true as const };
+  }),
 });

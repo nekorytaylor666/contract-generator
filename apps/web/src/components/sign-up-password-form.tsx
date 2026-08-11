@@ -10,6 +10,7 @@ import { useTRPC } from "@/utils/trpc";
 
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { ZhebeMark } from "./zhebe-logo";
 
 const LOWERCASE_RE = /[a-z]/;
 const UPPERCASE_RE = /[A-Z]/;
@@ -78,7 +79,7 @@ export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
   return (
     <div className="flex flex-col items-center gap-6">
       <div className="flex flex-col items-center gap-6">
-        <div className="font-bold text-3xl text-foreground">A</div>
+        <ZhebeMark className="h-10 w-auto text-landing" />
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="font-medium text-3xl text-foreground">
             Придумайте пароль
@@ -198,7 +199,7 @@ export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
         <form.Subscribe>
           {(state) => (
             <Button
-              className="h-10 w-full rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+              className="h-10 w-full rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
               disabled={!state.canSubmit || state.isSubmitting}
               type="submit"
             >

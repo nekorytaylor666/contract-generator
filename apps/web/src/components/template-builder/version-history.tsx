@@ -138,7 +138,7 @@ export function VersionHistory({
               className={cn(
                 "group flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left transition-colors",
                 isPreviewing
-                  ? "bg-primary/10 ring-1 ring-primary/20"
+                  ? "bg-brand/10 ring-1 ring-brand/20"
                   : "hover:bg-muted/50"
               )}
               key={ver.id}
@@ -147,7 +147,7 @@ export function VersionHistory({
             >
               <div className="flex items-center gap-2">
                 {isPreviewing ? (
-                  <Eye className="size-3 text-primary" />
+                  <Eye className="size-3 text-brand" />
                 ) : (
                   <Clock className="size-3 text-muted-foreground" />
                 )}
@@ -155,7 +155,7 @@ export function VersionHistory({
                   <span
                     className={cn(
                       "text-xs",
-                      isPreviewing ? "text-primary" : "text-foreground"
+                      isPreviewing ? "text-brand" : "text-foreground"
                     )}
                   >
                     v{ver.version}
@@ -165,7 +165,7 @@ export function VersionHistory({
                       </span>
                     )}
                     {isPreviewing && !isCurrent && (
-                      <span className="ml-1 text-primary/70">(просмотр)</span>
+                      <span className="ml-1 text-brand/70">(просмотр)</span>
                     )}
                   </span>
                   <p className="text-[10px] text-muted-foreground">

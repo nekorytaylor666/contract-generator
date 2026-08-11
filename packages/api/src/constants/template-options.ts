@@ -398,14 +398,31 @@ export function isDocumentType(value: unknown): value is DocumentType {
 // --- Localization -----------------------------------------------------------
 
 // Document locales for per-language template versions (matches the UI i18n).
-export const TEMPLATE_LOCALES = ["kk", "ru", "en"] as const;
+export const TEMPLATE_LOCALES = ["kk", "ru"] as const;
 export type TemplateLocale = (typeof TEMPLATE_LOCALES)[number];
 
 export const TEMPLATE_LOCALE_LABELS: Record<TemplateLocale, string> = {
   kk: "Қазақша",
   ru: "Русский",
-  en: "English",
 };
+
+// Английский выведен из обращения, но в базе остаются профили с
+// contract_language = 'en' и шаблоны с localized_content.en — их содержимое
+// намеренно не удаляем (вернуть язык = снова добавить его в TEMPLATE_LOCALES).
+// Пока язык снят, любой такой код сводим к русскому: иначе старый профиль
+// продолжил бы получать английские договоры через resolveLocalized.
+const RETIRED_LOCALES: Record<string, TemplateLocale> = { en: "ru" };
+
+/**
+ * Приводит код языка к поддерживаемому. Снятый с обращения язык заменяется на
+ * замену, всё остальное возвращается как есть — неизвестная локаль и так
+ * падает в базовый контент шаблона.
+ */
+export function normalizeLocale(
+  locale: string | null | undefined
+): string | null | undefined {
+  return locale ? (RETIRED_LOCALES[locale] ?? locale) : locale;
+}
 
 export interface LocaleContent {
   title?: string;
@@ -433,8 +450,9 @@ interface BaseContent {
 export function resolveLocalized(
   base: BaseContent,
   localizedContent: Record<string, LocaleContent> | null | undefined,
-  locale: string | null | undefined
+  rawLocale: string | null | undefined
 ): BaseContent {
+  const locale = normalizeLocale(rawLocale);
   const override = (locale && localizedContent?.[locale]) || {};
   return {
     title: override.title || base.title,
@@ -452,8 +470,9 @@ export function resolveLocalized(
 export function resolveLocalizedVariables<T>(
   base: T[],
   localizedContent: Record<string, LocaleContent> | null | undefined,
-  locale: string | null | undefined
+  rawLocale: string | null | undefined
 ): T[] {
+  const locale = normalizeLocale(rawLocale);
   const entry = locale ? localizedContent?.[locale] : undefined;
   const override = entry?.typstContent ? entry.variables : undefined;
   if (Array.isArray(override) && override.length > 0) {

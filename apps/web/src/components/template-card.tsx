@@ -46,6 +46,8 @@ interface TemplateCardProps {
   saved?: boolean;
   /** Last edit time — shown as the «календарь + месяц год» badge. */
   updatedAt?: Date | string;
+  /** Якорь продуктового тура (ставится на первую карточку каталога). */
+  dataTour?: string;
 }
 
 // "4 999 ₸" — space-grouped tenge, matching the Figma catalogue card.
@@ -63,6 +65,7 @@ export function TemplateCard({
   purchased = false,
   saved = false,
   updatedAt,
+  dataTour,
 }: TemplateCardProps) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -107,6 +110,7 @@ export function TemplateCard({
     <>
       <Link
         className="group flex h-full flex-col justify-between rounded-2xl border border-[#ececec] p-5 transition-colors hover:border-foreground/30"
+        data-tour={dataTour}
         params={{ templateId: id }}
         to="/templates/$templateId"
       >
@@ -152,9 +156,7 @@ export function TemplateCard({
                 <Bookmark
                   className={cn(
                     "size-4",
-                    saved
-                      ? "fill-primary text-primary"
-                      : "text-muted-foreground"
+                    saved ? "fill-brand text-brand" : "text-muted-foreground"
                   )}
                 />
               </button>

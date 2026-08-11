@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
+import { ZhebeMark } from "./zhebe-logo";
 
 const OTP_LENGTH = 6;
 const STUB_CODE = "111111";
@@ -101,7 +102,7 @@ export function SignUpEmailConfirmForm({
   return (
     <div className="flex flex-col items-center gap-6">
       <div className="flex flex-col items-center gap-6">
-        <div className="font-bold text-3xl text-foreground">A</div>
+        <ZhebeMark className="h-10 w-auto text-landing" />
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="font-medium text-3xl text-foreground">
             Подтвердите электронную почту
@@ -145,7 +146,7 @@ export function SignUpEmailConfirmForm({
         <div className="flex items-center gap-2">
           <span className="text-foreground text-sm">Не та почта?</span>
           <button
-            className="text-primary text-sm hover:underline"
+            className="text-brand text-sm hover:underline"
             onClick={onChangeEmail}
             type="button"
           >

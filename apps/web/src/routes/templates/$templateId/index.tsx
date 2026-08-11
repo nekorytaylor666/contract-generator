@@ -444,7 +444,7 @@ function RouteComponent() {
           Шаблон не найден
         </p>
         <Link
-          className="mt-2 text-primary text-sm hover:underline"
+          className="mt-2 text-brand text-sm hover:underline"
           to="/templates"
         >
           Назад к шаблонам
@@ -512,7 +512,8 @@ function RouteComponent() {
             {/* Цена не в подписи, а в модалке «Редактирование договора» —
                 платные шаблоны всегда открывают её. */}
             <button
-              className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg bg-[#9e1f5a] px-3 font-medium text-[#fafafa] text-sm transition-colors hover:bg-[#8b1a50] disabled:opacity-60"
+              className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 font-medium text-primary-foreground text-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
+              data-tour="edit"
               disabled={createDraftMutation.isPending}
               onClick={handleEdit}
               type="button"
@@ -557,7 +558,7 @@ function RouteComponent() {
                     шаблон, чтобы увидеть его целиком.
                   </p>
                   <button
-                    className="inline-flex h-10 items-center justify-center rounded-lg bg-[#9e1f5a] px-4 font-medium text-[#fafafa] text-sm transition-colors hover:bg-[#8b1a50] disabled:opacity-60"
+                    className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 font-medium text-primary-foreground text-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
                     disabled={createDraftMutation.isPending}
                     onClick={handleEdit}
                     type="button"

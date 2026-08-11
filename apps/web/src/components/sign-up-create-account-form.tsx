@@ -9,6 +9,7 @@ import { authClient } from "@/lib/auth-client";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
+import { ZhebeMark } from "./zhebe-logo";
 
 const schema = z.object({
   email: z.email("Некорректный адрес электронной почты"),
@@ -54,7 +55,7 @@ export function SignUpCreateAccountForm({
   return (
     <div className="flex flex-col items-center gap-6">
       <div className="flex flex-col items-center gap-6">
-        <div className="font-bold text-3xl text-foreground">A</div>
+        <ZhebeMark className="h-10 w-auto text-landing" />
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="font-medium text-3xl text-foreground">
             Создание аккаунта
@@ -133,7 +134,7 @@ export function SignUpCreateAccountForm({
         <div className="flex items-start gap-3 text-foreground/80 text-sm">
           <Checkbox
             checked={acceptTerms}
-            className="mt-0.5 size-4 rounded-sm border-border data-checked:border-foreground data-checked:bg-foreground data-checked:text-background"
+            className="mt-0.5 size-4 rounded-sm border-border"
             id="ca-accept-terms"
             onCheckedChange={(checked) => setAcceptTerms(checked === true)}
           />
@@ -153,7 +154,7 @@ export function SignUpCreateAccountForm({
         <form.Subscribe>
           {(state) => (
             <Button
-              className="h-10 w-full rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+              className="h-10 w-full rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
               disabled={!state.canSubmit || state.isSubmitting || !acceptTerms}
               type="submit"
             >

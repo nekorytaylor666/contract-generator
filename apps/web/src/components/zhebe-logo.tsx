@@ -1,3 +1,36 @@
+// Arrow glyph shared by both exports — the two paths are identical in the mark
+// and the wordmark, so the mark is a crop of the same artwork, not a redraw.
+const ARROW_HEAD_PATH =
+  "M18.8124 17.2454L9.40513 0L0 17.2454H3.21506L3.75948 16.1282C4.91047 14.1452 7.06242 12.8948 9.40727 12.8948C11.7521 12.8948 13.9041 14.1452 15.0551 16.1282L15.5995 17.2454H18.8145H18.8124ZM9.25509 10.9226C8.19412 10.9226 6.93167 11.2276 5.99716 11.6423L9.40727 4.84684L12.7145 11.6423C11.78 11.2255 10.3182 10.9226 9.25723 10.9226H9.25509Z";
+const ARROW_STEM_PATH = "M10.6869 12.9056H8.12339V48H10.6869V12.9056Z";
+
+/**
+ * Zhebe mark — the "↑" arrow alone, without the wordmark. For places that
+ * already show the full logo elsewhere on screen (auth cards sit under the
+ * AuthShell header) so repeating the word would just duplicate it.
+ *
+ * The viewBox is the arrow's own bounds, so `h-*` sizes the glyph itself
+ * instead of leaving the wordmark's empty width beside it.
+ */
+export function ZhebeMark({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-label="Zhebe"
+      className={className}
+      fill="none"
+      role="img"
+      viewBox="0 0 18.8145 48"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <title>Zhebe</title>
+      <g fill="currentColor">
+        <path d={ARROW_HEAD_PATH} />
+        <path d={ARROW_STEM_PATH} />
+      </g>
+    </svg>
+  );
+}
+
 // Zhebe wordmark (the "↑ zhebe" logo). Uses currentColor so callers control the
 // fill via text color (e.g. text-primary-foreground on the maroon nav).
 export function ZhebeLogo({ className }: { className?: string }) {
@@ -12,8 +45,8 @@ export function ZhebeLogo({ className }: { className?: string }) {
     >
       <title>Zhebe</title>
       <g fill="currentColor">
-        <path d="M18.8124 17.2454L9.40513 0L0 17.2454H3.21506L3.75948 16.1282C4.91047 14.1452 7.06242 12.8948 9.40727 12.8948C11.7521 12.8948 13.9041 14.1452 15.0551 16.1282L15.5995 17.2454H18.8145H18.8124ZM9.25509 10.9226C8.19412 10.9226 6.93167 11.2276 5.99716 11.6423L9.40727 4.84684L12.7145 11.6423C11.78 11.2255 10.3182 10.9226 9.25723 10.9226H9.25509Z" />
-        <path d="M10.6869 12.9056H8.12339V48H10.6869V12.9056Z" />
+        <path d={ARROW_HEAD_PATH} />
+        <path d={ARROW_STEM_PATH} />
         <path d="M30.3996 29.4892H38.1586V31.9449H26.9295V30.2541L34.367 19.7827H27.221V17.327H37.8671V19.0179L30.3996 29.4892Z" />
         <path d="M47.4052 16.9468C48.2604 16.9468 49.0341 17.0886 49.7243 17.37C50.4145 17.6536 51.0082 18.0532 51.5033 18.5688C51.9984 19.0845 52.3821 19.7139 52.6564 20.4551C52.9286 21.1963 53.0637 22.0342 53.0637 22.9688V31.9449H50.5259V23.1364C50.5259 21.9504 50.2044 21.0309 49.5635 20.3799C48.9227 19.729 48.0374 19.4024 46.91 19.4024C45.6454 19.4024 44.6252 19.7956 43.8472 20.584C43.0691 21.3725 42.6812 22.5821 42.6812 24.2149V31.9449H40.1434V11.479H42.6812V19.4325C43.6928 17.7761 45.2682 16.9468 47.4073 16.9468H47.4052Z" />
         <path d="M57.3225 25.8047C57.5755 27.1109 58.1692 28.125 59.1015 28.8447C60.0339 29.5666 61.2021 29.9275 62.6017 29.9275C64.5264 29.9275 65.9261 29.2164 66.8027 27.7941L68.9611 29.023C67.5229 31.2252 65.3838 32.3273 62.5438 32.3273C60.2482 32.3273 58.3621 31.6054 56.8853 30.1639C55.4471 28.6836 54.7269 26.8402 54.7269 24.6381C54.7269 22.436 55.4364 20.584 56.8553 19.1425C58.2742 17.6815 60.1111 16.9489 62.3681 16.9489C64.5071 16.9489 66.2476 17.7095 67.5893 19.2284C68.9504 20.7108 69.6319 22.5219 69.6319 24.666C69.6319 25.0571 69.6019 25.4373 69.5441 25.8069H57.3225V25.8047ZM62.3681 19.3444C61.007 19.3444 59.8796 19.729 58.9837 20.5003C58.0899 21.2715 57.5347 22.2985 57.3204 23.5854H67.062C66.8477 22.1825 66.3033 21.1255 65.4288 20.4122C64.5543 19.701 63.5319 19.3444 62.3659 19.3444H62.3681Z" />

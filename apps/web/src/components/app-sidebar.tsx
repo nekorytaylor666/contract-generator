@@ -62,7 +62,7 @@ const COLLAPSED_ICON =
 // Active item from the design: mauve brand tint (rgba(221,205,213,0.7)) with
 // brand-colored icon + label.
 const ACTIVE_ITEM =
-  "data-active:bg-[#ddcdd5]/70 data-active:text-primary data-active:hover:bg-[#ddcdd5]/70";
+  "data-active:bg-[#ddcdd5]/70 data-active:text-brand data-active:hover:bg-[#ddcdd5]/70";
 
 const MONTHS_RU_GENITIVE = [
   "января",

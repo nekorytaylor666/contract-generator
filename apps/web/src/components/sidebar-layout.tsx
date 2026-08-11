@@ -17,6 +17,7 @@ import { CommandSearchProvider } from "@/components/command-search/command-searc
 import { CommandSearchDialog } from "@/components/command-search/command-search-dialog";
 import { CounterpartiesDialog } from "@/components/counterparties/counterparties-dialog";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { ProductTour } from "@/components/product-tour";
 import { Button } from "@/components/ui/button";
 import {
   SidebarInset,
@@ -293,6 +294,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         </SidebarInset>
       </SidebarProvider>
       <CommandSearchDialog />
+      <ProductTour />
     </CommandSearchProvider>
   );
 }

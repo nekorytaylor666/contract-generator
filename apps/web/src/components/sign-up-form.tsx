@@ -17,6 +17,7 @@ import { SignUpPasswordForm } from "./sign-up-password-form";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
+import { ZhebeMark } from "./zhebe-logo";
 
 type AccountType = "individual" | "legal";
 type Step =
@@ -163,13 +164,14 @@ export default function SignUpForm() {
     return (
       <div className="flex flex-col items-center gap-6">
         <div className="flex flex-col items-center gap-6">
-          <div className="font-bold text-3xl text-foreground">A</div>
+          <ZhebeMark className="h-10 w-auto text-landing" />
           <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="font-medium text-3xl text-foreground">
               Регистрация
             </h1>
             <p className="max-w-[378px] text-base text-foreground/80">
-              1000+ юридически проверенных договоров для Казахстана и СНГ.
+              Зарегистрируйтесь за минуту — и получите доступ к юридически
+              выверенным договорам для Казахстана.
             </p>
           </div>
         </div>
@@ -195,7 +197,7 @@ export default function SignUpForm() {
           </div>
 
           <Button
-            className="h-10 w-full rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+            className="h-10 w-full rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
             disabled={!accountType}
             onClick={() => {
               // Юр.лицо — сразу email+пароль, без method-выбора и без телефона.
@@ -214,7 +216,7 @@ export default function SignUpForm() {
     return (
       <div className="flex flex-col items-center gap-6">
         <div className="flex flex-col items-center gap-6">
-          <div className="font-bold text-3xl text-foreground">A</div>
+          <ZhebeMark className="h-10 w-auto text-landing" />
           <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="font-medium text-3xl text-foreground">
               Регистрация
@@ -228,7 +230,7 @@ export default function SignUpForm() {
 
         <div className="flex w-[372px] max-w-full flex-col gap-2">
           <Button
-            className="h-10 w-full rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90"
+            className="h-10 w-full rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90"
             onClick={() => setStep("phone")}
             type="button"
           >
@@ -242,7 +244,7 @@ export default function SignUpForm() {
             Продолжить с почтой
           </Button>
           <Button
-            className="h-10 w-full gap-2 rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90"
+            className="h-10 w-full gap-2 rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90"
             onClick={() =>
               authClient.signIn.social(
                 {
@@ -280,7 +282,7 @@ export default function SignUpForm() {
   return (
     <div className="flex flex-col items-center gap-6">
       <div className="flex flex-col items-center gap-6">
-        <div className="font-bold text-3xl text-foreground">A</div>
+        <ZhebeMark className="h-10 w-auto text-landing" />
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="font-medium text-3xl text-foreground">
             Введите номер телефона
@@ -333,7 +335,7 @@ export default function SignUpForm() {
         <div className="flex items-start gap-3 text-foreground/80 text-sm">
           <Checkbox
             checked={acceptTerms}
-            className="mt-0.5 size-4 rounded-sm border-border data-checked:border-foreground data-checked:bg-foreground data-checked:text-background"
+            className="mt-0.5 size-4 rounded-sm border-border"
             id="accept-terms"
             onCheckedChange={(checked) => setAcceptTerms(checked === true)}
           />
@@ -353,7 +355,7 @@ export default function SignUpForm() {
         <phoneForm.Subscribe>
           {(state) => (
             <Button
-              className="h-10 w-full rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+              className="h-10 w-full rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
               disabled={!state.canSubmit || state.isSubmitting || !acceptTerms}
               type="submit"
             >

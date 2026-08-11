@@ -16,6 +16,7 @@ import {
 import { TRPCError } from "@trpc/server";
 import { and, eq, inArray, like, ne } from "drizzle-orm";
 import { z } from "zod";
+import { normalizeLocale } from "../constants/template-options";
 import { protectedProcedure, router } from "../index";
 import { checkCurrentPassword } from "../lib/password-guard";
 
@@ -248,7 +249,16 @@ export const accountRouter = router({
       .from(user)
       .where(eq(user.id, ctx.session.user.id))
       .limit(1);
-    return row ?? null;
+    if (!row) {
+      return null;
+    }
+    // Профили, выбравшие английский до того, как язык сняли, отдаём с заменой:
+    // иначе селектор в кабинете показал бы пустое значение, а договоры
+    // продолжили бы создаваться на английском.
+    return {
+      ...row,
+      contractLanguage: normalizeLocale(row.contractLanguage) ?? null,
+    };
   }),
 
   // Меняет только неконфиденциальные поля. Email/телефон здесь можно лишь
@@ -259,7 +269,7 @@ export const accountRouter = router({
         name: z.string().trim().min(1).max(120).optional(),
         email: z.null().optional(),
         phoneNumber: z.null().optional(),
-        contractLanguage: z.enum(["ru", "kk", "en"]).optional(),
+        contractLanguage: z.enum(["ru", "kk"]).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {

@@ -37,7 +37,6 @@ const MOCK_JURISDICTIONS = [
 const MOCK_LANGUAGES = [
   { value: "kz-ru", label: "Казахский, Русский" },
   { value: "ru", label: "Русский" },
-  { value: "en", label: "Английский" },
   { value: "kz", label: "Казахский" },
 ];
 

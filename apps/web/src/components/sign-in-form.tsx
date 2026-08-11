@@ -11,6 +11,7 @@ import Loader from "./loader";
 import { useCountdown } from "./password-dialog-shared";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { ZhebeMark } from "./zhebe-logo";
 
 type Method = "email" | "phone";
 
@@ -458,7 +459,7 @@ export default function SignInForm({
       </phoneForm.Subscribe>
 
       <button
-        className="mx-auto flex items-center justify-center text-muted-foreground text-xs hover:text-foreground disabled:opacity-60"
+        className="mx-auto flex items-center justify-center text-foreground/75 text-xs hover:text-foreground disabled:opacity-60"
         disabled={smsSending}
         onClick={sendSmsCode}
         type="button"
@@ -620,14 +621,14 @@ export default function SignInForm({
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <div className="mb-4 font-bold text-3xl text-primary">A</div>
+        <ZhebeMark className="mx-auto mb-4 h-10 w-auto text-landing" />
         <h1 className="font-bold text-3xl">Добро пожаловать!</h1>
       </div>
 
       {/* Always-visible method buttons; the fields below change with the choice */}
       <div className="flex flex-col gap-2">
         <Button
-          className="h-12 w-full gap-2 rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90"
+          className="h-12 w-full gap-2 rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90"
           onClick={googleSignIn}
           type="button"
         >
@@ -658,7 +659,7 @@ export default function SignInForm({
           Еще нет аккаунта?{" "}
         </span>
         <button
-          className="text-primary text-sm hover:underline"
+          className="text-brand text-sm hover:underline"
           onClick={onSwitchToSignUp}
           type="button"
         >

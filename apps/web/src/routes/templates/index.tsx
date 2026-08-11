@@ -277,19 +277,24 @@ function RouteComponent() {
         </h1>
 
         {/* Search */}
-        <SearchWithSuggestions
-          ariaLabel={t("templates.searchPlaceholder")}
-          onSelectSuggestion={(suggestion) =>
-            handleSearchChange(suggestion.label)
-          }
-          onValueChange={handleSearchChange}
-          placeholder={t("templates.searchPlaceholder")}
-          suggestions={searchSuggestions}
-          value={searchQuery}
-        />
+        <div data-tour="search">
+          <SearchWithSuggestions
+            ariaLabel={t("templates.searchPlaceholder")}
+            onSelectSuggestion={(suggestion) =>
+              handleSearchChange(suggestion.label)
+            }
+            onValueChange={handleSearchChange}
+            placeholder={t("templates.searchPlaceholder")}
+            suggestions={searchSuggestions}
+            value={searchQuery}
+          />
+        </div>
 
         {/* Filters + saved + sort */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div
+          className="flex flex-wrap items-center justify-between gap-2"
+          data-tour="filters"
+        >
           <div className="flex flex-wrap items-center gap-2">
             <CategoryFilter
               onChange={handleCategoriesChange}
@@ -414,11 +419,15 @@ function renderGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {templates.map((template) => (
+    <div
+      className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      data-tour="catalog"
+    >
+      {templates.map((template, index) => (
         <TemplateCard
           categoryIcon={FileText}
           categoryLabel={categoryLabel(template.categories)}
+          dataTour={index === 0 ? "template-card" : undefined}
           description={template.description}
           id={template.id}
           key={template.id}

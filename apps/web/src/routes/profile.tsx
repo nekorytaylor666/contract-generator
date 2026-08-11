@@ -518,7 +518,7 @@ function RequisitesTab() {
               <h3 className="font-semibold text-foreground text-lg leading-6">
                 {requisite.name}
               </h3>
-              <span className="rounded-md bg-secondary/40 px-2 py-0.5 font-medium text-secondary-foreground text-xs">
+              <span className="rounded-md bg-secondary px-2 py-0.5 font-medium text-secondary-foreground text-xs">
                 {requisite.type}
               </span>
             </div>
@@ -771,7 +771,6 @@ const APPLY_BTN =
 const LANGUAGE_LABELS: Record<string, string> = {
   ru: "Русский",
   kk: "Қазақша",
-  en: "English",
 };
 
 type EditField = "name" | "email" | "phone" | "language" | null;
@@ -956,7 +955,9 @@ function PersonalDataTab() {
             Сменить язык
           </Button>
         }
-        subtitle={LANGUAGE_LABELS[me?.contractLanguage ?? "ru"]}
+        subtitle={
+          LANGUAGE_LABELS[me?.contractLanguage ?? "ru"] ?? LANGUAGE_LABELS.ru
+        }
         title="Язык по умолчанию в договорах"
       />
 
@@ -1034,7 +1035,7 @@ function PersonalDataTab() {
       <FieldDialog
         onApply={() =>
           update.mutate({
-            contractLanguage: languageDraft as "ru" | "kk" | "en",
+            contractLanguage: languageDraft as "ru" | "kk",
           })
         }
         onClose={() => setEditing(null)}
@@ -1051,7 +1052,6 @@ function PersonalDataTab() {
             <SelectContent>
               <SelectItem value="ru">Русский</SelectItem>
               <SelectItem value="kk">Қазақша</SelectItem>
-              <SelectItem value="en">English</SelectItem>
             </SelectContent>
           </Select>
         </div>

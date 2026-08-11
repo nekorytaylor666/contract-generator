@@ -146,7 +146,7 @@ function PlansTab() {
                 <td className="px-4 py-2 font-medium">
                   {plan.name}
                   {plan.isDefault && (
-                    <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-primary text-xs">
+                    <span className="ml-2 rounded bg-brand/10 px-1.5 py-0.5 text-brand text-xs">
                       по умолчанию
                     </span>
                   )}

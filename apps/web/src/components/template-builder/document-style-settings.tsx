@@ -61,7 +61,7 @@ function PillTrigger({ label }: { label: string }) {
 interface DocumentStyleSettingsProps {
   style: DocumentStyle;
   onStyleChange: (style: DocumentStyle) => void;
-  /** Contract language (kk/ru/en) — independent from the UI language. */
+  /** Contract language (kk/ru) — independent from the UI language. */
   locale: string;
   onLocaleChange: (locale: string) => void;
 }

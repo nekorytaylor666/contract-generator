@@ -8,6 +8,7 @@ import { authClient } from "@/lib/auth-client";
 
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { ZhebeMark } from "./zhebe-logo";
 
 const emailSchema = z.object({
   name: z.string().min(2, "Имя должно быть не менее 2 символов"),
@@ -55,7 +56,7 @@ export function SignUpEmailForm({
   return (
     <div className="flex flex-col items-center gap-6">
       <div className="flex flex-col items-center gap-6">
-        <div className="font-bold text-3xl text-foreground">A</div>
+        <ZhebeMark className="h-10 w-auto text-landing" />
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="font-medium text-3xl text-foreground">
             Регистрация по почте

@@ -30,6 +30,9 @@ export const user = pgTable("user", {
   onboardingOutreach: text("onboarding_outreach"),
   onboardingPolicyAcceptedAt: timestamp("onboarding_policy_accepted_at"),
   onboardingCompletedAt: timestamp("onboarding_completed_at"),
+  // Продуктовый тур по каталогу/конструктору (7 подсказок из макета
+  // «05_Onboarding») — показывается один раз; ставится и при «Пропустить».
+  productTourCompletedAt: timestamp("product_tour_completed_at"),
   position: text("position"),
   // Active subscription (plan id kept as plain text to avoid an import cycle
   // with the subscription schema; integrity handled in app logic).

@@ -961,7 +961,7 @@ function RouteComponent() {
       <div className="flex h-full flex-col items-center justify-center">
         <p className="font-medium text-foreground text-sm">Шаблон не найден</p>
         <Link
-          className="mt-2 text-primary text-sm hover:underline"
+          className="mt-2 text-brand text-sm hover:underline"
           to="/templates"
         >
           Назад к шаблонам
@@ -1052,6 +1052,7 @@ function RouteComponent() {
             <DropdownMenuTrigger asChild>
               <Button
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
+                data-tour="download"
                 disabled={compileMutation.isPending}
               >
                 {compileMutation.isPending ? (
@@ -1139,7 +1140,10 @@ function RouteComponent() {
 
         {/* Form Sidebar — collapsible; на мобильных занимает всю ширину под документом */}
         {sidebarOpen && (
-          <div className="w-full shrink-0 border-border border-t bg-background p-4 sm:p-5 lg:w-96 lg:overflow-auto lg:border-t-0 lg:border-l">
+          <div
+            className="w-full shrink-0 border-border border-t bg-background p-4 sm:p-5 lg:w-96 lg:overflow-auto lg:border-t-0 lg:border-l"
+            data-tour="builder-form"
+          >
             <h2 className="font-semibold text-foreground text-xl leading-tight">
               {localized.title}
             </h2>

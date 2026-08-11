@@ -39,6 +39,7 @@ import {
 import { z } from "zod";
 import { canEditDocuments } from "../constants/access";
 import {
+  normalizeLocale,
   resolveLocalized,
   resolveLocalizedVariables,
 } from "../constants/template-options";
@@ -1021,7 +1022,7 @@ async function compileTypstToVector(
 
 // 192 ppi ≈ 2x the on-screen size of the preview column — crisp on retina.
 const PHOTO_PPI = 192;
-const PHOTO_LOCALES = new Set(["ru", "kk", "en"]);
+const PHOTO_LOCALES = new Set(["ru", "kk"]);
 const TYPST_MARKUP_CHARS_REGEX = /[\\#[\]*_`$<>@]/g;
 
 function escapeTypstMarkup(text: string): string {
@@ -1322,8 +1323,11 @@ const inflightPreviews = new Map<
  */
 export function getTemplatePreview(
   templateId: string,
-  locale?: string
+  rawLocale?: string
 ): Promise<TemplatePreviewResult | null> {
+  // Снятый язык сводим к замене ДО ключа кэша, иначе ?locale=en из старой
+  // вкладки отрендерил бы «default», а не тот же PNG, что и ?locale=ru.
+  const locale = normalizeLocale(rawLocale) ?? undefined;
   const dedupeKey = `${templateId}:${locale ?? ""}`;
   const existing = inflightPreviews.get(dedupeKey);
   if (existing) {
@@ -1342,7 +1346,7 @@ export const templatesRouter = router({
       z
         .object({
           q: z.string().trim().max(200).optional(),
-          // Document locale for localized title/description (kk/ru/en).
+          // Document locale for localized title/description (kk/ru).
           locale: z.string().optional(),
           // Selected category slugs (any level: group/subcategory/leaf). A
           // template matches when its stored ancestor path overlaps this set.
@@ -2271,8 +2275,11 @@ async function issueDocumentDownload(
 async function loadTemplateSource(
   templateId: string,
   templateVersionId?: string,
-  locale?: string
+  rawLocale?: string
 ): Promise<{ title: string; typstContent: string; variables: unknown }> {
+  // Индексируем localizedContent напрямую, минуя resolveLocalized, — снятый с
+  // обращения язык нужно свести к замене здесь же.
+  const locale = normalizeLocale(rawLocale) ?? undefined;
   const [live] = await db
     .select()
     .from(template)

@@ -104,9 +104,7 @@ export function PlanCard({
     <div
       className={cn(
         "flex flex-col gap-4 rounded-lg border px-5 py-6",
-        plan.current
-          ? "border-primary bg-primary/[0.03]"
-          : "border-border bg-card"
+        plan.current ? "border-brand bg-brand/[0.03]" : "border-border bg-card"
       )}
     >
       <div className="flex flex-col gap-3">
@@ -115,7 +113,7 @@ export function PlanCard({
             {plan.name}
           </h3>
           {plan.discount && (
-            <span className="rounded-full bg-[#ddcdd5]/60 px-2 py-1 font-medium text-[11px] text-primary">
+            <span className="rounded-full bg-[#ddcdd5]/60 px-2 py-1 font-medium text-[11px] text-brand">
               {plan.discount}
             </span>
           )}

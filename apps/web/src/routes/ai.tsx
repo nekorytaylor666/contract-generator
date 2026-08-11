@@ -47,8 +47,8 @@ function RouteComponent() {
             <div
               className={`rounded-lg p-3 ${
                 message.role === "user"
-                  ? "ml-8 bg-primary/10"
-                  : "mr-8 bg-secondary/20"
+                  ? "ml-8 bg-brand/10"
+                  : "mr-8 bg-secondary"
               }`}
               key={message.id}
             >
