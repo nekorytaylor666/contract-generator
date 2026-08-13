@@ -14,7 +14,7 @@ import { Label } from "./ui/label";
 
 export const OUTLINE_BTN = "h-9 px-4 text-sm";
 export const PRIMARY_BTN =
-  "h-9 bg-primary px-4 text-primary-foreground text-sm hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100";
+  "h-9 bg-foreground px-4 text-background text-sm hover:bg-foreground/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100";
 export const NETWORK_ERROR = "Не удалось выполнить запрос. Попробуйте ещё раз.";
 export const COUNTDOWN_TICK_MS = 1000;
 const SECONDS_PER_MINUTE = 60;

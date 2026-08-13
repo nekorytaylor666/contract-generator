@@ -199,7 +199,7 @@ export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
         <form.Subscribe>
           {(state) => (
             <Button
-              className="h-10 w-full rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+              className="h-10 w-full rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
               disabled={!state.canSubmit || state.isSubmitting}
               type="submit"
             >

@@ -99,10 +99,10 @@ function RadioCircle({ selected }: { selected: boolean }) {
       aria-hidden
       className={cn(
         "flex size-4 shrink-0 items-center justify-center rounded-full border",
-        selected ? "border-brand" : "border-muted-foreground/40"
+        selected ? "border-primary" : "border-muted-foreground/40"
       )}
     >
-      {selected && <span className="size-2 rounded-full bg-brand" />}
+      {selected && <span className="size-2 rounded-full bg-primary" />}
     </span>
   );
 }
@@ -164,7 +164,7 @@ function RadioCardsSelect({
             className={cn(
               "relative flex w-full cursor-pointer items-center gap-2.5 rounded-xl border px-3.5 py-3 transition-colors",
               selected
-                ? "border-brand"
+                ? "border-primary"
                 : "border-border hover:border-muted-foreground/40"
             )}
             key={option}

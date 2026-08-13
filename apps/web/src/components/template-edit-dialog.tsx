@@ -188,7 +188,7 @@ function EditInfoStep({
             <InfoRow
               label={t("editDialog.savings")}
               value={`−${formatTenge(price)}`}
-              valueClassName="text-brand"
+              valueClassName="text-[#9e1f5a]"
             />
           )}
           {showQuotaRow && (

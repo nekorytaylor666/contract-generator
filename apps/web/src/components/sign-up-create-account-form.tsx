@@ -134,7 +134,7 @@ export function SignUpCreateAccountForm({
         <div className="flex items-start gap-3 text-foreground/80 text-sm">
           <Checkbox
             checked={acceptTerms}
-            className="mt-0.5 size-4 rounded-sm border-border"
+            className="mt-0.5 size-4 rounded-sm border-border data-checked:border-foreground data-checked:bg-foreground data-checked:text-background"
             id="ca-accept-terms"
             onCheckedChange={(checked) => setAcceptTerms(checked === true)}
           />
@@ -154,7 +154,7 @@ export function SignUpCreateAccountForm({
         <form.Subscribe>
           {(state) => (
             <Button
-              className="h-10 w-full rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+              className="h-10 w-full rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
               disabled={!state.canSubmit || state.isSubmitting || !acceptTerms}
               type="submit"
             >

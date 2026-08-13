@@ -618,6 +618,12 @@ function TermsPage() {
               https://zhebe.kz
             </a>
           </p>
+          <p className="mt-3 font-medium text-foreground">
+            Банковские реквизиты:
+          </p>
+          <p>ИИК (KZT): KZ746017291000004464</p>
+          <p>АО «Народный Банк Казахстана»</p>
+          <p>БИК: HSBKKZKX</p>
         </div>
       </LegalSection>
 

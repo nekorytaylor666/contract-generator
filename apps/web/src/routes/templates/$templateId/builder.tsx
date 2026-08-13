@@ -14,6 +14,7 @@ import {
   PanelRightOpen,
   PenLine,
   Share,
+  X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -52,6 +53,7 @@ import {
 } from "@/lib/counterparty-prefill";
 import { remapValuesForLocale } from "@/lib/locale-values";
 import { isNativeTypst, parseNativeLets } from "@/lib/native-typst";
+import { cn } from "@/lib/utils";
 import type { TemplateVariable } from "@/routes/templates";
 import { useTRPC } from "@/utils/trpc";
 
@@ -292,7 +294,7 @@ function LawyerReviewButton({
         type="button"
       >
         <Share className="size-4" />
-        На проверку юристу
+        <span className="hidden sm:inline">На проверку юристу</span>
       </button>
     );
   }
@@ -318,7 +320,7 @@ function LawyerReviewButton({
       type="button"
     >
       <Share className="size-4" />
-      На проверку юристу
+      <span className="hidden sm:inline">На проверку юристу</span>
     </button>
   );
   if (!hint) {
@@ -333,6 +335,56 @@ function LawyerReviewButton({
         {hint}
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+// Классы панелей конструктора. Ниже lg документ занимает весь экран, а форма
+// живёт в выдвижной шторке снизу (не размонтируется — только translate, чтобы
+// не пересобирать форму и не терять скролл документа). На десктопе — прежние
+// две колонки, форма по sidebarOpen.
+function paneClasses(formSheetOpen: boolean, sidebarOpen: boolean) {
+  return {
+    // overflow-hidden, а не auto: скроллит внутренний контейнер превью — его
+    // же использует авто-прокрутка к последнему изменённому полю.
+    doc: "min-h-0 flex-1 overflow-hidden bg-muted/30 p-4",
+    form: cn(
+      "fixed inset-x-0 bottom-0 z-40 flex max-h-[85dvh] flex-col rounded-t-2xl border-border border-t bg-background shadow-[0_-12px_40px_rgba(0,0,0,0.16)] transition-transform duration-300",
+      formSheetOpen ? "translate-y-0" : "translate-y-full",
+      "lg:static lg:z-auto lg:max-h-none lg:w-96 lg:shrink-0 lg:translate-y-0 lg:rounded-none lg:border-t-0 lg:border-l lg:shadow-none lg:transition-none",
+      sidebarOpen ? "lg:flex" : "lg:hidden"
+    ),
+  };
+}
+
+/** Подложка открытой мобильной шторки формы либо плавающая кнопка её
+ * открытия — оба элемента существуют только ниже lg. */
+function MobileSheetControls({
+  open,
+  onToggle,
+}: {
+  open: boolean;
+  onToggle: (open: boolean) => void;
+}) {
+  if (open) {
+    // Тап по затемнённому документу за шторкой закрывает её.
+    return (
+      <button
+        aria-label="Закрыть заполнение"
+        className="fixed inset-0 z-30 cursor-default bg-black/40 lg:hidden"
+        onClick={() => onToggle(false)}
+        type="button"
+      />
+    );
+  }
+  return (
+    <button
+      className="fixed inset-x-4 bottom-4 z-20 flex h-12 items-center justify-center gap-2 rounded-full bg-primary font-medium text-primary-foreground text-sm shadow-lg transition-colors hover:bg-primary/90 lg:hidden"
+      onClick={() => onToggle(true)}
+      type="button"
+    >
+      <PenLine className="size-4" />
+      Заполнить данные
+    </button>
   );
 }
 
@@ -374,6 +426,10 @@ function RouteComponent() {
   > | null>(null);
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Мобильный конструктор: форма — выдвижная шторка поверх документа, чтобы
+  // не листать десятистраничный договор туда-сюда. Стартуем с открытой:
+  // заполнение и есть основная задача, документ — в одном тапе по крестику.
+  const [formSheetOpen, setFormSheetOpen] = useState(true);
   const [changedVars, setChangedVars] = useState<Set<string>>(new Set());
   const latestValuesRef = useRef<Record<string, unknown> | null>(null);
   const isInlineUpdateRef = useRef(false);
@@ -961,7 +1017,7 @@ function RouteComponent() {
       <div className="flex h-full flex-col items-center justify-center">
         <p className="font-medium text-foreground text-sm">Шаблон не найден</p>
         <Link
-          className="mt-2 text-brand text-sm hover:underline"
+          className="mt-2 text-primary text-sm hover:underline"
           to="/templates"
         >
           Назад к шаблонам
@@ -997,6 +1053,8 @@ function RouteComponent() {
     variables = parseNativeLets(localized.typstContent);
   }
 
+  const panes = paneClasses(formSheetOpen, sidebarOpen);
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Header: на узких экранах кнопки переносятся под хлебные крошки */}
@@ -1027,7 +1085,7 @@ function RouteComponent() {
             templateId={templateId}
           />
         </div>
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:gap-3">
           <SaveStatus
             canEdit={canEdit}
             docLocked={docLocked}
@@ -1060,7 +1118,14 @@ function RouteComponent() {
                 ) : (
                   <DownloadIcon className="size-4" />
                 )}
-                {compileMutation.isPending ? "Скачивание…" : "Скачать договор"}
+                {compileMutation.isPending ? (
+                  "Скачивание…"
+                ) : (
+                  <>
+                    <span className="hidden sm:inline">Скачать договор</span>
+                    <span className="sm:hidden">Скачать</span>
+                  </>
+                )}
                 <ChevronDown className="size-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -1076,9 +1141,11 @@ function RouteComponent() {
             </DropdownMenuContent>
           </DropdownMenu>
           {/* Язык интерфейса и выход — по макету в шапке конструктора
-              (панель «Конструктор» на десктопе скрыта). */}
-          <LanguageSwitcher />
-          <HeaderSignOut />
+              (на мобильных их уже показывает панель приложения). */}
+          <div className="hidden items-center gap-3 md:flex">
+            <LanguageSwitcher />
+            <HeaderSignOut />
+          </div>
         </div>
       </div>
 
@@ -1090,7 +1157,9 @@ function RouteComponent() {
           onStyleChange={handleStyleChange}
           style={documentStyle}
         />
-        <div className="ml-auto">
+        {/* Сворачивание панели — только десктоп: на мобильных панелями
+            управляет переключатель «Данные | Документ» */}
+        <div className="ml-auto hidden lg:block">
           <Button
             onClick={() => setSidebarOpen((o) => !o)}
             size="sm"
@@ -1106,12 +1175,12 @@ function RouteComponent() {
         </div>
       </div>
 
-      {/* Content: на мобильных — документ и форма в столбик с общим скроллом,
+      {/* Content: ниже lg — документ на весь экран + шторка формы поверх,
           на десктопе — две независимо скроллящиеся колонки */}
-      <div className="flex flex-1 flex-col overflow-auto lg:flex-row lg:overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
         {/* Interactive Document Preview */}
-        <div className="bg-muted/30 p-4 lg:flex-1 lg:overflow-auto">
-          <div className="mx-auto max-w-5xl lg:h-full">
+        <div className={panes.doc}>
+          <div className="mx-auto h-full max-w-5xl">
             <PreviewErrorBoundary>
               {isComplexNative(localized.typstContent) ? (
                 <NativeInlinePreview
@@ -1138,12 +1207,27 @@ function RouteComponent() {
           </div>
         </div>
 
-        {/* Form Sidebar — collapsible; на мобильных занимает всю ширину под документом */}
-        {sidebarOpen && (
-          <div
-            className="w-full shrink-0 border-border border-t bg-background p-4 sm:p-5 lg:w-96 lg:overflow-auto lg:border-t-0 lg:border-l"
-            data-tour="builder-form"
-          >
+        <MobileSheetControls onToggle={setFormSheetOpen} open={formSheetOpen} />
+
+        {/* Form Sidebar — на десктопе колонка (сворачивается кнопкой), ниже lg —
+            выдвижная шторка поверх документа. Рендерится всегда: закрытие — это
+            translate, форма не пересобирается и позиции скролла не теряются. */}
+        <div className={panes.form} data-tour="builder-form">
+          {/* Шапка шторки — только мобильная */}
+          <div className="flex items-center justify-between border-border border-b px-4 py-3 lg:hidden">
+            <span className="font-medium text-foreground text-sm">
+              Заполнение данных
+            </span>
+            <button
+              aria-label="Показать документ"
+              className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              onClick={() => setFormSheetOpen(false)}
+              type="button"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
             <h2 className="font-semibold text-foreground text-xl leading-tight">
               {localized.title}
             </h2>
@@ -1179,7 +1263,7 @@ function RouteComponent() {
               </div>
             )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

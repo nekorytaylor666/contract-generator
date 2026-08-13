@@ -518,7 +518,7 @@ function RequisitesTab() {
               <h3 className="font-semibold text-foreground text-lg leading-6">
                 {requisite.name}
               </h3>
-              <span className="rounded-md bg-secondary px-2 py-0.5 font-medium text-secondary-foreground text-xs">
+              <span className="rounded-md bg-secondary/40 px-2 py-0.5 font-medium text-secondary-foreground text-xs">
                 {requisite.type}
               </span>
             </div>

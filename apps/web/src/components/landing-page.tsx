@@ -905,7 +905,7 @@ function Footer() {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 font-medium text-sm">
             <Globe className="size-4" />
             <a className="py-2 hover:underline" href="/terms">
-              Договор оферты
+              Пользовательское соглашение
             </a>
             <a className="py-2 hover:underline" href="/privacy">
               Политика конфиденциальности

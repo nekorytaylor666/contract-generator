@@ -283,10 +283,12 @@ export default function SignInForm({
   };
 
   // The active method button is outlined so it's clear which fields show below.
+  // Чёрная обводка и чёрные кнопки — по макету экрана входа; глобальные токены
+  // (бордовый --primary) здесь сознательно не используются.
   const selectorClass = (active: boolean) =>
     cn(
       "h-12 w-full rounded-lg bg-muted text-foreground text-sm hover:bg-muted/80",
-      active && "ring-2 ring-primary ring-offset-1"
+      active && "ring-2 ring-foreground ring-offset-1"
     );
 
   const emailFields = (
@@ -358,7 +360,7 @@ export default function SignInForm({
       <emailForm.Subscribe>
         {(state) => (
           <Button
-            className="h-12 w-full rounded-lg text-sm"
+            className="h-12 w-full rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90"
             disabled={!state.canSubmit || state.isSubmitting}
             type="submit"
           >
@@ -449,7 +451,7 @@ export default function SignInForm({
       <phoneForm.Subscribe>
         {(state) => (
           <Button
-            className="h-12 w-full rounded-lg text-sm"
+            className="h-12 w-full rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90"
             disabled={!state.canSubmit || state.isSubmitting}
             type="submit"
           >
@@ -511,7 +513,7 @@ export default function SignInForm({
       <otpForm.Subscribe>
         {(state) => (
           <Button
-            className="h-12 w-full rounded-lg text-sm"
+            className="h-12 w-full rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90"
             disabled={!state.canSubmit || state.isSubmitting}
             type="submit"
           >
@@ -590,7 +592,7 @@ export default function SignInForm({
       <twoFaForm.Subscribe>
         {(state) => (
           <Button
-            className="h-12 w-full rounded-lg text-sm"
+            className="h-12 w-full rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90"
             disabled={!state.canSubmit || state.isSubmitting}
             type="submit"
           >
@@ -628,7 +630,7 @@ export default function SignInForm({
       {/* Always-visible method buttons; the fields below change with the choice */}
       <div className="flex flex-col gap-2">
         <Button
-          className="h-12 w-full gap-2 rounded-lg bg-primary text-primary-foreground text-sm hover:bg-primary/90"
+          className="h-12 w-full gap-2 rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90"
           onClick={googleSignIn}
           type="button"
         >
@@ -659,7 +661,7 @@ export default function SignInForm({
           Еще нет аккаунта?{" "}
         </span>
         <button
-          className="text-brand text-sm hover:underline"
+          className="text-primary text-sm hover:underline"
           onClick={onSwitchToSignUp}
           type="button"
         >

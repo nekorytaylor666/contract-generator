@@ -92,13 +92,13 @@ export function ChoiceCard({
       aria-pressed={selected}
       className={cn(
         "flex w-full gap-3 rounded-[10px] border p-3 text-left transition-colors",
-        selected ? "border-brand" : "border-[#e5e5e5] hover:bg-muted/40"
+        selected ? "border-[#9e1f5a]" : "border-[#e5e5e5] hover:bg-muted/40"
       )}
       onClick={onSelect}
       type="button"
     >
       <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border border-[#d4d4d4]">
-        {selected && <span className="size-2 rounded-full bg-brand" />}
+        {selected && <span className="size-2 rounded-full bg-[#9e1f5a]" />}
       </span>
       <span className="flex flex-col gap-0.5">
         <span className="font-medium text-foreground text-sm leading-[18px]">

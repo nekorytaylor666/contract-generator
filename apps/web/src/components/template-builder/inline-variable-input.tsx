@@ -166,7 +166,7 @@ export function InlineVariableInput({
       {variable.label}
     </span>
   ) : (
-    <span className="inline-flex border-brand/30 border-b border-dashed px-0.5 decoration-brand/30 transition-colors hover:bg-brand/10">
+    <span className="inline-flex border-primary/30 border-b border-dashed px-0.5 decoration-primary/30 transition-colors hover:bg-primary/10">
       {displayValue}
     </span>
   );

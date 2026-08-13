@@ -47,7 +47,7 @@ function SettingsPage() {
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{org.name}</span>
                       {activeOrg?.id === org.id && (
-                        <span className="rounded bg-brand/10 px-1.5 py-0.5 text-brand text-xs">
+                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary text-xs">
                           активная
                         </span>
                       )}

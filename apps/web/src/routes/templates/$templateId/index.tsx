@@ -15,7 +15,7 @@ import {
   FolderOpen,
   PenLine,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -247,10 +247,20 @@ export const Route = createFileRoute("/templates/$templateId/")({
   // ?payInvId / ?payFailed — возврат с оплаты Робокассы: модалка скачивания
   // открывается сразу в состоянии «Проверяем оплату» / «Не удалось провести
   // оплату» (см. TemplateDownloadDialog).
+  // ?action=edit|download — пункты меню карточки каталога: открывают те же
+  // гейт-модалки (цена/квота/оплата), что и кнопки на этой странице.
   validateSearch: (
     search: Record<string, unknown>
-  ): { payInvId?: number; payFailed?: boolean } => {
-    const result: { payInvId?: number; payFailed?: boolean } = {};
+  ): {
+    payInvId?: number;
+    payFailed?: boolean;
+    action?: "edit" | "download";
+  } => {
+    const result: {
+      payInvId?: number;
+      payFailed?: boolean;
+      action?: "edit" | "download";
+    } = {};
     const raw = search.payInvId;
     if (raw != null && raw !== "") {
       const parsed = Number(raw);
@@ -260,6 +270,9 @@ export const Route = createFileRoute("/templates/$templateId/")({
     }
     if (search.payFailed) {
       result.payFailed = true;
+    }
+    if (search.action === "edit" || search.action === "download") {
+      result.action = search.action;
     }
     return result;
   },
@@ -278,12 +291,15 @@ function RouteComponent() {
   // сразу чистится (replace), чтобы обновление страницы не открывало модалку
   // заново. Какую модалку открыть (скачивание или редактирование), решаем по
   // сохранённой перед редиректом ветке (см. download-return.ts).
-  const { payInvId, payFailed } = Route.useSearch();
+  const { payInvId, payFailed, action } = Route.useSearch();
   const [initialPayment] = useState<InitialPayment | null>(() =>
     payInvId != null || payFailed
       ? { invId: payInvId ?? null, failed: Boolean(payFailed) }
       : null
   );
+  // Запрошенное меню карточки действие фиксируем при монтировании — search
+  // чистится ниже тем же эффектом, что и параметры возврата с оплаты.
+  const [initialAction] = useState(() => action ?? null);
   const [paymentTarget] = useState<"download" | "edit">(() => {
     const flow = readDownloadReturn()?.flow;
     return flow === "edit" || flow === "edit-upgrade" ? "edit" : "download";
@@ -355,9 +371,10 @@ function RouteComponent() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Search-параметры возврата с оплаты одноразовые — сразу убираем их из URL.
+  // Search-параметры возврата с оплаты и действия меню одноразовые — сразу
+  // убираем их из URL.
   useEffect(() => {
-    if (payInvId == null && !payFailed) {
+    if (payInvId == null && !payFailed && !action) {
       return;
     }
     navigate({
@@ -366,7 +383,7 @@ function RouteComponent() {
       search: {},
       replace: true,
     });
-  }, [payInvId, payFailed, navigate, templateId]);
+  }, [payInvId, payFailed, action, navigate, templateId]);
 
   // Create the document up-front so it shows in "Мои документы" immediately,
   // then open the builder editing it (further changes update the same doc).
@@ -424,6 +441,21 @@ function RouteComponent() {
     });
   };
 
+  // ?action из меню карточки каталога: как только шаблон загружен, открываем
+  // соответствующую гейт-модалку. Один раз — повторные рендеры не перезапускают.
+  const actionFiredRef = useRef(false);
+  useEffect(() => {
+    if (!(template && initialAction) || actionFiredRef.current) {
+      return;
+    }
+    actionFiredRef.current = true;
+    if (initialAction === "download") {
+      setDownloadOpen(true);
+    } else {
+      handleEdit();
+    }
+  });
+
   // "4 999 ₸" — matches the catalogue card; free templates show a label.
   const formatPrice = (tenge: number) =>
     tenge > 0 ? `${tenge.toLocaleString("ru-RU")} ₸` : t("templates.free");
@@ -444,7 +476,7 @@ function RouteComponent() {
           Шаблон не найден
         </p>
         <Link
-          className="mt-2 text-brand text-sm hover:underline"
+          className="mt-2 text-primary text-sm hover:underline"
           to="/templates"
         >
           Назад к шаблонам
@@ -512,7 +544,7 @@ function RouteComponent() {
             {/* Цена не в подписи, а в модалке «Редактирование договора» —
                 платные шаблоны всегда открывают её. */}
             <button
-              className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 font-medium text-primary-foreground text-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
+              className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg bg-[#9e1f5a] px-3 font-medium text-[#fafafa] text-sm transition-colors hover:bg-[#8b1a50] disabled:opacity-60"
               data-tour="edit"
               disabled={createDraftMutation.isPending}
               onClick={handleEdit}
@@ -558,7 +590,7 @@ function RouteComponent() {
                     шаблон, чтобы увидеть его целиком.
                   </p>
                   <button
-                    className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 font-medium text-primary-foreground text-sm transition-colors hover:bg-primary/90 disabled:opacity-60"
+                    className="inline-flex h-10 items-center justify-center rounded-lg bg-[#9e1f5a] px-4 font-medium text-[#fafafa] text-sm transition-colors hover:bg-[#8b1a50] disabled:opacity-60"
                     disabled={createDraftMutation.isPending}
                     onClick={handleEdit}
                     type="button"

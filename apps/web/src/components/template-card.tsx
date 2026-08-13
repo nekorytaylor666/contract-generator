@@ -23,9 +23,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -67,7 +64,7 @@ export function TemplateCard({
   updatedAt,
   dataTour,
 }: TemplateCardProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -81,26 +78,6 @@ export function TemplateCard({
           queryKey: trpc.templates.myBookmarks.queryKey(),
         });
         toast.success(res.saved ? "Шаблон сохранён" : "Убрано из сохранённых");
-      },
-      onError: (err) => toast.error(err.message),
-    })
-  );
-
-  const downloadMutation = useMutation(
-    trpc.templates.downloadPurchased.mutationOptions({
-      onSuccess: (result) => {
-        const link = document.createElement("a");
-        link.href = result.dataUrl;
-        link.download = result.fileName;
-        link.click();
-        // Скачивание может списать квоту — обновляем «Использование», а в
-        // «Моих документах» появилась/поднялась «выданная» карточка.
-        queryClient.invalidateQueries(
-          trpc.subscriptions.mySubscription.queryFilter()
-        );
-        queryClient.invalidateQueries({
-          queryKey: trpc.documents.list.queryKey(),
-        });
       },
       onError: (err) => toast.error(err.message),
     })
@@ -156,7 +133,9 @@ export function TemplateCard({
                 <Bookmark
                   className={cn(
                     "size-4",
-                    saved ? "fill-brand text-brand" : "text-muted-foreground"
+                    saved
+                      ? "fill-primary text-primary"
+                      : "text-muted-foreground"
                   )}
                 />
               </button>
@@ -182,49 +161,33 @@ export function TemplateCard({
                     e.stopPropagation();
                   }}
                 >
+                  {/* Оба действия идут через гейт-модалки страницы шаблона
+                      (цена/квота/оплата): прямые вызовы отсюда позволяли
+                      скачивать и редактировать в обход оплаты. */}
                   <DropdownMenuItem
                     onSelect={() =>
                       navigate({
-                        to: "/templates/$templateId/builder",
+                        to: "/templates/$templateId",
                         params: { templateId: id },
+                        search: { action: "edit" },
                       })
                     }
                   >
                     <Pencil className="size-4" />
                     {t("templates.edit")}
                   </DropdownMenuItem>
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <Download className="mr-2 size-4 text-muted-foreground" />
-                      {t("templates.download")}
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="min-w-40">
-                      <DropdownMenuItem
-                        disabled={downloadMutation.isPending}
-                        onSelect={() =>
-                          downloadMutation.mutate({
-                            templateId: id,
-                            locale: i18n.language,
-                            format: "pdf",
-                          })
-                        }
-                      >
-                        Скачать в PDF
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        disabled={downloadMutation.isPending}
-                        onSelect={() =>
-                          downloadMutation.mutate({
-                            templateId: id,
-                            locale: i18n.language,
-                            format: "docx",
-                          })
-                        }
-                      >
-                        Скачать в DocX
-                      </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      navigate({
+                        to: "/templates/$templateId",
+                        params: { templateId: id },
+                        search: { action: "download" },
+                      })
+                    }
+                  >
+                    <Download className="size-4" />
+                    {t("templates.download")}
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={bookmarkMutation.isPending}
                     onSelect={() => bookmarkMutation.mutate({ templateId: id })}

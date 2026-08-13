@@ -146,7 +146,7 @@ export function SignUpEmailConfirmForm({
         <div className="flex items-center gap-2">
           <span className="text-foreground text-sm">Не та почта?</span>
           <button
-            className="text-brand text-sm hover:underline"
+            className="text-primary text-sm hover:underline"
             onClick={onChangeEmail}
             type="button"
           >
