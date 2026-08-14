@@ -9,7 +9,7 @@ import {
 } from "@contract-builder/api/constants/template-options";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Eye, EyeOff, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { InteractiveDocumentPreview } from "@/components/template-builder/interactive-document-preview";
@@ -39,6 +39,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { requireAdmin } from "@/lib/auth-guard";
+import { fuzzySearch } from "@/lib/fuzzy-search";
 import {
   detectVariables,
   type MergedVariable,
@@ -480,6 +481,20 @@ function AdminTemplatesPage() {
   const queryClient = useQueryClient();
   const listQuery = useQuery(trpc.adminTemplates.list.queryOptions());
 
+  // Поиск по списку: с ростом каталога искать нужный шаблон глазами сверху
+  // вниз стало тяжело. Фильтр тот же, что в каталоге (fuzzy по названию и
+  // описанию), считается на клиенте — список уже загружен целиком.
+  const [search, setSearch] = useState("");
+  const filteredRows = useMemo(() => {
+    const rows = listQuery.data ?? [];
+    if (!search.trim()) {
+      return rows;
+    }
+    return fuzzySearch(search, rows, (row) => [row.title, row.description]).map(
+      (result) => result.item
+    );
+  }, [listQuery.data, search]);
+
   const [editing, setEditing] = useState<TemplateRow | null>(null);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -726,14 +741,31 @@ function AdminTemplatesPage() {
         </Button>
       </div>
 
+      <div className="shrink-0 border-b px-6 py-3">
+        <div className="relative max-w-md">
+          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Поиск по названию или описанию"
+            type="search"
+            value={search}
+          />
+        </div>
+      </div>
+
       <div className="flex min-w-0 flex-1 flex-col gap-2 overflow-y-auto p-6">
         {listQuery.isLoading && (
           <div className="text-muted-foreground text-sm">Загрузка...</div>
         )}
-        {listQuery.data?.length === 0 && (
-          <div className="text-muted-foreground text-sm">Шаблонов пока нет</div>
+        {!listQuery.isLoading && filteredRows.length === 0 && (
+          <div className="text-muted-foreground text-sm">
+            {search.trim()
+              ? "По запросу ничего не найдено"
+              : "Шаблонов пока нет"}
+          </div>
         )}
-        {listQuery.data?.map((row) => (
+        {filteredRows.map((row) => (
           <div
             className="flex items-center justify-between rounded-lg border bg-card p-4"
             key={row.id}
