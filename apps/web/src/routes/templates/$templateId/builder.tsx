@@ -51,6 +51,7 @@ import {
   collectPartyBindings,
   extractCounterpartyDraft,
 } from "@/lib/counterparty-prefill";
+import { startFileDownload } from "@/lib/download-file";
 import { remapValuesForLocale } from "@/lib/locale-values";
 import { isNativeTypst, parseNativeLets } from "@/lib/native-typst";
 import { cn } from "@/lib/utils";
@@ -650,12 +651,7 @@ function RouteComponent() {
   const compileMutation = useMutation(
     trpc.templates.compile.mutationOptions({
       onSuccess: (data) => {
-        const link = document.createElement("a");
-        link.href = data.dataUrl;
-        link.download = data.fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        startFileDownload(data.downloadPath);
         // Сервер пометил документ скачанным — обновляем его и список, чтобы
         // блокировка редактирования появилась сразу, без перезагрузки.
         if (documentId) {

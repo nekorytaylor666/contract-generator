@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { startFileDownload } from "@/lib/download-file";
 import { readDownloadReturn } from "@/lib/download-return";
 import { useTRPC } from "@/utils/trpc";
 
@@ -61,10 +62,7 @@ function PaymentSuccess() {
   const downloadMutation = useMutation(
     trpc.templates.downloadPurchased.mutationOptions({
       onSuccess: (result) => {
-        const link = document.createElement("a");
-        link.href = result.dataUrl;
-        link.download = result.fileName;
-        link.click();
+        startFileDownload(result.downloadPath);
       },
       onError: (error) => toast.error(error.message),
     })

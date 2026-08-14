@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { startFileDownload } from "@/lib/download-file";
 import { useTRPC } from "@/utils/trpc";
 
 // «Март 2025» — capitalized month + year. ru-RU с year:"numeric" добавляет
@@ -57,10 +58,7 @@ export function TemplateInfoDialog({
   const downloadMutation = useMutation(
     trpc.templates.downloadPurchased.mutationOptions({
       onSuccess: (result) => {
-        const link = document.createElement("a");
-        link.href = result.dataUrl;
-        link.download = result.fileName;
-        link.click();
+        startFileDownload(result.downloadPath);
         // Скачивание может списать квоту — обновляем «Использование».
         queryClient.invalidateQueries(
           trpc.subscriptions.mySubscription.queryFilter()

@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { startFileDownload } from "@/lib/download-file";
 import {
   clearDownloadReturn,
   type DownloadReturnFlow,
@@ -41,6 +42,10 @@ import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
 
 type DownloadFormat = "pdf" | "docx";
+
+// Чуть меньше серверного TTL токена скачивания (10 минут): старше — токен
+// считаем мёртвым и повторяем мутацию вместо навигации по нему.
+const DOWNLOAD_TOKEN_MAX_AGE_MS = 9 * 60 * 1000;
 
 // Шаги модалки — по макету «Скачивание договора»: выбор формата, экран
 // исчерпанного лимита с выбором «купить/повысить тариф», выбор нового тарифа
@@ -87,13 +92,6 @@ function headerTitleKey(step: Step, upgradeContext: boolean): string {
     return "downloadDialog.upgradeTitle";
   }
   return "downloadDialog.title";
-}
-
-function triggerFileDownload(dataUrl: string, fileName: string): void {
-  const link = document.createElement("a");
-  link.href = dataUrl;
-  link.download = fileName;
-  link.click();
 }
 
 /** Доступ к скачиванию: чем покрыт (покупка/бесплатно/квота) и остаток. */
@@ -368,10 +366,10 @@ export function TemplateDownloadDialog({
 
   const autoDownloadedRef = useRef(false);
   // Последний успешно собранный файл: кнопка «Скачать договор» на экране
-  // успеха отдаёт его повторно, не тратя квоту на новый запрос.
-  const lastFileRef = useRef<{ dataUrl: string; fileName: string } | null>(
-    null
-  );
+  // успеха повторно ходит по тому же токену, не тратя квоту на новый запрос.
+  // Возраст запоминаем, чтобы не навигировать на заведомо мёртвый токен
+  // (серверный TTL фиксированный, без продления на чтении).
+  const lastDownloadRef = useRef<{ path: string; at: number } | null>(null);
   const lastFlowRef = useRef<{
     flow: DownloadReturnFlow;
     planId: string | null;
@@ -427,8 +425,8 @@ export function TemplateDownloadDialog({
   const downloadMutation = useMutation(
     trpc.templates.downloadPurchased.mutationOptions({
       onSuccess: (result) => {
-        triggerFileDownload(result.dataUrl, result.fileName);
-        lastFileRef.current = result;
+        startFileDownload(result.downloadPath);
+        lastDownloadRef.current = { path: result.downloadPath, at: Date.now() };
         // Скачивание могло списать квоту, а «выданный» документ появился в
         // «Моих документах» — обновляем оба виджета.
         invalidateAccess();
@@ -552,7 +550,7 @@ export function TemplateDownloadDialog({
       setUpgradeContext(false);
       setCheckingInvId(null);
       autoDownloadedRef.current = false;
-      lastFileRef.current = null;
+      lastDownloadRef.current = null;
     }
     wasOpenRef.current = open;
   }, [open]);
@@ -608,13 +606,16 @@ export function TemplateDownloadDialog({
     }
   };
 
-  // Повторное скачивание с экрана успеха — без нового списания квоты.
+  // Повторное скачивание с экрана успеха — без нового списания квоты, пока
+  // серверный токен жив; близкий к истечению не трогаем и честно повторяем
+  // мутацию (иначе навигация упрётся в мёртвый токен и файл не придёт).
   const handleManualDownload = () => {
-    const file = lastFileRef.current;
-    if (file) {
-      triggerFileDownload(file.dataUrl, file.fileName);
+    const last = lastDownloadRef.current;
+    if (last && Date.now() - last.at < DOWNLOAD_TOKEN_MAX_AGE_MS) {
+      startFileDownload(last.path);
       return;
     }
+    lastDownloadRef.current = null;
     downloadNow();
   };
 
