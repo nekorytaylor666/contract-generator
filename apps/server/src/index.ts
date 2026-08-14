@@ -1,6 +1,10 @@
 import { devToolsMiddleware } from "@ai-sdk/devtools";
 import { google } from "@ai-sdk/google";
 import { createContext } from "@contract-builder/api/context";
+import {
+  contentDispositionAttachment,
+  takeDownload,
+} from "@contract-builder/api/lib/download-store";
 import { processRobokassaResult } from "@contract-builder/api/lib/payment-service";
 import { verifySuccessSignature } from "@contract-builder/api/lib/robokassa";
 import { appRouter } from "@contract-builder/api/routers/index";
@@ -15,7 +19,14 @@ import { logger } from "hono/logger";
 
 const app = new Hono();
 
-app.use(logger());
+// Токен скачивания — capability: в логах ему не место (иначе читатель логов
+// может скачать чужой договор, пока токен жив).
+const DOWNLOAD_TOKEN_PATH = /\/download\/[\w-]+/g;
+app.use(
+  logger((str: string, ...rest: string[]) => {
+    console.log(str.replace(DOWNLOAD_TOKEN_PATH, "/download/:token"), ...rest);
+  })
+);
 app.use(
   "/*",
   cors({
@@ -103,6 +114,29 @@ app.get("/templates/:id/preview.png", async (c) => {
   }
   c.header("Content-Type", "image/png");
   return c.body(new Uint8Array(preview.png));
+});
+
+// Скачивание собранного договора: мутации compile/downloadPurchased проводят
+// проверку доступа и списание квоты, кладут файл в память и возвращают
+// короткоживущий токен (многоразовый в пределах фиксированного TTL — кнопка
+// «Скачать» на экране успеха ходит по тому же URL); клиент забирает файл
+// top-level-навигацией сюда. Attachment-ответ не выгружает SPA и, в отличие
+// от программного клика по <a download>, не требует transient user
+// activation — иначе iOS WebKit молча игнорирует скачивание (гест истекает
+// за ~1 с сетевого запроса).
+app.get("/download/:token", (c) => {
+  const file = takeDownload(c.req.param("token"));
+  if (!file) {
+    // Токен истёк или сервер перезапустился. 204 на top-level-навигацию
+    // браузер трактует как no-op и остаётся на текущей странице — SPA
+    // не выгружается ни в какой ветке (клиент сам повторяет мутацию по
+    // возрасту токена, см. TemplateDownloadDialog).
+    return c.body(null, 204);
+  }
+  c.header("Content-Type", file.contentType);
+  c.header("Content-Disposition", contentDispositionAttachment(file.fileName));
+  c.header("Cache-Control", "no-store");
+  return c.body(new Uint8Array(file.bytes));
 });
 
 app.post("/ai", async (c) => {

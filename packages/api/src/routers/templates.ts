@@ -57,6 +57,7 @@ import {
   hasPaidEditPurchase,
   pinLatestTemplateVersion,
 } from "../lib/document-service";
+import { stashDownload } from "../lib/download-store";
 import { sendLawyerReviewEmail } from "../lib/mailer";
 import {
   consumeQuota,
@@ -1785,19 +1786,21 @@ export const templatesRouter = router({
 
       // DOCX собирается из того же контента с подставленными значениями;
       // разметка страницы/логотип в нём не участвуют (ограничение экспорта).
-      let dataUrl: string;
+      let bytes: Buffer;
+      let contentType: string;
       let fileName: string;
       try {
         if (input.format === "docx") {
-          const docx = await compileTypstToDocx(processedContent);
-          dataUrl = `data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,${docx.toString("base64")}`;
+          bytes = await compileTypstToDocx(processedContent);
+          contentType =
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
           fileName = `${source.title}.docx`;
         } else {
-          const pdf = await compileTypst(processedContent, {
+          bytes = await compileTypst(processedContent, {
             logoBase64: compileArgs.logo,
             style: compileArgs.style,
           });
-          dataUrl = `data:application/pdf;base64,${pdf.toString("base64")}`;
+          contentType = "application/pdf";
           fileName = `${source.title}.pdf`;
         }
       } catch (error) {
@@ -1816,7 +1819,14 @@ export const templatesRouter = router({
       if (download.mode === "issue") {
         await issueDocumentDownload(download, compileArgs);
       }
-      return { dataUrl, fileName };
+      // Файл забирают GET-навигацией по одноразовому токену (iOS игнорирует
+      // data:-URL + синтетический клик); dataUrl — фолбэк для закэшированных
+      // старых сборок SPA, убрать после следующего деплоя фронта.
+      return {
+        downloadPath: stashDownload({ bytes, fileName, contentType }),
+        dataUrl: `data:${contentType};base64,${bytes.toString("base64")}`,
+        fileName,
+      };
     }),
 
   /**
@@ -1992,24 +2002,23 @@ export const templatesRouter = router({
           input.locale
         )
       );
-      let result: { dataUrl: string; fileName: string };
+      let bytes: Buffer;
+      let contentType: string;
+      let fileName: string;
       try {
         if (input.format === "docx") {
-          const docx = await compileTypstToDocx(processedContent);
-          result = {
-            dataUrl: `data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,${docx.toString("base64")}`,
-            fileName: `${resolved.title}.docx`,
-          };
+          bytes = await compileTypstToDocx(processedContent);
+          contentType =
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+          fileName = `${resolved.title}.docx`;
         } else {
           // Same baseline preset the preview photo uses — a set-less template
           // must download looking like its catalogue photo (justified, 2cm).
-          const pdf = await compileTypst(processedContent, {
+          bytes = await compileTypst(processedContent, {
             style: { preset: "default" },
           });
-          result = {
-            dataUrl: `data:application/pdf;base64,${pdf.toString("base64")}`,
-            fileName: `${resolved.title}.pdf`,
-          };
+          contentType = "application/pdf";
+          fileName = `${resolved.title}.pdf`;
         }
       } catch (error) {
         const fmt = input.format.toUpperCase();
@@ -2030,7 +2039,14 @@ export const templatesRouter = router({
         locale: input.locale,
       });
 
-      return result;
+      // Файл забирают GET-навигацией по одноразовому токену (iOS игнорирует
+      // data:-URL + синтетический клик); dataUrl — фолбэк для закэшированных
+      // старых сборок SPA, убрать после следующего деплоя фронта.
+      return {
+        downloadPath: stashDownload({ bytes, fileName, contentType }),
+        dataUrl: `data:${contentType};base64,${bytes.toString("base64")}`,
+        fileName,
+      };
     }),
 });
 
