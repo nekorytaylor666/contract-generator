@@ -286,6 +286,7 @@ export function TemplateForm({
         <CounterpartySectionPicker
           field={field}
           label={label}
+          locale={locale}
           mapping={mapping}
           setFieldValue={(name, value) => form.setFieldValue(name, value)}
           variablesByName={byName}

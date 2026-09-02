@@ -40,6 +40,8 @@ interface CounterpartySectionPickerProps {
   variablesByName: ReadonlyMap<string, TemplateVariable>;
   field: PickerFieldInstance;
   setFieldValue: (name: string, value: unknown) => void;
+  /** Язык договора — подписи пикера следуют ему, а не языку интерфейса. */
+  locale?: string;
 }
 
 /**
@@ -54,8 +56,12 @@ export function CounterpartySectionPicker({
   variablesByName,
   field,
   setFieldValue,
+  locale,
 }: CounterpartySectionPickerProps) {
-  const { t } = useTranslation();
+  const { t: uiT, i18n } = useTranslation();
+  // Секция рендерится на языке договора (заголовки, плейсхолдеры полей) —
+  // подписи пикера не должны от неё отличаться.
+  const t = locale ? i18n.getFixedT(locale) : uiT;
   const trpc = useTRPC();
   const { data: subscription } = useQuery(
     trpc.subscriptions.mySubscription.queryOptions()

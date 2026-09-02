@@ -96,6 +96,75 @@ export async function sendLawyerReviewEmail(opts: {
 }
 
 /**
+ * Заявка «Получить консультацию» с лендинга: письмо с контактами и текстом
+ * запроса уходит на CONSULT_EMAIL (по умолчанию — LAWYER_EMAIL, затем
+ * SMTP_USER). Reply-To — почта посетителя, чтобы ответить напрямую.
+ */
+export async function sendConsultationEmail(opts: {
+  phone: string;
+  email: string;
+  message: string;
+}): Promise<void> {
+  const to = env.CONSULT_EMAIL ?? env.LAWYER_EMAIL ?? env.SMTP_USER;
+  if (!to) {
+    throw new Error(
+      "Не задана почта для заявок: CONSULT_EMAIL, LAWYER_EMAIL или SMTP_USER"
+    );
+  }
+  const safePhone = escapeHtml(opts.phone);
+  const safeEmail = escapeHtml(opts.email);
+  // Перевод строки посетителя сохраняем в HTML-версии как <br />.
+  const safeMessage = escapeHtml(opts.message).replace(/\n/g, "<br />");
+
+  const subject = "Заявка на консультацию с сайта Zhebe";
+
+  const text = [
+    "Новая заявка на консультацию с лендинга Zhebe.",
+    "",
+    `Телефон: ${opts.phone}`,
+    `Почта: ${opts.email}`,
+    "",
+    "Запрос:",
+    opts.message,
+    "",
+    "Ответьте на это письмо, чтобы связаться с клиентом по почте.",
+  ].join("\n");
+
+  const row = (label: string, value: string) =>
+    `<tr><td style="font-size:14px;line-height:22px;color:#52525b;padding-right:16px;white-space:nowrap;vertical-align:top;">${label}</td><td style="font-size:14px;line-height:22px;color:#18181b;">${value}</td></tr>`;
+
+  const html = `<!doctype html>
+<html lang="ru">
+  <body style="margin:0;padding:24px;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;color:#18181b;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;padding:32px;">
+            <tr><td style="font-size:20px;font-weight:bold;color:#53052c;padding-bottom:16px;">Zhebe</td></tr>
+            <tr><td style="font-size:16px;line-height:24px;padding-bottom:16px;">
+              Новая заявка на консультацию с лендинга.
+            </td></tr>
+            <tr><td style="padding-bottom:24px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                ${row("Телефон", safePhone)}
+                ${row("Почта", safeEmail)}
+                ${row("Запрос", safeMessage)}
+              </table>
+            </td></tr>
+            <tr><td style="font-size:14px;line-height:20px;color:#52525b;">
+              Ответьте на это письмо, чтобы связаться с клиентом по почте.
+            </td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  await sendMail({ to, subject, html, text, replyTo: opts.email });
+}
+
+/**
  * Sends a team invitation email with a link to accept. The link points at the
  * frontend accept page, which calls the `team.acceptInvite` mutation.
  */

@@ -3,6 +3,7 @@ import { ArrowRight, ArrowUpRight, ChevronDown, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { ConsultationDialog } from "@/components/consultation-dialog";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
@@ -16,8 +17,8 @@ const MUTED = "#a3a3a3";
 // Песочная панель под скриншотом продукта (brand-shades/primary/secondary/200).
 const SAND = "#f5d9b0";
 
-// Консультации ведём в WhatsApp — номер из футера макета. Отдельного попапа
-// в дизайне нет, поэтому кнопка «Получить консультацию» открывает чат.
+// Контакты футера — номер из макета. Кнопка «Получить консультацию» в хиро
+// открывает форму заявки (ConsultationDialog), а не чат.
 const WHATSAPP_URL = "https://wa.me/77711017744";
 const PHONE_DISPLAY = "+7 771 101 77 44";
 const PHONE_HREF = "tel:+77711017744";
@@ -203,6 +204,7 @@ function Navbar() {
 
 function Hero() {
   const { t } = useTranslation();
+  const [consultOpen, setConsultOpen] = useState(false);
   return (
     <section className="relative" id="top">
       <img
@@ -226,13 +228,16 @@ function Hero() {
           </div>
           <div className="flex flex-wrap items-center gap-4">
             <Button
-              asChild
               className="h-9 rounded-full bg-[#f5f5f5] px-4 font-medium text-[#0a0a0a] text-sm hover:bg-white"
+              onClick={() => setConsultOpen(true)}
+              type="button"
             >
-              <a href={WHATSAPP_URL} rel="noopener noreferrer" target="_blank">
-                {t("about.hero.consult")}
-              </a>
+              {t("about.hero.consult")}
             </Button>
+            <ConsultationDialog
+              onOpenChange={setConsultOpen}
+              open={consultOpen}
+            />
             <Button
               asChild
               className="h-9 rounded-full border-[#faf9f6] bg-transparent px-4 font-medium text-[#faf9f6] text-sm hover:bg-white/10"

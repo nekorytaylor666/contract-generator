@@ -24,6 +24,9 @@ export const env = createEnv({
     // Рабочая почта, куда уходят договоры «На проверку юристу».
     // По умолчанию — SMTP_USER (письмо самому себе).
     LAWYER_EMAIL: z.string().min(1).optional(),
+    // Почта для заявок «Получить консультацию» с лендинга.
+    // По умолчанию — LAWYER_EMAIL, затем SMTP_USER.
+    CONSULT_EMAIL: z.string().min(1).optional(),
     // Mobizon SMS gateway (api.mobizon.kz) for phone OTP. Optional so the
     // server boots without it — the phone sign-in then falls back to the dev
     // stub (code "111111", nothing is sent).

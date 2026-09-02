@@ -3,6 +3,7 @@ import { accountRouter } from "./account";
 import { adminRouter } from "./admin";
 import { adminTemplatesRouter } from "./admin-templates";
 import { authRouter } from "./auth";
+import { consultationsRouter } from "./consultations";
 import { counterpartiesRouter } from "./counterparties";
 import { documentsRouter } from "./documents";
 import { onboardingRouter } from "./onboarding";
@@ -32,6 +33,7 @@ export const appRouter = router({
   requisites: requisitesRouter,
   counterparties: counterpartiesRouter,
   subscriptions: subscriptionsRouter,
+  consultations: consultationsRouter,
   adminTemplates: adminTemplatesRouter,
   admin: adminRouter,
 });
