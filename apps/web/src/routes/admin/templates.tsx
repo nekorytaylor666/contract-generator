@@ -68,6 +68,7 @@ interface TemplateRow {
   isPublished: boolean;
   categories: string[] | null;
   documentType: string | null;
+  relatedTemplateIds: string[] | null;
   localizedContent: Record<string, LocaleContent> | null;
   updatedAt: string | Date;
 }
@@ -91,6 +92,8 @@ interface FormState {
   isPublished: boolean;
   categories: string[];
   documentType: string;
+  // Связанные договоры — id шаблонов в порядке показа в модалке «О договоре».
+  relatedTemplateIds: string[];
   // Per-locale overrides (kk/ru). Empty fields fall back to the defaults.
   localizedContent: Record<string, LocaleForm>;
 }
@@ -105,6 +108,7 @@ const EMPTY_FORM: FormState = {
   isPublished: false,
   categories: [],
   documentType: "",
+  relatedTemplateIds: [],
   localizedContent: {},
 };
 
@@ -447,6 +451,156 @@ function withVariables(
   };
 }
 
+// В списке результатов рендерим не больше этого числа строк: каталог может
+// быть большим, а пагинации в пикере нет — уточнение запроса дешевле DOM-а.
+const MAX_RELATED_PICKER_RESULTS = 30;
+
+// Поле «Связанные договоры» админ-формы: кнопка открывает отдельное окно с
+// поиском (fuzzy по названию и описанию — как поиск по списку админки), клик
+// по строке добавляет договор в конец списка; чипсы показывают выбранное в
+// порядке показа в модалке «О договоре». Неопубликованные выбрать можно —
+// публичная выдача (getById) отфильтрует их, пока они не опубликованы.
+function RelatedTemplatesField({
+  rows,
+  selected,
+  excludeId,
+  onChange,
+}: {
+  rows:
+    | Pick<TemplateRow, "id" | "title" | "description" | "isPublished">[]
+    | undefined;
+  selected: string[];
+  excludeId?: string;
+  onChange: (next: string[]) => void;
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const matches = useMemo(() => {
+    const candidates = (rows ?? []).filter(
+      (row) => row.id !== excludeId && !selected.includes(row.id)
+    );
+    if (!query.trim()) {
+      return candidates.sort((a, b) => a.title.localeCompare(b.title, "ru"));
+    }
+    return fuzzySearch(query, candidates, (row) => [
+      row.title,
+      row.description,
+    ]).map((result) => result.item);
+  }, [rows, excludeId, selected, query]);
+  const visible = matches.slice(0, MAX_RELATED_PICKER_RESULTS);
+
+  const titleById = useMemo(
+    () => new Map((rows ?? []).map((row) => [row.id, row.title])),
+    [rows]
+  );
+  return (
+    <div className="grid max-w-md gap-2">
+      <Label>Связанные договоры</Label>
+      <div>
+        <Button
+          onClick={() => setPickerOpen(true)}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          <Plus className="size-4" />
+          Добавить договор
+        </Button>
+      </div>
+      <Dialog
+        onOpenChange={(open) => {
+          setPickerOpen(open);
+          if (!open) {
+            setQuery("");
+          }
+        }}
+        open={pickerOpen}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Связанные договоры</DialogTitle>
+            <DialogDescription>
+              Клик по договору добавляет его в список — окно можно не закрывать,
+              пока не соберёте все.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="relative">
+            <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+            <Input
+              autoFocus
+              className="pl-8"
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Название или описание шаблона"
+              value={query}
+            />
+          </div>
+          <div className="flex max-h-[50vh] min-h-32 flex-col gap-1 overflow-y-auto">
+            {visible.map((row) => (
+              <button
+                className="flex items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-muted"
+                key={row.id}
+                onClick={() => onChange([...selected, row.id])}
+                type="button"
+              >
+                <Plus className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium text-sm">
+                    {row.title}
+                  </span>
+                  {row.description && (
+                    <span className="block truncate text-muted-foreground text-xs">
+                      {row.description}
+                    </span>
+                  )}
+                </span>
+                {!row.isPublished && (
+                  <span className="shrink-0 rounded border border-border px-1 font-medium text-[10px] text-muted-foreground leading-4">
+                    черновик
+                  </span>
+                )}
+              </button>
+            ))}
+            {visible.length === 0 && (
+              <p className="py-6 text-center text-muted-foreground text-sm">
+                Ничего не найдено
+              </p>
+            )}
+            {matches.length > visible.length && (
+              <p className="px-2 py-1 text-muted-foreground text-xs">
+                Показаны первые {MAX_RELATED_PICKER_RESULTS} из {matches.length}{" "}
+                — уточните запрос
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selected.map((relatedId) => (
+            <span
+              className="inline-flex items-center gap-1 rounded-md bg-muted py-1 pr-1 pl-2 text-foreground text-xs"
+              key={relatedId}
+            >
+              {titleById.get(relatedId) ?? relatedId}
+              <button
+                aria-label={`Убрать «${titleById.get(relatedId) ?? relatedId}»`}
+                className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                onClick={() =>
+                  onChange(selected.filter((s) => s !== relatedId))
+                }
+                type="button"
+              >
+                <X className="size-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function rowToForm(row: TemplateRow): FormState {
   return {
     title: row.title,
@@ -460,6 +614,9 @@ function rowToForm(row: TemplateRow): FormState {
     isPublished: row.isPublished,
     categories: Array.isArray(row.categories) ? row.categories : [],
     documentType: row.documentType ?? "",
+    relatedTemplateIds: Array.isArray(row.relatedTemplateIds)
+      ? row.relatedTemplateIds
+      : [],
     localizedContent: Object.fromEntries(
       Object.entries(row.localizedContent ?? {}).map(([loc, content]) => [
         loc,
@@ -706,6 +863,7 @@ function AdminTemplatesPage() {
       isPublished: form.isPublished,
       categories: form.categories,
       documentType: form.documentType || null,
+      relatedTemplateIds: form.relatedTemplateIds,
       localizedContent: cleanLocalizedContent(
         buildLocalizedForSave(form)
       ) as never,
@@ -1002,6 +1160,14 @@ function AdminTemplatesPage() {
                   ))}
                 </select>
               </div>
+              <RelatedTemplatesField
+                excludeId={editing?.id}
+                onChange={(next) =>
+                  setForm({ ...form, relatedTemplateIds: next })
+                }
+                rows={listQuery.data}
+                selected={form.relatedTemplateIds}
+              />
             </div>
 
             <div

@@ -242,6 +242,85 @@ async function assertCompileAccess(
   });
 }
 
+// Заполненные значения без сохранённого документа — редактирование в обход
+// квоты: гейт-модалки создают черновик через documents.save (списывает
+// квоту/оплату), а прямой заход в конструктор — нет. Пустой (blank) шаблон
+// компилируется по общим правилам assertCompileAccess, заполненный — только
+// купившим редактирование шаблона или админу.
+async function assertFilledCompileAccess(
+  userId: string | undefined,
+  templateId: string
+): Promise<void> {
+  const allowed =
+    userId !== undefined &&
+    ((await hasPaidEditPurchase(userId, templateId)) ||
+      (await isAdminUser(userId)));
+  if (allowed) {
+    return;
+  }
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message:
+      "Заполненный договор скачивается из сохранённого документа — нажмите «Редактировать» на странице шаблона",
+  });
+}
+
+// Облегчённая запись «связанного договора» для модалки «О договоре»: только
+// название и описание с их локализациями — без тел typst (paywall) и превью.
+export interface RelatedTemplateCard {
+  id: string;
+  title: string;
+  description: string | null;
+  localizedContent: Record<
+    string,
+    { title?: string; description?: string | null }
+  >;
+}
+
+/** Раскрывает related_template_ids в карточки: только опубликованные шаблоны,
+ * битые id молча пропускаются, порядок админа сохраняется. */
+async function loadRelatedTemplates(
+  ids: string[]
+): Promise<RelatedTemplateCard[]> {
+  if (ids.length === 0) {
+    return [];
+  }
+  const rows = await db
+    .select({
+      id: template.id,
+      title: template.title,
+      description: template.description,
+      localizedContent: template.localizedContent,
+      isPublished: template.isPublished,
+    })
+    .from(template)
+    .where(inArray(template.id, ids));
+  const byId = new Map(
+    rows.filter((row) => row.isPublished).map((row) => [row.id, row])
+  );
+  return ids.flatMap((id) => {
+    const row = byId.get(id);
+    if (!row) {
+      return [];
+    }
+    const localized: RelatedTemplateCard["localizedContent"] = {};
+    for (const [locale, entry] of Object.entries(row.localizedContent ?? {})) {
+      localized[locale] = {
+        title: entry?.title,
+        description: entry?.description,
+      };
+    }
+    return [
+      {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        localizedContent: localized,
+      },
+    ];
+  });
+}
+
 /** Проверяет месячную квоту «проверок юристом»; возвращает действующий тариф. */
 async function assertReviewQuota(userId: string) {
   const plan = await getEffectivePlan(userId);
@@ -1533,19 +1612,30 @@ export const templatesRouter = router({
       }
 
       // The cached photo PNGs are served by /templates/:id/preview.png —
-      // don't ship the heavy base64 blobs in the JSON payload.
-      const { previewImages: _previewImages, ...rest } = found;
+      // don't ship the heavy base64 blobs in the JSON payload. Сырые
+      // related_template_ids тоже не отдаём: там могут быть id черновиков,
+      // клиент получает уже отфильтрованные relatedTemplates.
+      const {
+        previewImages: _previewImages,
+        relatedTemplateIds: _relatedTemplateIds,
+        ...rest
+      } = found;
+
+      const relatedTemplates = await loadRelatedTemplates(
+        found.relatedTemplateIds
+      );
 
       // Paywall: unpaid users only get a truncated teaser. The full document
       // text never reaches the client, so a CSS un-blur reveals nothing extra.
       const fullAccess = await canSeeFullTemplate(ctx.session?.user.id, found);
       if (fullAccess) {
-        return { ...rest, previewLimited: false };
+        return { ...rest, relatedTemplates, previewLimited: false };
       }
       return {
         ...rest,
         typstContent: truncateTypstForPreview(found.typstContent),
         localizedContent: truncateLocalizedForPreview(found.localizedContent),
+        relatedTemplates,
         previewLimited: true,
       };
     }),
@@ -1747,6 +1837,12 @@ export const templatesRouter = router({
       // выкачать прямым вызовом процедуры, минуя пейволл getById.
       if (download.mode === "plain" && !download.viaDocument) {
         await assertCompileAccess(ctx.session?.user.id, input.templateId);
+        if (Object.keys(input.variables).length > 0) {
+          await assertFilledCompileAccess(
+            ctx.session?.user.id,
+            input.templateId
+          );
+        }
       }
 
       // Скачанный («выданный») документ печатаем строго из сохранённого
@@ -2195,9 +2291,12 @@ async function prepareDocumentDownload(
     return { mode: "plain" };
   }
   // «Выдать» договор может только роль с правом редактирования — просмотрщик
-  // печатает документ организации без последствий для документа.
+  // печатает документ организации без последствий для документа. Строго из
+  // СОХРАНЁННОГО состояния (locked): в plain-режиме компилируются присланные
+  // клиентом значения, и просмотрщик мог бы печатать неограниченные варианты
+  // шаблона в обход квоты и права редактирования.
   if (!canEditDocuments(membership.role)) {
-    return { mode: "plain", viaDocument: true };
+    return { mode: "locked", doc };
   }
   // Купленное редактирование шаблона не «выдаётся»: скачивание — просто
   // печать текущего состояния, документ остаётся редактируемым. Блокировка

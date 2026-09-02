@@ -269,6 +269,7 @@ export function DocumentCard({
       <TemplateInfoDialog
         onOpenChange={setInfoOpen}
         open={infoOpen}
+        showActions={false}
         templateId={templateId}
       />
 

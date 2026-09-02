@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   CounterpartyFormDialog,
@@ -54,6 +55,7 @@ export function CounterpartySectionPicker({
   field,
   setFieldValue,
 }: CounterpartySectionPickerProps) {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const { data: subscription } = useQuery(
     trpc.subscriptions.mySubscription.queryOptions()
@@ -105,7 +107,7 @@ export function CounterpartySectionPicker({
       <span className="font-medium text-foreground text-sm">*{label}:</span>
       <Select onValueChange={handleSelect} value={selectedId}>
         <SelectTrigger className="w-full">
-          <SelectValue placeholder="Выбрать из сохранённых" />
+          <SelectValue placeholder={t("counterparty.pickSaved")} />
         </SelectTrigger>
         <SelectContent>
           {counterparties.map((cp) => (
@@ -121,7 +123,7 @@ export function CounterpartySectionPicker({
                 )}
                 {cp.bin && (
                   <span className="text-muted-foreground text-xs">
-                    БИН {cp.bin}
+                    {t("counterparty.bin", { bin: cp.bin })}
                   </span>
                 )}
               </span>
@@ -131,13 +133,13 @@ export function CounterpartySectionPicker({
           <SelectItem value={ADD_SENTINEL}>
             <span className="flex items-center gap-1.5">
               <Plus className="size-4" />
-              Добавить контрагента
+              {t("counterparty.add")}
             </span>
           </SelectItem>
         </SelectContent>
       </Select>
       <p className="text-muted-foreground text-xs">
-        Заполните, если не выбрали контрагента из сохранённых
+        {t("counterparty.fillHint")}
       </p>
       <CounterpartyFormDialog
         counterparty={null}

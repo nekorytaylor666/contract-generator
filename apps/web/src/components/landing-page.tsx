@@ -39,9 +39,15 @@ const TAN = "#f5d9b0";
 const PANEL = "#ecc07d";
 const INK = "#1b1b1b";
 
-const NAV_LINKS = [
-  { href: "#about", label: "О решении" },
-  { href: "#library", label: "Библиотека" },
+// Все пункты нава ведут на отдельные публичные страницы сайта.
+const NAV_LINKS: {
+  to?: "/about" | "/library" | "/plans";
+  href?: string;
+  labelKey: string;
+}[] = [
+  { to: "/about", labelKey: "landing.nav.about" },
+  { to: "/library", labelKey: "landing.nav.library" },
+  { to: "/plans", labelKey: "landing.nav.plans" },
 ];
 
 function ZhebeLogo({ className }: { className?: string }) {
@@ -69,6 +75,7 @@ function ZhebeLogo({ className }: { className?: string }) {
 }
 
 function Navbar() {
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   // Лендинг живёт вне app-shell, поэтому сессию проверяем сами: авторизованному
   // показываем вход в приложение вместо «Войти»/«Регистрация».
@@ -81,15 +88,25 @@ function Navbar() {
           <ZhebeLogo className="h-10 w-auto text-[#faf9f6] sm:h-12" />
         </a>
         <div className="hidden items-center gap-0.5 md:flex">
-          {NAV_LINKS.map((link) => (
-            <a
-              className="rounded-lg px-4 py-2 font-medium text-[#faf9f6] text-sm transition-colors hover:bg-landing-foreground/10"
-              href={link.href}
-              key={link.href}
-            >
-              {link.label}
-            </a>
-          ))}
+          {NAV_LINKS.map((link) =>
+            link.to ? (
+              <Link
+                className="rounded-lg px-4 py-2 font-medium text-[#faf9f6] text-sm transition-colors hover:bg-landing-foreground/10"
+                key={link.to}
+                to={link.to}
+              >
+                {t(link.labelKey)}
+              </Link>
+            ) : (
+              <a
+                className="rounded-lg px-4 py-2 font-medium text-[#faf9f6] text-sm transition-colors hover:bg-landing-foreground/10"
+                href={link.href}
+                key={link.href}
+              >
+                {t(link.labelKey)}
+              </a>
+            )
+          )}
         </div>
         <div className="flex flex-1 items-center justify-end gap-2 sm:gap-4">
           <LanguageSwitcher triggerClassName="text-landing-foreground hover:bg-landing-foreground/10" />
@@ -98,7 +115,7 @@ function Navbar() {
               asChild
               className="h-9 rounded-lg bg-[#faf9f6] px-3 font-medium text-[#0a0a0a] text-sm hover:bg-[#faf9f6]/90 sm:px-4"
             >
-              <Link to="/templates">Открыть приложение</Link>
+              <Link to="/templates">{t("landing.nav.openApp")}</Link>
             </Button>
           )}
           {/* Пока сессия грузится, гостевые кнопки не показываем — иначе
@@ -110,19 +127,21 @@ function Navbar() {
                 className="hidden h-9 rounded-lg border-[#faf9f6] bg-transparent px-4 font-medium text-[#fafafa] text-sm hover:bg-landing-foreground/10 sm:inline-flex"
                 variant="outline"
               >
-                <Link to="/login">Войти</Link>
+                <Link to="/login">{t("landing.nav.login")}</Link>
               </Button>
               <Button
                 asChild
                 className="h-9 rounded-lg bg-[#faf9f6] px-3 font-medium text-[#0a0a0a] text-sm hover:bg-[#faf9f6]/90 sm:px-4"
               >
-                <Link to="/register">Регистрация</Link>
+                <Link to="/register">{t("landing.nav.register")}</Link>
               </Button>
             </>
           )}
           <button
             aria-expanded={menuOpen}
-            aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}
+            aria-label={
+              menuOpen ? t("landing.nav.closeMenu") : t("landing.nav.openMenu")
+            }
             className="flex size-9 items-center justify-center rounded-lg text-landing-foreground transition-colors hover:bg-landing-foreground/10 md:hidden"
             onClick={() => setMenuOpen((open) => !open)}
             type="button"
@@ -134,22 +153,33 @@ function Navbar() {
       {menuOpen && (
         <div className="border-landing-foreground/15 border-t px-4 pb-4 md:hidden">
           <div className="flex flex-col gap-1 pt-3">
-            {NAV_LINKS.map((link) => (
-              <a
-                className="rounded-lg px-3 py-2.5 text-landing-foreground/90 text-sm transition-colors hover:bg-landing-foreground/10"
-                href={link.href}
-                key={link.href}
-                onClick={() => setMenuOpen(false)}
-              >
-                {link.label}
-              </a>
-            ))}
-            {!session && (
+            {NAV_LINKS.map((link) =>
+              link.to ? (
+                <Link
+                  className="rounded-lg px-3 py-2.5 text-landing-foreground/90 text-sm transition-colors hover:bg-landing-foreground/10"
+                  key={link.to}
+                  onClick={() => setMenuOpen(false)}
+                  to={link.to}
+                >
+                  {t(link.labelKey)}
+                </Link>
+              ) : (
+                <a
+                  className="rounded-lg px-3 py-2.5 text-landing-foreground/90 text-sm transition-colors hover:bg-landing-foreground/10"
+                  href={link.href}
+                  key={link.href}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {t(link.labelKey)}
+                </a>
+              )
+            )}
+            {!(session || isPending) && (
               <Link
                 className="rounded-lg px-3 py-2.5 text-landing-foreground/90 text-sm transition-colors hover:bg-landing-foreground/10 sm:hidden"
                 to="/login"
               >
-                Войти
+                {t("landing.nav.login")}
               </Link>
             )}
           </div>
@@ -162,14 +192,16 @@ function Navbar() {
 // Плавающее меню выбора контрагента поверх ноутбука — маркетинговая имитация
 // продукта из макета, не интерактив.
 function HeroContragentMenu() {
+  const { t } = useTranslation();
+  const items = [
+    t("landing.mock.contragent1"),
+    t("landing.mock.contragent2"),
+    t("landing.mock.contragent3"),
+  ];
   return (
     <div className="w-[167px] rounded-md border border-[#e5e5e5] bg-white p-1.5 shadow-xl">
       <div className="flex flex-col gap-1">
-        {[
-          "ТОО «Ромашка», Юр.лицо",
-          "ИП «Square», Юр.лицо",
-          "Руслан Кошкаров, Физ.лицо",
-        ].map((item) => (
+        {items.map((item) => (
           <span
             className="rounded px-1.5 py-1 font-medium text-[#0a0a0a] text-[10px] leading-3"
             key={item}
@@ -180,7 +212,7 @@ function HeroContragentMenu() {
         <span className="my-0.5 h-px w-full bg-[#e5e5e5]" />
         <span className="flex items-center gap-1 rounded bg-[#f5f5f5] px-1.5 py-1.5 font-medium text-[#0a0a0a] text-[10px] leading-3">
           <Plus className="size-3" />
-          Новый контрагент
+          {t("landing.mock.newContragent")}
         </span>
       </div>
     </div>
@@ -188,31 +220,32 @@ function HeroContragentMenu() {
 }
 
 function HeroDocumentCard() {
+  const { t } = useTranslation();
   return (
     <div className="w-[262px] rounded-2xl border border-[#ececec] bg-white p-5 text-foreground shadow-2xl">
       <div className="flex items-center gap-1">
         <span className="flex-1 truncate font-medium text-[#0a0a0a] text-[12px]">
-          ТОО «Meridian Logistics»
+          {t("landing.mock.docCompany")}
         </span>
         <MoreHorizontal className="size-4 text-muted-foreground" />
       </div>
       <p className="mt-2 font-semibold text-[16px] text-black leading-5">
-        Договор транспортной экспедиции
+        {t("landing.mock.docTitle")}
       </p>
       <div className="mt-3 space-y-1 text-[12px]">
         <div className="flex justify-between">
-          <span className="text-[#737373]">Сумма</span>
+          <span className="text-[#737373]">{t("landing.mock.amount")}</span>
           <span className="text-[#0a0a0a]">8 200 000 ₸</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-[#737373]">Завершение</span>
+          <span className="text-[#737373]">{t("landing.mock.due")}</span>
           <span className="text-[#0a0a0a]">15.03.2026</span>
         </div>
       </div>
       <div className="mt-4 flex items-center justify-between">
         <span className="flex items-center gap-1 rounded-full bg-[#d6edd6] px-2 py-1.5 font-medium text-[#2e6b2e] text-[12px] leading-none">
           <CircleCheck className="size-3" />
-          Подписан
+          {t("landing.mock.signed")}
         </span>
         <div className="flex">
           {["GA", "MU"].map((initials) => (
@@ -237,24 +270,23 @@ function HeroDocumentCard() {
 }
 
 function Hero() {
+  const { t } = useTranslation();
   return (
     <section className="bg-landing text-landing-foreground" id="top">
       <div className="mx-auto grid max-w-[1200px] items-center gap-6 px-4 pt-16 pb-16 sm:px-12 sm:pt-24 lg:grid-cols-2">
         <div className="flex flex-col gap-10 lg:gap-16">
           <div className="flex flex-col gap-6">
             <span className="font-medium text-[16px]" style={{ color: TAN }}>
-              Онлайн конструктор договоров
+              {t("landing.hero.eyebrow")}
             </span>
             <h1
               className="max-w-[519px] font-semibold text-[40px] leading-[48px] sm:text-[48px] sm:leading-[56px]"
               style={{ color: TAN }}
             >
-              Договор за пару кликов — доступно и составлено юристами
+              {t("landing.hero.title")}
             </h1>
             <p className="max-w-[389px] font-medium text-[#faf9f6] text-base leading-5">
-              Каждый шаблон составлен практикующими юристами — так, чтобы
-              интересы обеих сторон были защищены. Выберите договор, заполните
-              поля и скачайте готовый документ за пару минут.
+              {t("landing.hero.text")}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-4">
@@ -264,19 +296,19 @@ function Hero() {
               variant="outline"
             >
               <Link to="/register">
-                Начать бесплатно
+                {t("landing.hero.start")}
                 <ArrowRight className="size-4" />
               </Link>
             </Button>
             <span className="px-4 py-2 font-medium text-[#faf9f6] text-sm">
-              Без привязки карты
+              {t("landing.hero.noCard")}
             </span>
           </div>
         </div>
 
         <div className="relative hidden min-h-[531px] lg:block">
           <img
-            alt="Конструктор договоров Zhebe на ноутбуке"
+            alt={t("landing.hero.imgAlt")}
             className="h-[531px] w-full rounded-lg object-cover"
             height={1062}
             src="/landing/hero-laptop.jpg"
@@ -284,7 +316,7 @@ function Hero() {
           />
           <div className="absolute top-8 right-[-8px]">
             <span className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 font-medium text-black text-sm shadow-lg">
-              Скачать в PDF, DOCX
+              {t("landing.mock.download")}
               <ChevronDown className="size-4" />
             </span>
           </div>
@@ -301,9 +333,7 @@ function Hero() {
 }
 
 interface Step {
-  n: string;
-  title: string;
-  desc: string;
+  n: number;
   image: string;
   // Смещение «скриншота приложения» внутри персиковой панели (в процентах от
   // её ширины/высоты) — каждая панель показывает свой участок продукта.
@@ -312,23 +342,17 @@ interface Step {
 
 const STEPS: Step[] = [
   {
-    n: "Шаг 1",
-    title: "Выберите шаблон",
-    desc: "Найдите нужный договор в каталоге — по категории, ситуации или названию. Если нет нужного договора, напишите в тех.поддержку и мы создадим его.",
+    n: 1,
     image: "/landing/step-catalog.jpg",
     offset: { left: "7%", top: "9%" },
   },
   {
-    n: "Шаг 2",
-    title: "Заполните поля",
-    desc: "Платформа задаёт точные вопросы под каждый тип договора. Никаких лишних юридических терминов.",
+    n: 2,
     image: "/landing/step-builder.jpg",
     offset: { left: "-31%", top: "-35%" },
   },
   {
-    n: "Шаг 3",
-    title: "Скачайте документ",
-    desc: "Готовый договор в формате Word или PDF, который соответствует законодательству Казахстана, справедливый для всех сторон в пару кликов.",
+    n: 3,
     image: "/landing/step-builder.jpg",
     offset: { left: "-33%", top: "10%" },
   },
@@ -358,6 +382,7 @@ const KEY_PAGE_SHARE = 0.8;
  * снимается и страница едет дальше. На мобильных — обычный поток.
  */
 function Steps() {
+  const { t } = useTranslation();
   const outerRef = useRef<HTMLDivElement | null>(null);
   const windowRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -515,7 +540,7 @@ function Steps() {
             className="max-w-[374px] font-semibold text-[32px] leading-10 sm:text-[40px] sm:leading-[48px] lg:self-start"
             style={{ color: INK }}
           >
-            Три шага до готового договора
+            {t("landing.steps.title")}
           </h2>
           {/* Окно от низа героя (затекает на 48px выше грида) до низа экрана:
               оба обреза совпадают с естественными границами. Листается только
@@ -537,7 +562,7 @@ function Steps() {
                       style={{ left: step.offset.left, top: step.offset.top }}
                     >
                       <img
-                        alt={step.title}
+                        alt={t(`landing.steps.step${step.n}Title`)}
                         className="block h-auto w-full"
                         height={810}
                         src={step.image}
@@ -551,13 +576,13 @@ function Steps() {
                     style={{ color: INK }}
                   >
                     <span className="w-[74px] shrink-0 font-medium text-base leading-5">
-                      {step.n}
+                      {t(`landing.steps.step${step.n}Label`)}
                     </span>
                     <span className="w-[172px] shrink-0 font-medium text-lg leading-[22px]">
-                      {step.title}
+                      {t(`landing.steps.step${step.n}Title`)}
                     </span>
                     <p className="flex-1 font-medium text-sm leading-[18px]">
-                      {step.desc}
+                      {t(`landing.steps.step${step.n}Text`)}
                     </p>
                   </div>
                 </div>
@@ -592,10 +617,11 @@ const LIBRARY_SKELETON_KEYS = [
   "lib-skeleton-8",
 ];
 
-// «Март 2025» — как в макете карточек библиотеки.
-function formatLibraryDate(value: Date | string): string {
+// «Март 2025» / «Наурыз 2025» — как в макете карточек библиотеки.
+function formatLibraryDate(value: Date | string, language: string): string {
   const date = new Date(value);
-  const month = date.toLocaleDateString("ru-RU", { month: "long" });
+  const locale = language === "kk" ? "kk-KZ" : "ru-RU";
+  const month = date.toLocaleDateString(locale, { month: "long" });
   return `${month.charAt(0).toUpperCase()}${month.slice(1)} ${date.getFullYear()}`;
 }
 
@@ -616,8 +642,11 @@ function LibraryCard({
   tpl: LibraryTemplate;
   authed: boolean;
 }) {
+  const { t, i18n } = useTranslation();
   const slug = mostSpecificCategory(tpl.categories);
-  const tag = (slug && CATEGORY_LABEL_BY_SLUG[slug]) || "Договоры";
+  // Ярлыки категорий приходят из общих констант API и пока только на русском.
+  const tag =
+    (slug && CATEGORY_LABEL_BY_SLUG[slug]) || t("landing.library.fallbackTag");
   const group = slug ? categoryGroupOf(slug) : undefined;
   const Icon = (group && LIBRARY_GROUP_ICONS[group]) || FileText;
   const cardClassName =
@@ -627,7 +656,7 @@ function LibraryCard({
       <div className="flex h-6 items-center justify-between">
         <span className="flex items-center gap-2.5 font-medium text-[#0a0a0a] text-sm">
           <RefreshCw className="size-4" />
-          {formatLibraryDate(tpl.updatedAt)}
+          {formatLibraryDate(tpl.updatedAt, i18n.language)}
         </span>
         <MoreHorizontal className="size-4 text-[#0a0a0a]" />
       </div>
@@ -664,7 +693,7 @@ function LibraryCard({
 function Library() {
   // Карточки — реальные шаблоны каталога (лёгкая публичная выборка).
   const { data: session, isPending } = authClient.useSession();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const trpc = useTRPC();
   const { data: templates } = useQuery(
     trpc.templates.landingCatalog.queryOptions({ locale: i18n.language })
@@ -682,12 +711,10 @@ function Library() {
       <div className="mx-auto flex max-w-[1200px] flex-col gap-8 px-4 sm:px-6">
         <div className="flex flex-col items-start gap-4 lg:flex-row lg:justify-between">
           <h2 className="max-w-[374px] font-semibold text-[32px] text-black leading-10 sm:text-[40px] sm:leading-[48px]">
-            В библиотеке более 1000+ договоров
+            {t("landing.library.title")}
           </h2>
           <p className="max-w-[389px] font-medium text-base text-black leading-5 lg:pt-3">
-            Найдите нужный шаблон по категории или через поиск. Каждый договор
-            составлен юристом, актуален на сегодняшний день и готов к
-            заполнению.
+            {t("landing.library.text")}
           </p>
           <Button
             asChild
@@ -698,12 +725,12 @@ function Library() {
                 авторизованный на миг увидит ссылку на /register. */}
             {!isPending && session ? (
               <Link to="/templates">
-                Открыть каталог
+                {t("landing.library.open")}
                 <ArrowRight className="size-4" />
               </Link>
             ) : (
               <Link to="/register">
-                Открыть каталог
+                {t("landing.library.open")}
                 <ArrowRight className="size-4" />
               </Link>
             )}
@@ -726,66 +753,42 @@ function Library() {
   );
 }
 
-interface Benefit {
-  lines: [string, string];
-  desc: string;
-}
-
-const BENEFITS: Benefit[] = [
-  {
-    lines: ["Составлено", "юристами"],
-    desc: "Каждый шаблон разработан практикующими юристами — не алгоритмом и не копированием из интернета.",
-  },
-  {
-    lines: ["Актуально", "на сегодня"],
-    desc: "Следим за изменениями в ТК РК и ГК РК и обновляем шаблоны каждую неделю.",
-  },
-  {
-    lines: ["Готово", "за 7 минут"],
-    desc: "Выберите шаблон, заполните поля — и получите договор, готовый к подписанию.",
-  },
-  {
-    lines: ["Без юриста", "в штате"],
-    desc: "Типовые договоры — без очередей, звонков и счетов на 50 000 ₸ за стандартный документ.",
-  },
-];
+const BENEFITS = [1, 2, 3, 4];
 
 function CallToAction() {
+  const { t } = useTranslation();
   return (
     <section className="py-12" style={{ backgroundColor: PAGE_BG }}>
       <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-4 px-4 sm:px-6">
         <h2 className="max-w-[368px] text-center font-semibold text-[32px] text-black leading-10 sm:text-[40px] sm:leading-[48px]">
-          Первый договор — бесплатно
+          {t("landing.cta.title")}
         </h2>
         <p className="max-w-[389px] text-center font-medium text-base text-black leading-5">
-          Зарегистрируйтесь и получите доступ к каталогу прямо сейчас. Без
-          карты, без обязательств.
+          {t("landing.cta.text")}
         </p>
         <Button
           asChild
           className="h-9 rounded-full bg-landing px-4 font-medium text-[#faf9f6] text-sm hover:bg-landing/90"
         >
           <Link to="/register">
-            Начать бесплатно
+            {t("landing.hero.start")}
             <ArrowRight className="size-4" />
           </Link>
         </Button>
 
         <div className="grid w-full gap-6 pt-16 sm:grid-cols-2 lg:grid-cols-4">
-          {BENEFITS.map((benefit, index) => (
-            <div className="flex flex-col gap-4" key={benefit.lines[0]}>
+          {BENEFITS.map((n) => (
+            <div className="flex flex-col gap-4" key={n}>
               <div className="flex items-start gap-4">
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-black font-semibold text-base text-black">
-                  {index + 1}
+                  {n}
                 </span>
-                <h3 className="font-semibold text-2xl text-black leading-7">
-                  {benefit.lines[0]}
-                  <br />
-                  {benefit.lines[1]}
+                <h3 className="whitespace-pre-line font-semibold text-2xl text-black leading-7">
+                  {t(`landing.benefits.b${n}Title`)}
                 </h3>
               </div>
               <p className="pl-12 font-medium text-base text-black leading-5">
-                {benefit.desc}
+                {t(`landing.benefits.b${n}Text`)}
               </p>
             </div>
           ))}
@@ -795,42 +798,11 @@ function CallToAction() {
   );
 }
 
-const FAQ_ITEMS = [
-  {
-    q: "Чем Жебе отличается от шаблонов из интернета?",
-    a: "Шаблоны из интернета никто не обновляет и никто за них не отвечает. Каждый договор на Жебе составлен практикующим юристом и обновляется еженедельно под актуальное законодательство РК. Вы точно знаете, что получаете рабочий документ.",
-  },
-  {
-    q: "Можно ли доверять договорам, составленным через платформу?",
-    a: "Да. Все шаблоны разработаны юристами платформы и соответствуют нормам ТК РК и ГК РК. Мы не генерируем договоры автоматически — каждый документ в каталоге проверен вручную.",
-  },
-  {
-    q: "Что будет, если законодательство изменится после того, как я скачал договор?",
-    a: "Если в шаблоне произошли изменения, вы получите уведомление. Актуальная версия договора всегда доступна в вашем личном кабинете.",
-  },
-  {
-    q: "Нужна ли мне юридическая подготовка, чтобы пользоваться платформой?",
-    a: "Нет. Платформа задаёт конкретные вопросы на понятном языке — вы заполняете поля, мы формируем корректный документ. Юридические термины остаются внутри договора, не в интерфейсе.",
-  },
-  {
-    q: "В каком формате я получу договор?",
-    a: "В форматах Word (.docx) и PDF — на выбор. Документ готов к печати и подписанию сразу после скачивания.",
-  },
-  {
-    q: "Как работает пробный период?",
-    a: "После регистрации вы получаете доступ к одному бесплатному договору на выбор — без привязки карты и без обязательств. Если платформа подойдёт, можно перейти на подписку или купить договоры по отдельности.",
-  },
-  {
-    q: "Подходит ли платформа для юридических лиц?",
-    a: "Да. Для компаний и команд предусмотрен корпоративный тариф с несколькими пользователями, управлением реквизитами контрагентов и персональным менеджером.",
-  },
-  {
-    q: "Что если нужного договора нет в каталоге?",
-    a: "Напишите нам — мы рассмотрим запрос и при необходимости добавим шаблон в каталог. Корпоративным клиентам доступна подготовка договора под индивидуальные условия.",
-  },
-];
+const FAQ_COUNT = 8;
+const FAQ_ITEMS = Array.from({ length: FAQ_COUNT }, (_, index) => index + 1);
 
 function Faq() {
+  const { t } = useTranslation();
   return (
     <section
       className="scroll-mt-20 py-12"
@@ -839,22 +811,22 @@ function Faq() {
     >
       <div className="mx-auto grid max-w-[1200px] gap-8 px-4 sm:px-12 lg:grid-cols-2">
         <h2 className="max-w-[374px] font-medium text-[32px] text-black leading-10 sm:text-[40px] sm:leading-[48px] lg:self-start">
-          Часто задаваемые вопросы
+          {t("landing.faq.title")}
         </h2>
         <div className="flex flex-col gap-6">
-          {FAQ_ITEMS.map((item) => (
+          {FAQ_ITEMS.map((n) => (
             <details
               className="group border-[#0a0a0a] border-b pb-6 last:border-b-0 last:pb-0"
-              key={item.q}
+              key={n}
             >
               <summary className="flex cursor-pointer list-none items-start justify-between gap-12">
                 <span className="flex-1 font-medium text-[#0a0a0a] text-base leading-5">
-                  {item.q}
+                  {t(`landing.faq.q${n}`)}
                 </span>
                 <ChevronDown className="mt-0.5 size-5 shrink-0 text-[#0a0a0a] transition-transform group-open:rotate-180" />
               </summary>
               <p className="mt-3 pr-12 font-normal text-[#0a0a0a] text-sm leading-[18px]">
-                {item.a}
+                {t(`landing.faq.a${n}`)}
               </p>
             </details>
           ))}
@@ -863,13 +835,6 @@ function Faq() {
     </section>
   );
 }
-
-const FOOTER_MENU = [
-  { href: "#about", label: "Решения" },
-  { href: "#library", label: "Библиотека договоров" },
-  { href: "#top", label: "Блог" },
-  { href: "#top", label: "О нас" },
-];
 
 // Ссылки на соцсети пока не определены — проставьте реальные адреса.
 const FOOTER_SOCIALS = [
@@ -880,22 +845,35 @@ const FOOTER_SOCIALS = [
 ];
 
 function Footer() {
+  const { t } = useTranslation();
+  const anchorItems = [
+    { href: "#about", label: t("landing.footer.solutions") },
+    { href: "#top", label: t("landing.footer.blog") },
+  ];
+  const itemClassName =
+    "flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 font-medium text-[#fafafa] text-sm hover:bg-white/10";
+
   return (
     <footer className="bg-[#1b1b1b] text-[#fafafa]">
       <div className="mx-auto flex max-w-[1200px] flex-col gap-8 px-4 py-12 sm:px-12">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <ZhebeLogo className="h-[72px] w-auto text-[#fafafa]" />
           <div className="flex flex-wrap items-center gap-1">
-            {FOOTER_MENU.map((item) => (
-              <a
-                className="flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 font-medium text-[#fafafa] text-sm hover:bg-white/10"
-                href={item.href}
-                key={item.label}
-              >
+            {anchorItems.map((item) => (
+              <a className={itemClassName} href={item.href} key={item.label}>
                 {item.label}
                 <ArrowUpRight className="size-4" />
               </a>
             ))}
+            {/* «Библиотека договоров» и «О нас» — отдельные публичные страницы. */}
+            <Link className={itemClassName} to="/library">
+              {t("landing.footer.library")}
+              <ArrowUpRight className="size-4" />
+            </Link>
+            <Link className={itemClassName} to="/about">
+              {t("landing.footer.aboutUs")}
+              <ArrowUpRight className="size-4" />
+            </Link>
           </div>
         </div>
 
@@ -905,15 +883,15 @@ function Footer() {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 font-medium text-sm">
             <Globe className="size-4" />
             <a className="py-2 hover:underline" href="/terms">
-              Пользовательское соглашение
+              {t("landing.footer.terms")}
             </a>
             <a className="py-2 hover:underline" href="/privacy">
-              Политика конфиденциальности
+              {t("landing.footer.privacy")}
             </a>
             <a className="py-2 hover:underline" href="/privacy#cookies">
-              Политика Cookies
+              {t("landing.footer.cookies")}
             </a>
-            <span className="py-2">Все права защищены. ТОО «Zhebe»</span>
+            <span className="py-2">{t("landing.footer.rights")}</span>
             <a
               className="py-2 text-[#faf9f6] hover:underline"
               href="tel:+87753864010"
@@ -946,9 +924,12 @@ function Footer() {
 }
 
 export function LandingPage() {
+  // data-landing-smooth включает плавный якорный скролл на html (index.css):
+  // scroll-behavior работает только на реально скроллящемся элементе.
   return (
     <div
-      className="min-h-svh scroll-smooth font-landing"
+      className="min-h-svh font-landing"
+      data-landing-smooth
       style={{ backgroundColor: PAGE_BG }}
     >
       <Navbar />

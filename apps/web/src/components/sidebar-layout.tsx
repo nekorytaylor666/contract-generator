@@ -85,6 +85,9 @@ function usePageHeader(): { title: string; icon: LucideIcon } {
 // public legal documents.
 function useIsChromelessRoute() {
   const indexMatch = useMatch({ from: "/", shouldThrow: false });
+  const aboutMatch = useMatch({ from: "/about", shouldThrow: false });
+  const libraryMatch = useMatch({ from: "/library", shouldThrow: false });
+  const plansMatch = useMatch({ from: "/plans", shouldThrow: false });
   const loginMatch = useMatch({ from: "/login", shouldThrow: false });
   const registerMatch = useMatch({ from: "/register", shouldThrow: false });
   const onboardingMatch = useMatch({
@@ -103,6 +106,9 @@ function useIsChromelessRoute() {
   const termsMatch = useMatch({ from: "/terms", shouldThrow: false });
   return Boolean(
     indexMatch ||
+      aboutMatch ||
+      libraryMatch ||
+      plansMatch ||
       loginMatch ||
       registerMatch ||
       onboardingMatch ||

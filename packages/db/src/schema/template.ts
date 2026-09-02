@@ -60,6 +60,14 @@ export const template = pgTable(
     // against DOCUMENT_TYPE_VALUES in packages/api/src/constants/template-options.ts.
     documentType: text("document_type"),
 
+    // Связанные договоры для модалки «О договоре»: id других шаблонов в
+    // порядке, заданном админом. Без FK — битые и неопубликованные id
+    // отфильтровываются при чтении (getById).
+    relatedTemplateIds: text("related_template_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+
     // Contract validity in seconds. NULL = бессрочный.
     validitySeconds: integer("validity_seconds"),
 

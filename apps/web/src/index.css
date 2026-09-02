@@ -148,6 +148,15 @@
   }
 }
 
+/* Плавный якорный скролл лендинга: scroll-behavior работает только на реально
+   скроллящемся элементе (html), поэтому класс на обёртке страницы бесполезен —
+   включаем через маркер data-landing-smooth. */
+@media (prefers-reduced-motion: no-preference) {
+  html:has([data-landing-smooth]) {
+    scroll-behavior: smooth;
+  }
+}
+
 @keyframes highlight-fade {
   0%,
   50% {

@@ -4,7 +4,7 @@ import { subscriptionPlan } from "@contract-builder/db/schema/subscription";
 import { TRPCError } from "@trpc/server";
 import { asc, eq } from "drizzle-orm";
 
-import { protectedProcedure, router } from "../index";
+import { protectedProcedure, publicProcedure, router } from "../index";
 import {
   currentPeriodKey,
   getEffectivePlan,
@@ -42,6 +42,27 @@ export const subscriptionsRouter = router({
   plans: protectedProcedure.query(async () => {
     return await db
       .select()
+      .from(subscriptionPlan)
+      .where(eq(subscriptionPlan.isActive, true))
+      .orderBy(asc(subscriptionPlan.sortOrder));
+  }),
+
+  // Публичная витрина тарифов для страницы /plans на сайте: только карточные
+  // поля, без служебных флагов (isDefault и т.п.).
+  plansPublic: publicProcedure.query(async () => {
+    return await db
+      .select({
+        id: subscriptionPlan.id,
+        name: subscriptionPlan.name,
+        description: subscriptionPlan.description,
+        priceMonthly: subscriptionPlan.priceMonthly,
+        priceQuarterly: subscriptionPlan.priceQuarterly,
+        priceYearly: subscriptionPlan.priceYearly,
+        discountLabel: subscriptionPlan.discountLabel,
+        downloadQuota: subscriptionPlan.downloadQuota,
+        editQuota: subscriptionPlan.editQuota,
+        features: subscriptionPlan.features,
+      })
       .from(subscriptionPlan)
       .where(eq(subscriptionPlan.isActive, true))
       .orderBy(asc(subscriptionPlan.sortOrder));

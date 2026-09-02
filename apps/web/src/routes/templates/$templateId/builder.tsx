@@ -1078,6 +1078,7 @@ function RouteComponent() {
           <TemplateInfoDialog
             onOpenChange={setInfoOpen}
             open={infoOpen}
+            showActions={false}
             templateId={templateId}
           />
         </div>

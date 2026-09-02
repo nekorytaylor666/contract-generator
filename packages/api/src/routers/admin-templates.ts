@@ -50,30 +50,44 @@ const draftVariableSchema = z.object({
   wordForms: z.tuple([z.string(), z.string(), z.string()]).optional(),
 });
 
-const upsertInput = z.object({
+// Базовая форма БЕЗ дефолтов. Патч update строится из неё через .partial():
+// у zod дефолты срабатывают и в .partial(), поэтому схема с .default()
+// затирала бы пропущенные в патче поля (isPublished=false, variables=[], …).
+const upsertBase = z.object({
   title: z.string().min(1),
   description: z.string().nullable().optional(),
-  price: z.number().int().min(0).default(0),
-  downloadPrice: z.number().int().min(0).default(0),
+  price: z.number().int().min(0),
+  downloadPrice: z.number().int().min(0),
   typstContent: z.string().min(1),
-  variables: z.array(variableSchema).default([]),
-  isPublished: z.boolean().default(false),
+  variables: z.array(variableSchema),
+  isPublished: z.boolean(),
   // Full ancestor path slugs (group/subcategory/leaf) — see template-options.ts.
-  categories: z.array(z.string()).default([]),
+  categories: z.array(z.string()),
   documentType: z.string().nullable().optional(),
+  // Связанные договоры (модалка «О договоре») — id шаблонов в заданном порядке.
+  relatedTemplateIds: z.array(z.string()),
   // Per-locale overrides of title/description/typstContent (kk/ru),
   // plus that locale's own form variables when its typst differs.
-  localizedContent: z
-    .record(
-      z.string(),
-      z.object({
-        title: z.string().optional(),
-        description: z.string().nullable().optional(),
-        typstContent: z.string().optional(),
-        variables: z.array(variableSchema).optional(),
-      })
-    )
-    .default({}),
+  localizedContent: z.record(
+    z.string(),
+    z.object({
+      title: z.string().optional(),
+      description: z.string().nullable().optional(),
+      typstContent: z.string().optional(),
+      variables: z.array(variableSchema).optional(),
+    })
+  ),
+});
+
+// Create дозаполняет пропуски дефолтами — здесь это безопасно: строка новая.
+const upsertInput = upsertBase.extend({
+  price: upsertBase.shape.price.default(0),
+  downloadPrice: upsertBase.shape.downloadPrice.default(0),
+  variables: upsertBase.shape.variables.default([]),
+  isPublished: upsertBase.shape.isPublished.default(false),
+  categories: upsertBase.shape.categories.default([]),
+  relatedTemplateIds: upsertBase.shape.relatedTemplateIds.default([]),
+  localizedContent: upsertBase.shape.localizedContent.default({}),
 });
 
 export interface CompileWarning {
@@ -85,6 +99,10 @@ type VariableInput = z.infer<typeof variableSchema>;
 
 function countLines(text: string): number {
   return text.split("\n").length;
+}
+
+function dedupeRelatedIds(ids: string[]): string[] {
+  return [...new Set(ids)];
 }
 
 // Runs every provided source (base + locale overrides) through the real Typst
@@ -224,6 +242,7 @@ export const adminTemplatesRouter = router({
         isPublished: input.isPublished,
         categories: input.categories,
         documentType: input.documentType ?? null,
+        relatedTemplateIds: dedupeRelatedIds(input.relatedTemplateIds),
         localizedContent: input.localizedContent,
         currentVersion: 1,
       })
@@ -244,9 +263,16 @@ export const adminTemplatesRouter = router({
   }),
 
   update: adminProcedure
-    .input(z.object({ id: z.string() }).and(upsertInput.partial()))
+    .input(z.object({ id: z.string() }).and(upsertBase.partial()))
     .mutation(async ({ input, ctx }) => {
       const { id, ...patch } = input;
+
+      // Сам на себя шаблон не ссылается, дубликаты схлопываем.
+      if (patch.relatedTemplateIds) {
+        patch.relatedTemplateIds = dedupeRelatedIds(
+          patch.relatedTemplateIds
+        ).filter((relatedId) => relatedId !== id);
+      }
 
       const [existing] = await db
         .select()
