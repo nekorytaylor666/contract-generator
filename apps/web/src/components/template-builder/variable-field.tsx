@@ -378,7 +378,7 @@ export const VariableField = memo(function VariableField({
             name={field.name}
             onChange={(date) => field.handleChange(date)}
             placeholder={texts.choose(variable.label)}
-            value={field.state.value as Date | undefined}
+            value={field.state.value as Date | string | undefined}
           />
         );
 

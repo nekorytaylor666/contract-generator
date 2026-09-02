@@ -212,7 +212,11 @@ export function InlineVariableInput({
               setOpen(false);
             }}
             placeholder={variable.label}
-            value={value instanceof Date ? value : undefined}
+            value={
+              value instanceof Date || typeof value === "string"
+                ? value
+                : undefined
+            }
           />
         );
 

@@ -9,7 +9,13 @@ import { Calendar } from "./calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 
 interface DatePickerProps {
-  value?: Date;
+  /**
+   * Дата или её строковое представление: значения из сохранённого документа
+   * приходят JSON-строками (Date не переживает сериализацию), а гидрация в
+   * билдере конвертирует не все случаи — типы переменных могут расходиться
+   * между локалями шаблона.
+   */
+  value?: Date | string;
   onChange?: (date: Date | undefined) => void;
   placeholder?: string;
   className?: string;
@@ -17,6 +23,15 @@ interface DatePickerProps {
   id?: string;
   name?: string;
   "aria-invalid"?: boolean;
+}
+
+/** Приводит значение к валидной Date; всё остальное — пустое поле. */
+function toDateValue(value: Date | string | undefined): Date | undefined {
+  if (value === undefined || value === "") {
+    return undefined;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 function DatePicker({
@@ -30,6 +45,7 @@ function DatePicker({
   "aria-invalid": ariaInvalid,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
+  const date = toDateValue(value);
 
   return (
     <Popover onOpenChange={setOpen} open={open}>
@@ -38,7 +54,7 @@ function DatePicker({
           aria-invalid={ariaInvalid}
           className={cn(
             "w-full justify-start text-left font-normal",
-            !value && "text-muted-foreground",
+            !date && "text-muted-foreground",
             className
           )}
           disabled={disabled}
@@ -46,18 +62,18 @@ function DatePicker({
           variant="outline"
         >
           <CalendarIcon className="mr-2 size-4" />
-          {value ? format(value, "PPP") : <span>{placeholder}</span>}
-          <input name={name} type="hidden" value={value?.toISOString() ?? ""} />
+          {date ? format(date, "PPP") : <span>{placeholder}</span>}
+          <input name={name} type="hidden" value={date?.toISOString() ?? ""} />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-0">
         <Calendar
           mode="single"
-          onSelect={(date) => {
-            onChange?.(date);
+          onSelect={(nextDate) => {
+            onChange?.(nextDate);
             setOpen(false);
           }}
-          selected={value}
+          selected={date}
         />
       </PopoverContent>
     </Popover>
