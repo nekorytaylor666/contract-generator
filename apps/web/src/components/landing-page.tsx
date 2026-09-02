@@ -45,7 +45,7 @@ const NAV_LINKS: {
   href?: string;
   labelKey: string;
 }[] = [
-  { to: "/about", labelKey: "landing.nav.about" },
+  { to: "/about", labelKey: "landing.nav.aboutUs" },
   { to: "/library", labelKey: "landing.nav.library" },
   { to: "/plans", labelKey: "landing.nav.plans" },
 ];
@@ -837,19 +837,15 @@ function Faq() {
 }
 
 // Ссылки на соцсети пока не определены — проставьте реальные адреса.
+// Набор по макету /Landing: Instagram, WhatsApp, TikTok.
 const FOOTER_SOCIALS = [
   { label: "Instagram", icon: "/landing/social-instagram.svg", href: "#top" },
-  { label: "Telegram", icon: "/landing/social-telegram.svg", href: "#top" },
   { label: "WhatsApp", icon: "/landing/social-whatsapp.svg", href: "#top" },
-  { label: "YouTube", icon: "/landing/social-youtube.svg", href: "#top" },
+  { label: "TikTok", icon: "/landing/social-tiktok.svg", href: "#top" },
 ];
 
 function Footer() {
   const { t } = useTranslation();
-  const anchorItems = [
-    { href: "#about", label: t("landing.footer.solutions") },
-    { href: "#top", label: t("landing.footer.blog") },
-  ];
   const itemClassName =
     "flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 font-medium text-[#fafafa] text-sm hover:bg-white/10";
 
@@ -859,13 +855,7 @@ function Footer() {
         <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <ZhebeLogo className="h-[72px] w-auto text-[#fafafa]" />
           <div className="flex flex-wrap items-center gap-1">
-            {anchorItems.map((item) => (
-              <a className={itemClassName} href={item.href} key={item.label}>
-                {item.label}
-                <ArrowUpRight className="size-4" />
-              </a>
-            ))}
-            {/* «Библиотека договоров» и «О нас» — отдельные публичные страницы. */}
+            {/* По макету в меню футера только «Библиотека договоров» и «О нас». */}
             <Link className={itemClassName} to="/library">
               {t("landing.footer.library")}
               <ArrowUpRight className="size-4" />
@@ -891,12 +881,17 @@ function Footer() {
             <a className="py-2 hover:underline" href="/privacy#cookies">
               {t("landing.footer.cookies")}
             </a>
-            <span className="py-2">{t("landing.footer.rights")}</span>
             <a
               className="py-2 text-[#faf9f6] hover:underline"
-              href="tel:+87753864010"
+              href="tel:+77711017744"
             >
-              +8 775 386 40 10
+              +7 771 101 77 44
+            </a>
+            <a
+              className="py-2 text-[#faf9f6] hover:underline"
+              href="mailto:info@zhebe.kz"
+            >
+              info@zhebe.kz
             </a>
           </div>
           <div className="flex items-center gap-2">
@@ -918,6 +913,11 @@ function Footer() {
             ))}
           </div>
         </div>
+
+        {/* Копирайт по макету — отдельной строкой под нижним рядом. */}
+        <p className="font-medium text-[#a3a3a3] text-sm">
+          {t("landing.footer.rights")}
+        </p>
       </div>
     </footer>
   );
