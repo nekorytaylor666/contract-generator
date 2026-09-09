@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { SocialLinks } from "@/components/social-links";
 import { Button } from "@/components/ui/button";
 import { ZhebeLogo } from "@/components/zhebe-logo";
 import { authClient } from "@/lib/auth-client";
@@ -142,7 +143,6 @@ export function PublicNavbar({
 }
 
 // Консультации/соцсети — как в футере /about.
-const WHATSAPP_URL = "https://wa.me/77711017744";
 const PHONE_DISPLAY = "+7 771 101 77 44";
 const PHONE_HREF = "tel:+77711017744";
 const EMAIL = "info@zhebe.kz";
@@ -198,37 +198,7 @@ export function PublicFooter() {
               {EMAIL}
             </a>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Адрес Instagram пока не определён — проставьте реальный. */}
-            <a
-              aria-label="Instagram"
-              className="flex size-10 items-center justify-center rounded-full bg-[#262626] transition-colors hover:bg-[#333]"
-              href="#top"
-            >
-              <img
-                alt=""
-                className="size-6"
-                height={24}
-                src="/landing/social-instagram.svg"
-                width={24}
-              />
-            </a>
-            <a
-              aria-label="WhatsApp"
-              className="flex size-10 items-center justify-center rounded-full bg-[#262626] transition-colors hover:bg-[#333]"
-              href={WHATSAPP_URL}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <img
-                alt=""
-                className="size-6"
-                height={24}
-                src="/landing/social-whatsapp.svg"
-                width={24}
-              />
-            </a>
-          </div>
+          <SocialLinks />
         </div>
 
         <p className="font-medium text-base leading-5">

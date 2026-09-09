@@ -28,6 +28,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { SocialLinks } from "@/components/social-links";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 import { useTRPC } from "@/utils/trpc";
@@ -836,14 +837,6 @@ function Faq() {
   );
 }
 
-// Ссылки на соцсети пока не определены — проставьте реальные адреса.
-// Набор по макету /Landing: Instagram, WhatsApp, TikTok.
-const FOOTER_SOCIALS = [
-  { label: "Instagram", icon: "/landing/social-instagram.svg", href: "#top" },
-  { label: "WhatsApp", icon: "/landing/social-whatsapp.svg", href: "#top" },
-  { label: "TikTok", icon: "/landing/social-tiktok.svg", href: "#top" },
-];
-
 function Footer() {
   const { t } = useTranslation();
   const itemClassName =
@@ -894,24 +887,7 @@ function Footer() {
               info@zhebe.kz
             </a>
           </div>
-          <div className="flex items-center gap-2">
-            {FOOTER_SOCIALS.map((social) => (
-              <a
-                aria-label={social.label}
-                className="flex size-10 items-center justify-center rounded-full bg-[#262626] transition-colors hover:bg-[#333]"
-                href={social.href}
-                key={social.label}
-              >
-                <img
-                  alt=""
-                  className="size-6"
-                  height={24}
-                  src={social.icon}
-                  width={24}
-                />
-              </a>
-            ))}
-          </div>
+          <SocialLinks />
         </div>
 
         {/* Копирайт по макету — отдельной строкой под нижним рядом. */}

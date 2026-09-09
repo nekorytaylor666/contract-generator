@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { ConsultationDialog } from "@/components/consultation-dialog";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { SocialLinks } from "@/components/social-links";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
@@ -19,7 +20,6 @@ const SAND = "#f5d9b0";
 
 // Контакты футера — номер из макета. Кнопка «Получить консультацию» в хиро
 // открывает форму заявки (ConsultationDialog), а не чат.
-const WHATSAPP_URL = "https://wa.me/77711017744";
 const PHONE_DISPLAY = "+7 771 101 77 44";
 const PHONE_HREF = "tel:+77711017744";
 const EMAIL = "info@zhebe.kz";
@@ -210,9 +210,9 @@ function Hero() {
       <img
         alt=""
         className="absolute inset-0 size-full object-cover"
-        height={799}
+        height={921}
         src="/landing/about/hero-bg.jpg"
-        width={1200}
+        width={1600}
       />
       <div aria-hidden className="absolute inset-0 bg-black/40" />
       {/* pt-[104px] = 72px закреплённого навбара + отступ контента. */}
@@ -266,7 +266,7 @@ function WhySection() {
   const { t } = useTranslation();
   return (
     <section className="scroll-mt-20 py-16 lg:py-[144px]" id="why">
-      <div className="mx-auto flex max-w-[624px] flex-col gap-4 px-4 sm:px-8">
+      <div className="mx-auto flex max-w-[864px] flex-col gap-4 px-4 sm:px-8">
         <h2
           className="whitespace-pre-line font-semibold text-[32px] leading-10 sm:text-[40px] sm:leading-[48px]"
           style={{ color: INK }}
@@ -274,7 +274,7 @@ function WhySection() {
           {t("about.why.title")}
         </h2>
         <div
-          className="flex flex-col gap-[22px] font-medium text-lg leading-[22px]"
+          className="flex flex-col gap-[22px] font-normal text-lg leading-[26px]"
           style={{ color: "#0a0a0a" }}
         >
           {WHY_PARAGRAPH_KEYS.map((key) => (
@@ -326,11 +326,10 @@ const HISTORY_CARDS: HistoryCard[] = [
   {
     n: 3,
     year: "(2026)",
+    // Студийный кадр на белом: поля до пропорций карточки (528×330) вшиты
+    // в сам файл, поэтому здесь — обычный cover, как у остальных карточек.
     image: "/landing/about/primeis-today.jpg",
-    // Кадрирование из макета подогнано под колонку ~528px (lg); на узких
-    // экранах контейнер уже при той же высоте, поэтому ниже lg — обычный cover.
-    imageClassName:
-      "absolute inset-0 size-full object-cover lg:top-[-90.58%] lg:left-[-7.37%] lg:h-[275.36%] lg:w-[114.82%] lg:max-w-none",
+    imageClassName: "absolute inset-0 size-full object-cover",
   },
 ];
 
@@ -469,7 +468,7 @@ function KazakhSection() {
   const { t } = useTranslation();
   return (
     <section className="py-16 lg:py-[144px]">
-      <div className="mx-auto flex max-w-[624px] flex-col items-start gap-4 px-4 sm:px-8">
+      <div className="mx-auto flex max-w-[864px] flex-col items-start gap-4 px-4 sm:px-8">
         {/* Мок-интерфейс переключателя языка — чисто декоративный. */}
         <div aria-hidden="true" className="relative">
           <img
@@ -502,7 +501,7 @@ function KazakhSection() {
             {t("about.kazakh.title")}
           </h2>
           <div
-            className="flex flex-col gap-[22px] font-medium text-lg leading-[22px]"
+            className="flex flex-col gap-[22px] font-normal text-lg leading-[26px]"
             style={{ color: "#0a0a0a" }}
           >
             <p>{t("about.kazakh.p1")}</p>
@@ -599,7 +598,7 @@ function DisclaimerSection() {
   const { t } = useTranslation();
   return (
     <section className="py-16 lg:py-[144px]">
-      <div className="mx-auto flex max-w-[624px] flex-col px-4 sm:px-8">
+      <div className="mx-auto flex max-w-[864px] flex-col px-4 sm:px-8">
         {/* Песочная панель с обрезанным скриншотом каталога — как в макете. */}
         <div
           className="relative aspect-[560/350] overflow-hidden rounded-lg"
@@ -622,7 +621,7 @@ function DisclaimerSection() {
           {t("about.disclaimer.title")}
         </h2>
         <div
-          className="flex flex-col gap-[22px] pt-4 font-medium text-lg leading-[22px]"
+          className="flex flex-col gap-[22px] pt-4 font-normal text-lg leading-[26px]"
           style={{ color: "#0a0a0a" }}
         >
           {DISCLAIMER_PARAGRAPH_KEYS.map((key) => (
@@ -666,12 +665,12 @@ function FaqSection() {
               key={n}
             >
               <summary className="flex cursor-pointer list-none items-start justify-between gap-12">
-                <span className="flex-1 font-semibold text-[#0a0a0a] text-xl leading-6 sm:text-2xl sm:leading-7">
+                <span className="flex-1 font-medium text-[#0a0a0a] text-base leading-5">
                   {t(`about.faq.q${n}`)}
                 </span>
-                <ChevronDown className="mt-1 size-5 shrink-0 text-[#0a0a0a] transition-transform group-open:rotate-180" />
+                <ChevronDown className="mt-0.5 size-5 shrink-0 text-[#0a0a0a] transition-transform group-open:rotate-180" />
               </summary>
-              <p className="mt-4 pr-12 font-medium text-[#0a0a0a] text-base leading-5">
+              <p className="mt-3 pr-12 font-normal text-[#0a0a0a] text-sm leading-[18px]">
                 {t(`about.faq.a${n}`)}
               </p>
             </details>
@@ -739,37 +738,7 @@ function Footer() {
               {EMAIL}
             </a>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Адрес Instagram пока не определён — проставьте реальный. */}
-            <a
-              aria-label="Instagram"
-              className="flex size-10 items-center justify-center rounded-full bg-[#262626] transition-colors hover:bg-[#333]"
-              href="#top"
-            >
-              <img
-                alt=""
-                className="size-6"
-                height={24}
-                src="/landing/social-instagram.svg"
-                width={24}
-              />
-            </a>
-            <a
-              aria-label="WhatsApp"
-              className="flex size-10 items-center justify-center rounded-full bg-[#262626] transition-colors hover:bg-[#333]"
-              href={WHATSAPP_URL}
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              <img
-                alt=""
-                className="size-6"
-                height={24}
-                src="/landing/social-whatsapp.svg"
-                width={24}
-              />
-            </a>
-          </div>
+          <SocialLinks />
         </div>
 
         <p className="font-medium text-base leading-5">
