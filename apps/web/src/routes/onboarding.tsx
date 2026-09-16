@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import {
   Briefcase,
@@ -108,6 +108,7 @@ function OnboardingComponent() {
       | undefined) ?? "individual";
 
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const signupStatusQuery = useQuery(trpc.auth.signupStatus.queryOptions());
   const statusQuery = useQuery(trpc.onboarding.status.queryOptions());
   const saveMutation = useMutation(trpc.onboarding.save.mutationOptions());
@@ -191,6 +192,16 @@ function OnboardingComponent() {
   async function handleFinish() {
     try {
       await completeMutation.mutateAsync({ acceptedPolicy: true });
+      // Гейт requireAuth и хаб /continue-signup читают эти запросы из кеша —
+      // сбрасываем, чтобы не отправили обратно в онбординг.
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: trpc.auth.signupStatus.queryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.onboarding.status.queryKey(),
+        }),
+      ]);
       toast.success("Добро пожаловать в Zhebe!");
       await ensureOrganizationAndGo();
     } catch (err) {

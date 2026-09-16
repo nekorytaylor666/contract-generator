@@ -61,7 +61,8 @@ import { stashDownload } from "../lib/download-store";
 import { sendLawyerReviewEmail } from "../lib/mailer";
 import {
   consumeQuota,
-  currentPeriodKey,
+  currentQuotaPeriod,
+  formatResetDate,
   getEffectivePlan,
   getUsage,
 } from "../lib/subscription";
@@ -325,11 +326,12 @@ async function loadRelatedTemplates(
 async function assertReviewQuota(userId: string) {
   const plan = await getEffectivePlan(userId);
   const reviewQuota = plan?.reviewQuota ?? 0;
-  const usage = await getUsage(userId, currentPeriodKey());
+  const period = await currentQuotaPeriod(userId);
+  const usage = await getUsage(userId, period.key);
   if (reviewQuota !== -1 && usage.reviewsUsed >= reviewQuota) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "Лимит проверок юриста исчерпан",
+      message: `Лимит проверок юриста на этот месяц исчерпан — обновится ${formatResetDate(period.resetsAt)}`,
     });
   }
   return plan;
@@ -2074,7 +2076,7 @@ export const templatesRouter = router({
           if (!quota.allowed) {
             throw new TRPCError({
               code: "FORBIDDEN",
-              message: "Шаблон не оплачен и лимит скачиваний исчерпан",
+              message: `Шаблон не оплачен, а лимит скачиваний на этот месяц исчерпан — обновится ${formatResetDate(quota.resetsAt)}`,
             });
           }
         }

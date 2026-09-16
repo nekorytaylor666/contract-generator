@@ -175,8 +175,9 @@ export function PlanCard({
   );
 }
 
+// Квоты тарифа месячные — на карточке это должно быть видно («5 / мес»).
 export function quotaText(n: number): string {
-  return n === -1 ? "∞" : String(n);
+  return n === -1 ? "∞" : `${n} / мес`;
 }
 
 function planCta(name: string, isFree: boolean, isCurrent: boolean): string {

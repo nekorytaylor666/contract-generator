@@ -8,11 +8,11 @@ import {
 } from "@contract-builder/db/schema/subscription";
 import { template } from "@contract-builder/db/schema/template";
 import { TRPCError } from "@trpc/server";
-import { and, asc, count, desc, eq, ne } from "drizzle-orm";
+import { asc, count, desc, eq, inArray, ne } from "drizzle-orm";
 import { z } from "zod";
 
 import { adminProcedure, router } from "../index";
-import { currentPeriodKey } from "../lib/subscription";
+import { quotaAnchorOf, quotaPeriodFor } from "../lib/subscription";
 
 const paginationInput = z.object({
   page: z.number().int().min(1).default(1),
@@ -129,8 +129,7 @@ export const adminRouter = router({
   subscriptions: adminProcedure
     .input(paginationInput)
     .query(async ({ input }) => {
-      const periodKey = currentPeriodKey();
-      const rows = await db
+      const users = await db
         .select({
           userId: user.id,
           name: user.name,
@@ -139,24 +138,51 @@ export const adminRouter = router({
           planName: subscriptionPlan.name,
           period: user.subscriptionPeriod,
           expiresAt: user.subscriptionExpiresAt,
-          downloadsUsed: subscriptionUsage.downloadsUsed,
-          editsUsed: subscriptionUsage.editsUsed,
+          startedAt: user.subscriptionStartedAt,
         })
         .from(user)
         .leftJoin(
           subscriptionPlan,
           eq(subscriptionPlan.id, user.subscriptionPlanId)
         )
-        .leftJoin(
-          subscriptionUsage,
-          and(
-            eq(subscriptionUsage.userId, user.id),
-            eq(subscriptionUsage.periodKey, periodKey)
-          )
-        )
         .orderBy(desc(user.createdAt))
         .limit(input.pageSize)
         .offset((input.page - 1) * input.pageSize);
+
+      // Окно квоты у каждого своё (от даты активации подписки), поэтому
+      // использование подбираем по ключу периода уже в коде.
+      const usageRows =
+        users.length === 0
+          ? []
+          : await db
+              .select({
+                userId: subscriptionUsage.userId,
+                periodKey: subscriptionUsage.periodKey,
+                downloadsUsed: subscriptionUsage.downloadsUsed,
+                editsUsed: subscriptionUsage.editsUsed,
+              })
+              .from(subscriptionUsage)
+              .where(
+                inArray(
+                  subscriptionUsage.userId,
+                  users.map((u) => u.userId)
+                )
+              );
+      const usageByKey = new Map(
+        usageRows.map((row) => [`${row.userId}:${row.periodKey}`, row])
+      );
+      const rows = users.map(({ startedAt, ...u }) => {
+        const period = quotaPeriodFor(
+          quotaAnchorOf({ planId: u.planId, expiresAt: u.expiresAt, startedAt })
+        );
+        const usage = usageByKey.get(`${u.userId}:${period.key}`);
+        return {
+          ...u,
+          quotaResetAt: period.resetsAt,
+          downloadsUsed: usage?.downloadsUsed ?? null,
+          editsUsed: usage?.editsUsed ?? null,
+        };
+      });
       const [totals] = await db.select({ total: count() }).from(user);
       return { rows, total: totals?.total ?? 0 };
     }),
@@ -191,6 +217,8 @@ export const adminRouter = router({
           subscriptionExpiresAt: input.expiresAt
             ? new Date(input.expiresAt)
             : null,
+          // Назначение — новый якорь месячного периода квот.
+          subscriptionStartedAt: input.planId ? new Date() : null,
           // Назначение/снятие тарифа админом сбрасывает пометку «отменена»,
           // как и оплата через вебхук.
           subscriptionCancelledAt: null,

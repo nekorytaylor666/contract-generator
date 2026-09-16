@@ -42,8 +42,9 @@ const CARD_FEATURES = [
 ];
 const NOT_INCLUDED = "—";
 
-function quotaText(n: number): string {
-  return n === -1 ? "∞" : String(n);
+// Квоты тарифа месячные — на карточке это должно быть видно («5 / мес»).
+function quotaText(n: number, perMonth: string): string {
+  return n === -1 ? "∞" : `${n} ${perMonth}`;
 }
 
 export function PlansPage() {
@@ -65,6 +66,7 @@ export function PlansPage() {
     navigate({ to: "/register" });
   };
 
+  const perMonth = t("plansPage.perMonthShort");
   const cards = plans.map((p: DbPlan) => {
     const isFree = p.priceMonthly === 0;
     const amount = priceForPeriod(p, period);
@@ -80,8 +82,11 @@ export function PlansPage() {
       cta: t("landing.hero.start"),
       current: false,
       quotas: [
-        { label: t("plansPage.download"), value: quotaText(p.downloadQuota) },
-        { label: t("plansPage.edit"), value: quotaText(p.editQuota) },
+        {
+          label: t("plansPage.download"),
+          value: quotaText(p.downloadQuota, perMonth),
+        },
+        { label: t("plansPage.edit"), value: quotaText(p.editQuota, perMonth) },
       ],
       features: CARD_FEATURES.map(
         (label) =>

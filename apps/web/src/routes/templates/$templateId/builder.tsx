@@ -54,6 +54,7 @@ import {
 import { startFileDownload } from "@/lib/download-file";
 import { remapValuesForLocale } from "@/lib/locale-values";
 import { isNativeTypst, parseNativeLets } from "@/lib/native-typst";
+import { formatQuotaResetDate } from "@/lib/quota-period";
 import { cn } from "@/lib/utils";
 import type { TemplateVariable } from "@/routes/templates";
 import { useTRPC } from "@/utils/trpc";
@@ -255,22 +256,6 @@ function EditableDocTitle({
   );
 }
 
-// Месяцы для «Обновится 1 …» в тултипе лимита проверок.
-const REVIEW_RESET_MONTHS = [
-  "января",
-  "февраля",
-  "марта",
-  "апреля",
-  "мая",
-  "июня",
-  "июля",
-  "августа",
-  "сентября",
-  "октября",
-  "ноября",
-  "декабря",
-];
-
 /** Кнопка «На проверку юристу» (по макету): активна при остатке квоты
  * проверок тарифа; при исчерпании — задизейблена с тултипом о дате сброса. */
 function LawyerReviewButton({
@@ -278,12 +263,14 @@ function LawyerReviewButton({
   loading,
   quota,
   remaining,
+  resetsAt,
   onOpen,
 }: {
   isPaid: boolean;
   loading: boolean;
   quota: number;
   remaining: number;
+  resetsAt: string | Date | null | undefined;
   onOpen: () => void;
 }) {
   const available = remaining === -1 || remaining > 0;
@@ -299,8 +286,6 @@ function LawyerReviewButton({
       </button>
     );
   }
-  const now = new Date();
-  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   // Пока тариф не загрузился, квоты ещё нули — кнопку блокируем, но подсказку
   // не показываем, иначе платный подписчик видит «доступна на платных тарифах».
   let hint: string | null = null;
@@ -309,7 +294,7 @@ function LawyerReviewButton({
       hint =
         quota === 0
           ? "Проверка юриста не входит в ваш тариф"
-          : `Лимит проверок исчерпан. Обновится 1 ${REVIEW_RESET_MONTHS[nextMonth.getMonth()]}`;
+          : `Лимит проверок на этот месяц исчерпан. Обновится ${formatQuotaResetDate("ru", resetsAt)}`;
     } else {
       hint = "Проверка юриста доступна на платных тарифах";
     }
@@ -1096,6 +1081,7 @@ function RouteComponent() {
             onOpen={() => setLawyerOpen(true)}
             quota={mySubscription?.reviewQuota ?? 0}
             remaining={mySubscription?.reviewRemaining ?? 0}
+            resetsAt={mySubscription?.quotaResetAt}
           />
           <LawyerReviewDialog
             buildPayload={buildLawyerPayload}

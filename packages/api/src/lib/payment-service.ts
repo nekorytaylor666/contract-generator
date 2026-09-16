@@ -199,6 +199,8 @@ export async function processRobokassaResult(input: {
           .set({
             subscriptionPlanId: found.subscriptionPlanId,
             subscriptionPeriod: found.subscriptionPeriod ?? "monthly",
+            // Якорь месячного периода квот — обновление в это же число.
+            subscriptionStartedAt: paidAt,
             subscriptionExpiresAt: subscriptionExpiry(
               paidAt,
               found.subscriptionPeriod

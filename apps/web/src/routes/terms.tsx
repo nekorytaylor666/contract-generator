@@ -80,12 +80,12 @@ const TARIFF_PRICES = [
 const TARIFF_ROWS: { feature: string; hint: string; values: string[] }[] = [
   {
     feature: "Скачивание",
-    hint: "скачивание готовых договоров в Word/PDF",
+    hint: "скачивание готовых договоров в Word/PDF, в месяц",
     values: ["—", "10", "30", "безлимит"],
   },
   {
     feature: "Редактирование",
-    hint: "создание и редактирование договоров в конструкторе",
+    hint: "создание и редактирование договоров в конструкторе, в месяц",
     values: ["1", "3", "15", "50"],
   },
   {
@@ -95,7 +95,7 @@ const TARIFF_ROWS: { feature: string; hint: string; values: string[] }[] = [
   },
   {
     feature: "Проверка документов",
-    hint: "юридическая проверка шаблонов Zhebe.kz",
+    hint: "юридическая проверка шаблонов Zhebe.kz, в месяц",
     values: ["—", "1", "3", "5"],
   },
 ];

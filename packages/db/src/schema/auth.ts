@@ -39,6 +39,10 @@ export const user = pgTable("user", {
   subscriptionPlanId: text("subscription_plan_id"),
   subscriptionPeriod: text("subscription_period"),
   subscriptionExpiresAt: timestamp("subscription_expires_at"),
+  // Дата активации подписки (оплата или назначение админом) — якорь месячного
+  // периода квот: лимит обновляется в это же число каждого месяца, а не 1-го.
+  // NULL (старые подписки, дефолтный тариф) — период по календарному месяцу.
+  subscriptionStartedAt: timestamp("subscription_started_at"),
   // Отмена подписки: автосписаний нет, поэтому это пометка «не продлевать» —
   // доступ сохраняется до subscriptionExpiresAt, «Восстановить» снимает её.
   subscriptionCancelledAt: timestamp("subscription_cancelled_at"),

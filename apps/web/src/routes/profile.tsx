@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/tooltip";
 import { VerifyContactDialog } from "@/components/verify-contact-dialog";
 import { requireAuth } from "@/lib/auth-guard";
+import { formatQuotaResetDate } from "@/lib/quota-period";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
 
@@ -220,7 +221,13 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
         open={manageOpen}
       />
 
-      {/* Usage */}
+      {/* Usage — квоты месячные: окно идёт от даты активации подписки. */}
+      {my && (
+        <p className="text-muted-foreground text-sm">
+          Лимиты тарифа выдаются заново раз в месяц — следующее обновление{" "}
+          {formatQuotaResetDate("ru", my.quotaResetAt)}.
+        </p>
+      )}
       {my && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <UsageCard

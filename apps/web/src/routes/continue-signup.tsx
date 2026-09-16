@@ -31,12 +31,14 @@ function ContinueSignupComponent() {
     : false;
   const allDone = status ? !(needsPassword || needsOrg) : false;
 
-  // Всё дозаполнено — уводим дальше по воронке.
+  // Всё дозаполнено — уводим дальше по воронке. Онбординг завершён, но
+  // организации нет (её создание в конце онбординга сорвалось) — тоже в
+  // /onboarding: он досоздаст организацию, иначе requireAuth зациклит нас.
   useEffect(() => {
     if (allDone && status) {
-      navigate({
-        to: status.onboardingCompletedAt ? "/dashboard" : "/onboarding",
-      });
+      const readyForApp =
+        Boolean(status.onboardingCompletedAt) && status.hasOrganization;
+      navigate({ to: readyForApp ? "/dashboard" : "/onboarding" });
     }
   }, [allDone, status, navigate]);
 

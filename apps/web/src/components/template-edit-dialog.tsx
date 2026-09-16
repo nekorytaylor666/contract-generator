@@ -30,6 +30,7 @@ import {
   readDownloadReturn,
   saveDownloadReturn,
 } from "@/lib/download-return";
+import { formatQuotaResetDate } from "@/lib/quota-period";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
 
@@ -224,18 +225,20 @@ function EditInfoStep({
  * пути — разовая покупка или повышение тарифа (как в модалке скачивания). */
 function EditLimitStep({
   quota,
+  resetsAt,
   hasUpgradeOption,
   choice,
   onChoose,
   onContinue,
 }: {
   quota: number;
+  resetsAt: string | Date | null | undefined;
   hasUpgradeOption: boolean;
   choice: "buy" | "upgrade" | null;
   onChoose: (choice: "buy" | "upgrade") => void;
   onContinue: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   return (
     <>
@@ -248,7 +251,10 @@ function EditLimitStep({
             {t("editDialog.limitTitle")}
           </p>
           <p className="mx-auto max-w-[260px] text-muted-foreground text-sm leading-[18px]">
-            {t("editDialog.limitDescription", { count: quota })}
+            {t("editDialog.limitDescription", {
+              count: quota,
+              date: formatQuotaResetDate(i18n.language, resetsAt),
+            })}
           </p>
         </div>
         <div
@@ -609,6 +615,7 @@ export function TemplateEditDialog({
             onChoose={setLimitChoice}
             onContinue={handleLimitContinue}
             quota={quota}
+            resetsAt={sub?.quotaResetAt}
           />
         )}
 

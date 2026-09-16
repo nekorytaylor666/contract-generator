@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatQuotaResetDate } from "@/lib/quota-period";
 import { useTRPC } from "@/utils/trpc";
 
 const MONTHS_RU = [
@@ -151,16 +152,16 @@ export function SubscriptionManageDialog({
           <div className="rounded-xl border border-border">
             <Row label="Текущий тариф" value={my.planName ?? "Разовый"} />
             <Row
-              label="Осталось загрузок"
+              label="Осталось загрузок в этом месяце"
               value={quotaLine(my.downloadRemaining, my.downloadQuota)}
             />
             <Row
-              label="Осталось редактирований"
+              label="Осталось редактирований в этом месяце"
               value={quotaLine(my.editRemaining, my.editQuota)}
             />
             {checksQuota !== 0 && (
               <Row
-                label="Осталось проверок документов"
+                label="Осталось проверок в этом месяце"
                 value={quotaLine(checksQuota, checksQuota)}
               />
             )}
@@ -180,6 +181,13 @@ export function SubscriptionManageDialog({
               />
             )}
           </div>
+        )}
+
+        {!showCancelled && my && (
+          <p className="px-1 text-muted-foreground text-xs">
+            Лимиты тарифа выдаются заново раз в месяц от даты активации —
+            следующее обновление {formatQuotaResetDate("ru", my.quotaResetAt)}.
+          </p>
         )}
 
         {my?.isPaid && my.expiresAt && (

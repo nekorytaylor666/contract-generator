@@ -6,7 +6,7 @@ import { asc, eq } from "drizzle-orm";
 
 import { protectedProcedure, publicProcedure, router } from "../index";
 import {
-  currentPeriodKey,
+  currentQuotaPeriod,
   getEffectivePlan,
   getUsage,
 } from "../lib/subscription";
@@ -72,7 +72,10 @@ export const subscriptionsRouter = router({
   mySubscription: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.session.user.id;
     const plan = await getEffectivePlan(userId);
-    const usage = await getUsage(userId, currentPeriodKey());
+    // Окно квоты идёт от даты активации подписки (25.09 → 25.10), без
+    // подписки — по календарному месяцу.
+    const period = await currentQuotaPeriod(userId);
+    const usage = await getUsage(userId, period.key);
     const [row] = await db
       .select({
         expiresAt: user.subscriptionExpiresAt,
@@ -95,6 +98,9 @@ export const subscriptionsRouter = router({
       period: isPaid ? (row?.period ?? null) : null,
       cancelledAt: isPaid ? (row?.cancelledAt ?? null) : null,
       price: plan && isPaid ? priceForPeriod(plan, row?.period ?? null) : 0,
+      // Границы текущего окна квот — фронт показывает «Обновится 25 октября».
+      quotaPeriodStartsAt: period.startsAt,
+      quotaResetAt: period.resetsAt,
       downloadQuota: plan?.downloadQuota ?? 0,
       editQuota: plan?.editQuota ?? 0,
       reviewQuota: plan?.reviewQuota ?? 0,

@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/sidebar";
 import { ZhebeLogo } from "@/components/zhebe-logo";
 import { authClient } from "@/lib/auth-client";
+import { formatQuotaResetDate } from "@/lib/quota-period";
 import { useTRPC } from "@/utils/trpc";
 
 interface NavItem {
@@ -63,21 +64,6 @@ const COLLAPSED_ICON =
 // brand-colored icon + label.
 const ACTIVE_ITEM =
   "data-active:bg-[#ddcdd5]/70 data-active:text-primary data-active:hover:bg-[#ddcdd5]/70";
-
-const MONTHS_RU_GENITIVE = [
-  "января",
-  "февраля",
-  "марта",
-  "апреля",
-  "мая",
-  "июня",
-  "июля",
-  "августа",
-  "сентября",
-  "октября",
-  "ноября",
-  "декабря",
-];
 
 // Квоты почти исчерпаны — подсвечиваем счётчик и шкалу оранжевым.
 const USAGE_WARN_RATIO = 0.8;
@@ -153,10 +139,8 @@ function SidebarUsageCard() {
     return null;
   }
 
-  // Квоты месячные (periodKey = календарный месяц) — сброс 1-го числа.
-  const now = new Date();
-  const reset = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const resetLabel = `Обновится ${reset.getDate()} ${MONTHS_RU_GENITIVE[reset.getMonth()]}`;
+  // Квоты месячные — окно от даты активации подписки, дату сброса даёт сервер.
+  const resetLabel = `Обновится ${formatQuotaResetDate("ru", sub.quotaResetAt)}`;
 
   const lowQuota =
     quotaRemaining(sub.downloadQuota, sub.downloadsUsed) <

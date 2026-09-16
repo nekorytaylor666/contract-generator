@@ -38,6 +38,7 @@ import {
   readDownloadReturn,
   saveDownloadReturn,
 } from "@/lib/download-return";
+import { formatQuotaResetDate } from "@/lib/quota-period";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
 
@@ -261,18 +262,20 @@ function FormatStep({
  * разовая покупка или повышение тарифа. */
 function LimitStep({
   quota,
+  resetsAt,
   hasUpgradeOption,
   choice,
   onChoose,
   onContinue,
 }: {
   quota: number;
+  resetsAt: string | Date | null | undefined;
   hasUpgradeOption: boolean;
   choice: "buy" | "upgrade" | null;
   onChoose: (choice: "buy" | "upgrade") => void;
   onContinue: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   return (
     <>
@@ -285,7 +288,10 @@ function LimitStep({
             {t("downloadDialog.limitTitle")}
           </p>
           <p className="mx-auto max-w-[260px] text-muted-foreground text-sm leading-[18px]">
-            {t("downloadDialog.limitDescription", { count: quota })}
+            {t("downloadDialog.limitDescription", {
+              count: quota,
+              date: formatQuotaResetDate(i18n.language, resetsAt),
+            })}
           </p>
         </div>
         <div
@@ -673,6 +679,7 @@ export function TemplateDownloadDialog({
             onChoose={setLimitChoice}
             onContinue={handleLimitContinue}
             quota={quota}
+            resetsAt={sub?.quotaResetAt}
           />
         )}
 

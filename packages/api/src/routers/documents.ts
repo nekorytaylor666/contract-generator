@@ -17,7 +17,11 @@ import {
   hasPaidEditPurchase,
   pinLatestTemplateVersion,
 } from "../lib/document-service";
-import { consumeQuota, getEffectivePlan } from "../lib/subscription";
+import {
+  consumeQuota,
+  formatResetDate,
+  getEffectivePlan,
+} from "../lib/subscription";
 
 // Статусы, которые пользователь ставит вручную из меню карточки. Значения
 // «расторгнут»/«ожидает подписи» зарезервированы под будущий флоу подписания
@@ -35,7 +39,7 @@ async function consumeEditQuotaOrThrow(userId: string) {
   if (!quota.allowed) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "Лимит редактирований исчерпан. Оформите подписку.",
+      message: `Лимит редактирований на этот месяц исчерпан — обновится ${formatResetDate(quota.resetsAt)}. Купите шаблон разово или повысьте тариф.`,
     });
   }
 }

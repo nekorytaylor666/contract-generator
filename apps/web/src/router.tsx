@@ -1,54 +1,11 @@
-import type { AppRouter } from "@contract-builder/api/routers/index";
-
-import { env } from "@contract-builder/env/web";
-
 import "./index.css";
-import {
-  QueryCache,
-  QueryClient,
-  QueryClientProvider,
-} from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
-import { createTRPCClient, httpBatchLink } from "@trpc/client";
-import { createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
-import { toast } from "sonner";
 
 import Loader from "./components/loader";
+import { queryClient, trpc, trpcClient } from "./lib/trpc-client";
 import { routeTree } from "./routeTree.gen";
 import { TRPCProvider } from "./utils/trpc";
-
-export const queryClient = new QueryClient({
-  queryCache: new QueryCache({
-    onError: (error, query) => {
-      toast.error(error.message, {
-        action: {
-          label: "retry",
-          onClick: query.invalidate,
-        },
-      });
-    },
-  }),
-  defaultOptions: { queries: { staleTime: 60 * 1000 } },
-});
-
-const trpcClient = createTRPCClient<AppRouter>({
-  links: [
-    httpBatchLink({
-      url: `${env.VITE_SERVER_URL}/trpc`,
-      fetch(url, options) {
-        return fetch(url, {
-          ...options,
-          credentials: "include",
-        });
-      },
-    }),
-  ],
-});
-
-const trpc = createTRPCOptionsProxy({
-  client: trpcClient,
-  queryClient,
-});
 
 export const getRouter = () => {
   const router = createTanStackRouter({
