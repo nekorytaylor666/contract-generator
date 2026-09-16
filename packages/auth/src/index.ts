@@ -3,11 +3,8 @@ import { db } from "@contract-builder/db";
 // biome-ignore lint/performance/noNamespaceImport: drizzle adapter needs the full schema
 import * as schema from "@contract-builder/db/schema/auth";
 import { allowedWebOrigins, env } from "@contract-builder/env/server";
-import { type BetterAuthPlugin, betterAuth } from "better-auth";
+import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware } from "better-auth/api";
-import { deleteSessionCookie } from "better-auth/cookies";
-import { generateRandomString } from "better-auth/crypto";
 import {
   emailOTP,
   organization,
@@ -27,52 +24,6 @@ const PASSWORD_RESET_OTP_TTL_SECONDS = 10 * 60;
 
 // Код 2FA из письма живёт 10 минут (плагин принимает минуты).
 const TWO_FACTOR_OTP_TTL_MINUTES = 10;
-// Сколько живёт «полусессия» между паролем и вводом кода 2FA.
-const TWO_FACTOR_CHALLENGE_TTL_SECONDS = 10 * 60;
-
-// twoFactor-плагин перехватывает только парольные входы (/sign-in/email,
-// /sign-in/phone-number). Вход по коду из SMS (/phone-number/verify) создаёт
-// сессию мимо него — закрываем дыру тем же механизмом: сессию гасим, ставим
-// 2FA-куку и отвечаем twoFactorRedirect, дальше клиент запрашивает код на почту.
-const twoFactorPhoneVerifyGate = {
-  id: "two-factor-phone-verify-gate",
-  hooks: {
-    after: [
-      {
-        matcher: (context) => context.path === "/phone-number/verify",
-        handler: createAuthMiddleware(async (ctx) => {
-          const data = ctx.context.newSession;
-          const twoFactorEnabled = (
-            data?.user as { twoFactorEnabled?: boolean | null } | undefined
-          )?.twoFactorEnabled;
-          if (!(data && twoFactorEnabled)) {
-            return;
-          }
-          deleteSessionCookie(ctx, true);
-          await ctx.context.internalAdapter.deleteSession(data.session.token);
-          const twoFactorCookie = ctx.context.createAuthCookie("two_factor", {
-            maxAge: TWO_FACTOR_CHALLENGE_TTL_SECONDS,
-          });
-          const identifier = `2fa-${generateRandomString(20)}`;
-          await ctx.context.internalAdapter.createVerificationValue({
-            value: data.user.id,
-            identifier,
-            expiresAt: new Date(
-              Date.now() + TWO_FACTOR_CHALLENGE_TTL_SECONDS * 1000
-            ),
-          });
-          await ctx.setSignedCookie(
-            twoFactorCookie.name,
-            identifier,
-            ctx.context.secret,
-            twoFactorCookie.attributes
-          );
-          return ctx.json({ twoFactorRedirect: true });
-        }),
-      },
-    ],
-  },
-} satisfies BetterAuthPlugin;
 
 // Enable Google sign-in only when credentials are configured.
 const googleProvider =
@@ -204,6 +155,5 @@ export const auth = betterAuth({
         },
       },
     }),
-    twoFactorPhoneVerifyGate,
   ],
 });
