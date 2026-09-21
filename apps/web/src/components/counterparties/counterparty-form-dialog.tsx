@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, CircleAlert, LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -59,18 +60,17 @@ const EMPTY_DRAFT: CounterpartyDraft = {
   basis: "",
 };
 
-const COUNTERPARTY_TYPES = ["ТОО", "ИП", "АО"] as const;
+// Значения уходят в БД как есть; подписи — counterparties.form.types.<key>.
+const COUNTERPARTY_TYPES = [
+  { value: "ТОО", key: "too" },
+  { value: "ИП", key: "ip" },
+  { value: "АО", key: "ao" },
+] as const;
+type CounterpartyType = (typeof COUNTERPARTY_TYPES)[number]["value"];
 
 // Шаги мастера по макету: организация → контакты → банк → подписант.
 const STEPS = ["about", "contact", "bank", "person"] as const;
 type StepId = (typeof STEPS)[number];
-
-const STEP_TITLES: Record<StepId, string> = {
-  about: "Об организации",
-  contact: "Контактные данные",
-  bank: "Банковские реквизиты",
-  person: "Подписант",
-};
 
 const STEP_FIELDS: Record<StepId, (keyof CounterpartyDraft)[]> = {
   about: ["name", "bin", "type"],
@@ -136,55 +136,33 @@ function formatIban(value: string): string {
   return raw.match(IBAN_GROUP_RE)?.join(" ") ?? "";
 }
 
-// Тексты ошибок — из макета, по одному валидатору на поле.
-const VALIDATORS: Record<
-  keyof CounterpartyDraft,
-  (value: string) => string | null
-> = {
-  name: (value) =>
-    value.length < MIN_NAME_LENGTH
-      ? "Введите полное наименование организации"
-      : null,
-  bin: (value) =>
-    value.length === BIN_LENGTH ? null : "БИН должен содержать ровно 12 цифр",
-  type: (value) => (value ? null : "Выберите тип организации"),
-  address: (value) =>
-    value.length < MIN_ADDRESS_LENGTH
-      ? "Введите юридический адрес организации"
-      : null,
-  phone: (value) =>
-    value.replace(NON_DIGIT_RE, "").length === KZ_PHONE_DIGITS + 1
-      ? null
-      : "Введите номер в формате +7 (___) ___-__-__",
-  email: (value) =>
-    EMAIL_RE.test(value) ? null : "Введите корректный адрес электронной почты",
-  bank: (value) =>
-    value.length < MIN_NAME_LENGTH ? "Введите полное наименование банка" : null,
-  iban: (value) =>
-    IBAN_RE.test(value.replace(SPACE_RE, ""))
-      ? null
-      : "IBAN должен начинаться с KZ и содержать 20 символов",
-  bik: (value) =>
-    BIK_RE.test(value) ? null : "БИК должен содержать 8 или 11 символов",
-  kbe: (value) => (KBE_RE.test(value) ? null : "КБе должен содержать 2 цифры"),
-  knp: (value) => (KNP_RE.test(value) ? null : "КНП должен содержать 3 цифры"),
-  signatory: (value) =>
-    value.split(SPACE_RE).length < FIO_MIN_PARTS
-      ? "Введите полное ФИО — фамилию, имя и отчество"
-      : null,
-  position: (value) =>
-    value.length < MIN_TEXT_LENGTH ? "Введите должность подписанта" : null,
-  basis: (value) =>
-    value.length < MIN_TEXT_LENGTH
-      ? "Укажите основание — Устав или номер доверенности"
-      : null,
-};
+// По одному валидатору на поле; текст ошибки — counterparties.form.validation.
+// <поле> в i18n, поэтому валидатор отвечает только «валидно / нет».
+const VALIDATORS: Record<keyof CounterpartyDraft, (value: string) => boolean> =
+  {
+    name: (value) => value.length >= MIN_NAME_LENGTH,
+    bin: (value) => value.length === BIN_LENGTH,
+    type: (value) => Boolean(value),
+    address: (value) => value.length >= MIN_ADDRESS_LENGTH,
+    phone: (value) =>
+      value.replace(NON_DIGIT_RE, "").length === KZ_PHONE_DIGITS + 1,
+    email: (value) => EMAIL_RE.test(value),
+    bank: (value) => value.length >= MIN_NAME_LENGTH,
+    iban: (value) => IBAN_RE.test(value.replace(SPACE_RE, "")),
+    bik: (value) => BIK_RE.test(value),
+    kbe: (value) => KBE_RE.test(value),
+    knp: (value) => KNP_RE.test(value),
+    signatory: (value) => value.split(SPACE_RE).length >= FIO_MIN_PARTS,
+    position: (value) => value.length >= MIN_TEXT_LENGTH,
+    basis: (value) => value.length >= MIN_TEXT_LENGTH,
+  };
 
+/** Ключ ошибки поля (совпадает с именем поля) или null, если валидно. */
 function validateField(
   key: keyof CounterpartyDraft,
   draft: CounterpartyDraft
 ): string | null {
-  return VALIDATORS[key](draft[key].trim());
+  return VALIDATORS[key](draft[key].trim()) ? null : key;
 }
 
 function toDraft(record: CounterpartyRecord): CounterpartyDraft {
@@ -206,6 +184,7 @@ function FieldError({ id, message }: { id: string; message: string | null }) {
 }
 
 function SuccessContent() {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center gap-4 px-4 py-8 text-center">
       <div className="flex size-14 items-center justify-center rounded-full bg-emerald-100">
@@ -213,10 +192,10 @@ function SuccessContent() {
       </div>
       <div className="flex flex-col gap-1">
         <p className="font-medium text-base text-foreground">
-          Контрагент добавлен!
+          {t("counterparties.form.successTitle")}
         </p>
         <p className="max-w-[260px] text-muted-foreground text-sm">
-          Реквизиты сохранены и доступны при заполнении документов.
+          {t("counterparties.form.successHint")}
         </p>
       </div>
     </div>
@@ -231,10 +210,11 @@ interface StepProps {
 }
 
 function AboutStep({ draft, errorFor, setField, touch }: StepProps) {
+  const { t } = useTranslation();
   return (
     <>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="cp-name">Наименование</Label>
+        <Label htmlFor="cp-name">{t("counterparties.form.fields.name")}</Label>
         <Input
           aria-describedby={errorFor("name") ? "cp-name-error" : undefined}
           aria-invalid={Boolean(errorFor("name"))}
@@ -242,13 +222,13 @@ function AboutStep({ draft, errorFor, setField, touch }: StepProps) {
           id="cp-name"
           onBlur={() => touch("name")}
           onChange={(e) => setField("name", e.target.value)}
-          placeholder="ТОО «Название компании»"
+          placeholder={t("counterparties.form.fields.namePlaceholder")}
           value={draft.name}
         />
         <FieldError id="cp-name-error" message={errorFor("name")} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="cp-bin">БИН</Label>
+        <Label htmlFor="cp-bin">{t("counterparties.form.fields.bin")}</Label>
         <Input
           aria-describedby={errorFor("bin") ? "cp-bin-error" : undefined}
           aria-invalid={Boolean(errorFor("bin"))}
@@ -268,7 +248,7 @@ function AboutStep({ draft, errorFor, setField, touch }: StepProps) {
         <FieldError id="cp-bin-error" message={errorFor("bin")} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="cp-type">Тип</Label>
+        <Label htmlFor="cp-type">{t("counterparties.form.fields.type")}</Label>
         <Select
           onValueChange={(value) => {
             setField("type", value);
@@ -283,12 +263,14 @@ function AboutStep({ draft, errorFor, setField, touch }: StepProps) {
             id="cp-type"
             onBlur={() => touch("type")}
           >
-            <SelectValue placeholder="Выберите тип" />
+            <SelectValue
+              placeholder={t("counterparties.form.fields.typePlaceholder")}
+            />
           </SelectTrigger>
           <SelectContent>
             {COUNTERPARTY_TYPES.map((type) => (
-              <SelectItem key={type} value={type}>
-                {type}
+              <SelectItem key={type.value} value={type.value}>
+                {t(`counterparties.form.types.${type.key}`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -306,10 +288,13 @@ function ContactStep({
   setField,
   touch,
 }: StepProps & { onPhoneChange: (raw: string) => void }) {
+  const { t } = useTranslation();
   return (
     <>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="cp-address">Юридический адрес</Label>
+        <Label htmlFor="cp-address">
+          {t("counterparties.form.fields.address")}
+        </Label>
         <Input
           aria-describedby={
             errorFor("address") ? "cp-address-error" : undefined
@@ -319,13 +304,15 @@ function ContactStep({
           id="cp-address"
           onBlur={() => touch("address")}
           onChange={(e) => setField("address", e.target.value)}
-          placeholder="Город, Улица, Дом/Офис, Квартира/Номер"
+          placeholder={t("counterparties.form.fields.addressPlaceholder")}
           value={draft.address}
         />
         <FieldError id="cp-address-error" message={errorFor("address")} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="cp-phone">Номер телефона</Label>
+        <Label htmlFor="cp-phone">
+          {t("counterparties.form.fields.phone")}
+        </Label>
         <Input
           aria-describedby={errorFor("phone") ? "cp-phone-error" : undefined}
           aria-invalid={Boolean(errorFor("phone"))}
@@ -340,7 +327,9 @@ function ContactStep({
         <FieldError id="cp-phone-error" message={errorFor("phone")} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="cp-email">Электронная почта</Label>
+        <Label htmlFor="cp-email">
+          {t("counterparties.form.fields.email")}
+        </Label>
         <Input
           aria-describedby={errorFor("email") ? "cp-email-error" : undefined}
           aria-invalid={Boolean(errorFor("email"))}
@@ -359,10 +348,11 @@ function ContactStep({
 }
 
 function BankStep({ draft, errorFor, setField, touch }: StepProps) {
+  const { t } = useTranslation();
   return (
     <>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="cp-bank">Банк</Label>
+        <Label htmlFor="cp-bank">{t("counterparties.form.fields.bank")}</Label>
         <Input
           aria-describedby={errorFor("bank") ? "cp-bank-error" : undefined}
           aria-invalid={Boolean(errorFor("bank"))}
@@ -370,13 +360,13 @@ function BankStep({ draft, errorFor, setField, touch }: StepProps) {
           id="cp-bank"
           onBlur={() => touch("bank")}
           onChange={(e) => setField("bank", e.target.value)}
-          placeholder="Наименование банка"
+          placeholder={t("counterparties.form.fields.bankPlaceholder")}
           value={draft.bank}
         />
         <FieldError id="cp-bank-error" message={errorFor("bank")} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="cp-iban">IBAN</Label>
+        <Label htmlFor="cp-iban">{t("counterparties.form.fields.iban")}</Label>
         <Input
           aria-describedby={errorFor("iban") ? "cp-iban-error" : undefined}
           aria-invalid={Boolean(errorFor("iban"))}
@@ -390,7 +380,7 @@ function BankStep({ draft, errorFor, setField, touch }: StepProps) {
         <FieldError id="cp-iban-error" message={errorFor("iban")} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="cp-bik">БИК</Label>
+        <Label htmlFor="cp-bik">{t("counterparties.form.fields.bik")}</Label>
         <Input
           aria-describedby={errorFor("bik") ? "cp-bik-error" : undefined}
           aria-invalid={Boolean(errorFor("bik"))}
@@ -407,7 +397,7 @@ function BankStep({ draft, errorFor, setField, touch }: StepProps) {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="cp-kbe">КБе</Label>
+          <Label htmlFor="cp-kbe">{t("counterparties.form.fields.kbe")}</Label>
           <Input
             aria-describedby={errorFor("kbe") ? "cp-kbe-error" : undefined}
             aria-invalid={Boolean(errorFor("kbe"))}
@@ -427,7 +417,7 @@ function BankStep({ draft, errorFor, setField, touch }: StepProps) {
           <FieldError id="cp-kbe-error" message={errorFor("kbe")} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="cp-knp">КНП</Label>
+          <Label htmlFor="cp-knp">{t("counterparties.form.fields.knp")}</Label>
           <Input
             aria-describedby={errorFor("knp") ? "cp-knp-error" : undefined}
             aria-invalid={Boolean(errorFor("knp"))}
@@ -452,10 +442,13 @@ function BankStep({ draft, errorFor, setField, touch }: StepProps) {
 }
 
 function PersonStep({ draft, errorFor, setField, touch }: StepProps) {
+  const { t } = useTranslation();
   return (
     <>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="cp-signatory">ФИО</Label>
+        <Label htmlFor="cp-signatory">
+          {t("counterparties.form.fields.signatory")}
+        </Label>
         <Input
           aria-describedby={
             errorFor("signatory") ? "cp-signatory-error" : undefined
@@ -465,13 +458,15 @@ function PersonStep({ draft, errorFor, setField, touch }: StepProps) {
           id="cp-signatory"
           onBlur={() => touch("signatory")}
           onChange={(e) => setField("signatory", e.target.value)}
-          placeholder="Фамилия Имя Отчество"
+          placeholder={t("counterparties.form.fields.signatoryPlaceholder")}
           value={draft.signatory}
         />
         <FieldError id="cp-signatory-error" message={errorFor("signatory")} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="cp-position">Должность</Label>
+        <Label htmlFor="cp-position">
+          {t("counterparties.form.fields.position")}
+        </Label>
         <Input
           aria-describedby={
             errorFor("position") ? "cp-position-error" : undefined
@@ -481,13 +476,15 @@ function PersonStep({ draft, errorFor, setField, touch }: StepProps) {
           id="cp-position"
           onBlur={() => touch("position")}
           onChange={(e) => setField("position", e.target.value)}
-          placeholder="Генеральный директор"
+          placeholder={t("counterparties.form.fields.positionPlaceholder")}
           value={draft.position}
         />
         <FieldError id="cp-position-error" message={errorFor("position")} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="cp-basis">Действует на основании</Label>
+        <Label htmlFor="cp-basis">
+          {t("counterparties.form.fields.basis")}
+        </Label>
         <Input
           aria-describedby={errorFor("basis") ? "cp-basis-error" : undefined}
           aria-invalid={Boolean(errorFor("basis"))}
@@ -495,7 +492,7 @@ function PersonStep({ draft, errorFor, setField, touch }: StepProps) {
           id="cp-basis"
           onBlur={() => touch("basis")}
           onChange={(e) => setField("basis", e.target.value)}
-          placeholder="Устава / Доверенности №_ от"
+          placeholder={t("counterparties.form.fields.basisPlaceholder")}
           value={draft.basis}
         />
         <FieldError id="cp-basis-error" message={errorFor("basis")} />
@@ -519,6 +516,7 @@ export function CounterpartyFormDialog({
   counterparty,
   onCreated,
 }: CounterpartyFormDialogProps) {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
@@ -556,7 +554,7 @@ export function CounterpartyFormDialog({
     trpc.counterparties.update.mutationOptions({
       onSuccess: () => {
         invalidate();
-        toast.success("Изменения сохранены");
+        toast.success(t("counterparties.form.updated"));
         onOpenChange(false);
       },
       onError: (err) => toast.error(err.message),
@@ -568,8 +566,10 @@ export function CounterpartyFormDialog({
     setDraft((prev) => ({ ...prev, [key]: value }));
   const touch = (key: keyof CounterpartyDraft) =>
     setTouched((prev) => new Set(prev).add(key));
-  const errorFor = (key: keyof CounterpartyDraft) =>
-    touched.has(key) ? validateField(key, draft) : null;
+  const errorFor = (key: keyof CounterpartyDraft) => {
+    const errorKey = touched.has(key) ? validateField(key, draft) : null;
+    return errorKey ? t(`counterparties.form.validation.${errorKey}`) : null;
+  };
 
   const handlePhoneChange = (raw: string) => {
     let digits = extractKzDigits(raw);
@@ -604,7 +604,7 @@ export function CounterpartyFormDialog({
   const save = () => {
     const payload = {
       name: draft.name.trim(),
-      type: draft.type as (typeof COUNTERPARTY_TYPES)[number],
+      type: draft.type as CounterpartyType,
       bin: draft.bin.trim(),
       address: draft.address.trim(),
       phone: draft.phone.trim(),
@@ -632,7 +632,9 @@ export function CounterpartyFormDialog({
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
           <DialogTitle>
-            {showSuccess ? "Добавление контрагента" : STEP_TITLES[step]}
+            {showSuccess
+              ? t("counterparties.form.titleCreate")
+              : t(`counterparties.form.steps.${step}`)}
           </DialogTitle>
         </DialogHeader>
 
@@ -687,7 +689,7 @@ export function CounterpartyFormDialog({
                   type="button"
                   variant="outline"
                 >
-                  Отменить
+                  {t("counterparties.form.cancel")}
                 </Button>
               ) : (
                 <Button
@@ -697,7 +699,7 @@ export function CounterpartyFormDialog({
                   type="button"
                   variant="outline"
                 >
-                  Назад
+                  {t("counterparties.form.back")}
                 </Button>
               )}
               <Button
@@ -708,12 +710,12 @@ export function CounterpartyFormDialog({
               >
                 {isLastStep && pending && (
                   <>
-                    Сохраняем
+                    {t("counterparties.form.saving")}
                     <LoaderCircle className="size-4 animate-spin" />
                   </>
                 )}
-                {isLastStep && !pending && "Сохранить"}
-                {!isLastStep && "Продолжить"}
+                {isLastStep && !pending && t("counterparties.form.save")}
+                {!isLastStep && t("counterparties.form.continue")}
               </Button>
             </DialogFooter>
           </>

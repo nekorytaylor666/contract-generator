@@ -1,5 +1,7 @@
+import type { TFunction } from "i18next";
 import { AlertTriangle, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,14 +26,18 @@ interface VariableCardProps {
   onDelete: () => void;
 }
 
-const TYPE_LABELS: Record<TemplateVariable["type"], string> = {
-  text: "Текст",
-  textarea: "Многострочный",
-  number: "Число",
-  date: "Дата",
-  boolean: "Чекбокс",
-  select: "Выбор",
+const TYPE_LABEL_KEYS: Record<TemplateVariable["type"], string> = {
+  text: "builder.variables.types.text",
+  textarea: "builder.variables.types.textarea",
+  number: "builder.variables.types.number",
+  date: "builder.variables.types.date",
+  boolean: "builder.variables.types.boolean",
+  select: "builder.variables.types.select",
 };
+
+function typeLabel(t: TFunction, type: TemplateVariable["type"]): string {
+  return t(TYPE_LABEL_KEYS[type]);
+}
 
 // One option per line; a `//` appends the gray per-option comment.
 function formatOptionsText(variable: TemplateVariable): string {
@@ -49,6 +55,7 @@ export function VariableCard({
   onChange,
   onDelete,
 }: VariableCardProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   // Local buffer for the select-options textarea. Storing only the parsed array
   // and deriving `value` from it would strip the trailing newline the moment you
@@ -118,23 +125,23 @@ export function VariableCard({
         )}
         <span className="font-mono text-sm">{variable.name}</span>
         <span className="text-muted-foreground text-xs">
-          {TYPE_LABELS[variable.type]}
+          {typeLabel(t, variable.type)}
         </span>
         {variable.required && (
           <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary text-xs">
-            обяз.
+            {t("builder.variables.requiredBadge")}
           </span>
         )}
         {variable.unused && (
           <span className="ml-auto flex items-center gap-1 text-destructive text-xs">
             <AlertTriangle className="size-3" />
-            не используется
+            {t("builder.variables.unused")}
           </span>
         )}
         {variable.typeMismatch && !variable.unused && (
           <span className="ml-auto flex items-center gap-1 text-destructive text-xs">
             <AlertTriangle className="size-3" />
-            тип не совпадает
+            {t("builder.variables.typeMismatch")}
           </span>
         )}
       </button>
@@ -144,7 +151,7 @@ export function VariableCard({
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-xs" htmlFor={`name-${variable.name}`}>
-                Имя
+                {t("builder.variables.name")}
               </Label>
               <Input
                 id={`name-${variable.name}`}
@@ -154,7 +161,7 @@ export function VariableCard({
             </div>
             <div className="space-y-1">
               <Label className="text-xs" htmlFor={`type-${variable.name}`}>
-                Тип
+                {t("builder.variables.type")}
               </Label>
               <Select
                 onValueChange={(v) =>
@@ -166,9 +173,9 @@ export function VariableCard({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(TYPE_LABELS).map(([t, l]) => (
-                    <SelectItem key={t} value={t}>
-                      {l}
+                  {Object.keys(TYPE_LABEL_KEYS).map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {typeLabel(t, type as TemplateVariable["type"])}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -178,7 +185,7 @@ export function VariableCard({
 
           <div className="space-y-1">
             <Label className="text-xs" htmlFor={`label-${variable.name}`}>
-              Подпись (Label)
+              {t("builder.variables.label")}
             </Label>
             <Input
               id={`label-${variable.name}`}
@@ -197,14 +204,14 @@ export function VariableCard({
               className="cursor-pointer text-xs"
               htmlFor={`req-${variable.name}`}
             >
-              Обязательное поле
+              {t("builder.variables.requiredField")}
             </Label>
           </div>
 
           {variable.type !== "boolean" && (
             <div className="space-y-1">
               <Label className="text-xs" htmlFor={`def-${variable.name}`}>
-                Значение по умолчанию
+                {t("builder.variables.defaultValue")}
               </Label>
               <Input
                 id={`def-${variable.name}`}
@@ -214,7 +221,7 @@ export function VariableCard({
                     e.target.value === "" ? undefined : e.target.value
                   )
                 }
-                placeholder="(необязательно)"
+                placeholder={t("builder.variables.optionalPlaceholder")}
                 type={variable.type === "number" ? "number" : "text"}
                 value={
                   variable.defaultValue === undefined
@@ -236,7 +243,7 @@ export function VariableCard({
                 className="cursor-pointer text-xs"
                 htmlFor={`bool-def-${variable.name}`}
               >
-                По умолчанию включён
+                {t("builder.variables.defaultOn")}
               </Label>
             </div>
           )}
@@ -244,15 +251,13 @@ export function VariableCard({
           {variable.type === "select" && (
             <div className="space-y-1">
               <Label className="text-xs" htmlFor={`opt-${variable.name}`}>
-                {
-                  "Опции (по одной на строку; комментарий под опцией — после //)"
-                }
+                {t("builder.variables.optionsLabel")}
               </Label>
               <Textarea
                 className="min-h-20 font-mono text-xs"
                 id={`opt-${variable.name}`}
                 onChange={(e) => handleOptionsChange(e.target.value)}
-                placeholder="Опция 1 // Комментарий&#10;Опция 2"
+                placeholder={t("builder.variables.optionsPlaceholder")}
                 value={optionsText}
               />
             </div>
@@ -261,7 +266,7 @@ export function VariableCard({
           {variable.type === "number" && (
             <div className="space-y-1">
               <Label className="text-xs" htmlFor={`words-${variable.name}`}>
-                Склонения (через запятую: 1, 2-4, 5+)
+                {t("builder.variables.wordFormsLabel")}
               </Label>
               <Input
                 id={`words-${variable.name}`}
@@ -274,7 +279,7 @@ export function VariableCard({
                       : undefined
                   );
                 }}
-                placeholder="день, дня, дней"
+                placeholder={t("builder.variables.wordFormsPlaceholder")}
                 value={(variable.wordForms ?? []).join(", ")}
               />
             </div>
@@ -294,7 +299,7 @@ export function VariableCard({
               variant="outline"
             >
               <Trash2 className="mr-1.5 size-3 text-destructive" />
-              Удалить переменную
+              {t("builder.variables.deleteVariable")}
             </Button>
           </div>
         </div>
@@ -314,20 +319,21 @@ function DependsOnEditor({
   allVariables,
   onChange,
 }: DependsOnEditorProps) {
+  const { t } = useTranslation();
   const dep = current.dependsOn;
   const otherVars = allVariables.filter((v) => v.name !== current.name);
 
   return (
     <div className="space-y-1 rounded-md border bg-muted/30 p-2">
       <div className="flex items-center justify-between">
-        <Label className="text-xs">Условная видимость (dependsOn)</Label>
+        <Label className="text-xs">{t("builder.variables.dependsOn")}</Label>
         {dep && (
           <button
             className="text-muted-foreground text-xs hover:text-foreground"
             onClick={() => onChange(undefined)}
             type="button"
           >
-            убрать
+            {t("builder.variables.removeCondition")}
           </button>
         )}
       </div>
@@ -338,7 +344,9 @@ function DependsOnEditor({
             value={dep.field}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Поле" />
+              <SelectValue
+                placeholder={t("builder.variables.fieldPlaceholder")}
+              />
             </SelectTrigger>
             <SelectContent>
               {otherVars.map((v) => (
@@ -358,9 +366,15 @@ function DependsOnEditor({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="eq">равно</SelectItem>
-              <SelectItem value="neq">не равно</SelectItem>
-              <SelectItem value="in">входит в</SelectItem>
+              <SelectItem value="eq">
+                {t("builder.variables.operatorEq")}
+              </SelectItem>
+              <SelectItem value="neq">
+                {t("builder.variables.operatorNeq")}
+              </SelectItem>
+              <SelectItem value="in">
+                {t("builder.variables.operatorIn")}
+              </SelectItem>
             </SelectContent>
           </Select>
           <Input
@@ -375,7 +389,11 @@ function DependsOnEditor({
                 onChange({ ...dep, value: raw });
               }
             }}
-            placeholder={dep.operator === "in" ? "a, b, c" : "значение"}
+            placeholder={
+              dep.operator === "in"
+                ? "a, b, c"
+                : t("builder.variables.valuePlaceholder")
+            }
             value={
               Array.isArray(dep.value)
                 ? dep.value.join(", ")
@@ -390,7 +408,7 @@ function DependsOnEditor({
           type="button"
           variant="outline"
         >
-          + добавить условие
+          {t("builder.variables.addCondition")}
         </Button>
       )}
     </div>

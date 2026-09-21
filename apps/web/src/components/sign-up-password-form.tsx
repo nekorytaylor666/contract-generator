@@ -1,7 +1,8 @@
 import { useForm } from "@tanstack/react-form";
 import { useMutation } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { CheckIcon, EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import z from "zod";
@@ -18,20 +19,21 @@ const UPPERCASE_RE = /[A-Z]/;
 const DIGIT_RE = /\d/;
 const MIN_PASSWORD_LENGTH = 8;
 
-const passwordSchema = z
-  .object({
-    password: z
-      .string()
-      .min(MIN_PASSWORD_LENGTH)
-      .regex(LOWERCASE_RE)
-      .regex(UPPERCASE_RE)
-      .regex(DIGIT_RE),
-    confirm: z.string(),
-  })
-  .refine((d) => d.password === d.confirm, {
-    message: "Пароли не совпадают",
-    path: ["confirm"],
-  });
+const makePasswordSchema = (t: TFunction) =>
+  z
+    .object({
+      password: z
+        .string()
+        .min(MIN_PASSWORD_LENGTH)
+        .regex(LOWERCASE_RE)
+        .regex(UPPERCASE_RE)
+        .regex(DIGIT_RE),
+      confirm: z.string(),
+    })
+    .refine((d) => d.password === d.confirm, {
+      message: t("auth.signUp.password.mismatch"),
+      path: ["confirm"],
+    });
 
 interface Requirement {
   key: string;
@@ -47,6 +49,8 @@ export const PASSWORD_REQUIREMENTS: Requirement[] = [
 ];
 
 export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
+  const { t } = useTranslation();
+  const passwordSchema = useMemo(() => makePasswordSchema(t), [t]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -60,7 +64,7 @@ export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
     onSubmit: async ({ value }) => {
       try {
         await setPasswordMutation.mutateAsync({ newPassword: value.password });
-        toast.success("Пароль сохранён");
+        toast.success(t("auth.signUp.password.saved"));
         if (onDone) {
           onDone();
         } else {
@@ -68,7 +72,9 @@ export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
         }
       } catch (err) {
         toast.error(
-          err instanceof Error ? err.message : "Не удалось установить пароль"
+          err instanceof Error
+            ? err.message
+            : t("auth.signUp.password.saveFailed")
         );
       }
     },
@@ -81,10 +87,10 @@ export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
         <ZhebeMark className="h-10 w-auto text-landing" />
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="font-medium text-3xl text-foreground">
-            Придумайте пароль
+            {t("auth.signUp.password.title")}
           </h1>
           <p className="max-w-[378px] text-base text-foreground/80">
-            Он понадобится для входа в аккаунт
+            {t("auth.signUp.password.subtitle")}
           </p>
         </div>
       </div>
@@ -123,7 +129,7 @@ export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
                     }}
                     onChange={(e) => field.handleChange(e.target.value)}
                     onFocus={() => setFocused(true)}
-                    placeholder="Пароль"
+                    placeholder={t("auth.signUp.password.passwordPlaceholder")}
                     type={showPassword ? "text" : "password"}
                     value={value}
                   />
@@ -141,7 +147,7 @@ export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
                 </div>
                 {showError && (
                   <p className="text-destructive text-sm">
-                    Пароль не соответствует требованиям
+                    {t("auth.signUp.password.requirementsNotMet")}
                   </p>
                 )}
                 {focused && <PasswordRequirementsTooltip value={value} />}
@@ -169,7 +175,7 @@ export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
                     name={field.name}
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
-                    placeholder="Повторите пароль"
+                    placeholder={t("auth.signUp.password.confirmPlaceholder")}
                     type={showConfirm ? "text" : "password"}
                     value={field.state.value}
                   />
@@ -187,7 +193,7 @@ export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
                 </div>
                 {mismatch && (
                   <p className="text-destructive text-sm">
-                    Пароли не совпадают
+                    {t("auth.signUp.password.mismatch")}
                   </p>
                 )}
               </div>
@@ -202,7 +208,9 @@ export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
               disabled={!state.canSubmit || state.isSubmitting}
               type="submit"
             >
-              {state.isSubmitting ? "Сохраняем..." : "Приступить к работе"}
+              {state.isSubmitting
+                ? t("auth.signUp.password.saving")
+                : t("auth.signUp.password.submit")}
             </Button>
           )}
         </form.Subscribe>

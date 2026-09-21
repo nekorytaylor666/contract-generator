@@ -1,5 +1,5 @@
 import {
-  CATEGORY_LABEL_BY_SLUG,
+  categoryLabelFor,
   expandCategorySelection,
   isDocumentType,
   isKnownCategorySlug,
@@ -109,10 +109,11 @@ function sortTemplates<T extends SortableTemplate>(
 
 // Human label for a template's category, taken from the deepest known slug.
 function categoryLabel(
-  categories: string[] | null | undefined
+  categories: string[] | null | undefined,
+  locale: string
 ): string | undefined {
   const slug = mostSpecificCategory(categories);
-  return slug ? CATEGORY_LABEL_BY_SLUG[slug] : undefined;
+  return slug ? categoryLabelFor(slug, locale) : undefined;
 }
 
 function toStringArray(
@@ -258,7 +259,7 @@ function RouteComponent() {
       templates.map((item) => ({
         id: item.id,
         label: item.title,
-        sublabel: categoryLabel(item.categories),
+        sublabel: categoryLabel(item.categories, i18n.language),
       })),
     [templates]
   );
@@ -365,6 +366,7 @@ function RouteComponent() {
           purchasedSet,
           bookmarkSet,
           t,
+          locale: i18n.language,
         })}
 
         <PaginationControls
@@ -383,6 +385,7 @@ function renderGrid({
   purchasedSet,
   bookmarkSet,
   t,
+  locale,
 }: {
   isLoading: boolean;
   templates: Array<{
@@ -396,6 +399,7 @@ function renderGrid({
   purchasedSet: Set<string>;
   bookmarkSet: Set<string>;
   t: TFunction;
+  locale: string;
 }) {
   if (isLoading) {
     return (
@@ -426,7 +430,7 @@ function renderGrid({
       {templates.map((template, index) => (
         <TemplateCard
           categoryIcon={FileText}
-          categoryLabel={categoryLabel(template.categories)}
+          categoryLabel={categoryLabel(template.categories, locale)}
           dataTour={index === 0 ? "template-card" : undefined}
           description={template.description}
           id={template.id}

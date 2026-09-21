@@ -1,6 +1,6 @@
 import {
-  DOCUMENT_TYPE_LABELS,
   DOCUMENT_TYPE_VALUES,
+  documentTypeLabelFor,
 } from "@contract-builder/api/constants/template-options";
 import { ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -25,7 +25,7 @@ export function DocumentTypeFilter({
   selected,
   onChange,
 }: DocumentTypeFilterProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const selectedSet = new Set(selected);
 
   const toggle = (slug: string) => {
@@ -62,7 +62,7 @@ export function DocumentTypeFilter({
             onCheckedChange={() => toggle(type)}
             onSelect={keepOpen}
           >
-            {DOCUMENT_TYPE_LABELS[type]}
+            {documentTypeLabelFor(type, i18n.language)}
           </DropdownMenuCheckboxItem>
         ))}
       </DropdownMenuContent>

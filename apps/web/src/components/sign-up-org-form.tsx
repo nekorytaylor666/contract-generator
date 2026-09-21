@@ -1,6 +1,9 @@
 import { useForm } from "@tanstack/react-form";
 import { useMutation } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { Briefcase, Building2, Hash, UserRound } from "lucide-react";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -10,14 +13,21 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { ZhebeMark } from "./zhebe-logo";
 
-const orgSchema = z.object({
-  orgName: z.string().min(1, "Введите название организации"),
-  bin: z.string().regex(/^\d{12}$/, "БИН — 12 цифр, без пробелов"),
-  fullName: z.string().min(1, "Введите имя и фамилию"),
-  position: z.string().min(1, "Введите должность"),
-});
+const BIN_RE = /^\d{12}$/;
+const BIN_LENGTH = 12;
+const ORG_STEP = { current: 2, total: 2 } as const;
+
+const makeOrgSchema = (t: TFunction) =>
+  z.object({
+    orgName: z.string().min(1, t("auth.signUp.org.orgNameRequired")),
+    bin: z.string().regex(BIN_RE, t("auth.signUp.org.binInvalid")),
+    fullName: z.string().min(1, t("auth.signUp.org.fullNameRequired")),
+    position: z.string().min(1, t("auth.signUp.org.positionRequired")),
+  });
 
 export function SignUpOrgForm({ onDone }: { onDone: () => void }) {
+  const { t } = useTranslation();
+  const orgSchema = useMemo(() => makeOrgSchema(t), [t]);
   const trpc = useTRPC();
   const completeOrgStepMutation = useMutation(
     trpc.auth.completeOrgStep.mutationOptions()
@@ -31,7 +41,9 @@ export function SignUpOrgForm({ onDone }: { onDone: () => void }) {
         onDone();
       } catch (err) {
         toast.error(
-          err instanceof Error ? err.message : "Не удалось создать аккаунт"
+          err instanceof Error
+            ? err.message
+            : t("auth.signUp.common.createAccountFailed")
         );
       }
     },
@@ -43,8 +55,12 @@ export function SignUpOrgForm({ onDone }: { onDone: () => void }) {
       <div className="flex flex-col items-center gap-6">
         <ZhebeMark className="h-10 w-auto text-landing" />
         <div className="flex flex-col items-center gap-2 text-center">
-          <h1 className="font-medium text-3xl text-foreground">Регистрация</h1>
-          <p className="text-base text-foreground/80">Шаг 2 из 2</p>
+          <h1 className="font-medium text-3xl text-foreground">
+            {t("auth.signUp.common.title")}
+          </h1>
+          <p className="text-base text-foreground/80">
+            {t("auth.signUp.common.step", ORG_STEP)}
+          </p>
         </div>
       </div>
 
@@ -65,7 +81,7 @@ export function SignUpOrgForm({ onDone }: { onDone: () => void }) {
               name={field.name}
               onBlur={field.handleBlur}
               onChange={(v) => field.handleChange(v)}
-              placeholder="Название организации"
+              placeholder={t("auth.signUp.org.orgNamePlaceholder")}
               value={field.state.value}
             />
           )}
@@ -78,11 +94,11 @@ export function SignUpOrgForm({ onDone }: { onDone: () => void }) {
               error={field.state.meta.errors[0]?.message}
               icon={Hash}
               inputMode="numeric"
-              maxLength={12}
+              maxLength={BIN_LENGTH}
               name={field.name}
               onBlur={field.handleBlur}
               onChange={(v) => field.handleChange(v.replace(/\D/g, ""))}
-              placeholder="БИН организации"
+              placeholder={t("auth.signUp.org.binPlaceholder")}
               value={field.state.value}
             />
           )}
@@ -97,7 +113,7 @@ export function SignUpOrgForm({ onDone }: { onDone: () => void }) {
               name={field.name}
               onBlur={field.handleBlur}
               onChange={(v) => field.handleChange(v)}
-              placeholder="Ваше имя и фамилия"
+              placeholder={t("auth.signUp.org.fullNamePlaceholder")}
               value={field.state.value}
             />
           )}
@@ -112,7 +128,7 @@ export function SignUpOrgForm({ onDone }: { onDone: () => void }) {
               name={field.name}
               onBlur={field.handleBlur}
               onChange={(v) => field.handleChange(v)}
-              placeholder="Должность"
+              placeholder={t("auth.signUp.org.positionPlaceholder")}
               value={field.state.value}
             />
           )}
@@ -125,7 +141,9 @@ export function SignUpOrgForm({ onDone }: { onDone: () => void }) {
               disabled={!state.canSubmit || state.isSubmitting}
               type="submit"
             >
-              {state.isSubmitting ? "Создаём..." : "Создать аккаунт"}
+              {state.isSubmitting
+                ? t("auth.signUp.common.creating")
+                : t("auth.signUp.common.createAccount")}
             </Button>
           )}
         </form.Subscribe>

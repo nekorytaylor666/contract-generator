@@ -1,23 +1,27 @@
 // Shared taxonomy for the template catalogue. The DB stores category slugs as a
 // free-form `text[]` (the full ancestor path: group → subcategory → leaf) and a
 // single `document_type` text. Consistency is kept by the UI (catalogue filters
-// + admin form) reading the lists from here. Labels are Russian, matching the
-// product language; add `i18n` only for filter chrome, not taxonomy values.
+// + admin form) reading the lists from here. Labels are Russian (the primary
+// product language) with optional Kazakh `labelKk` for the kk UI; nodes
+// without `labelKk` fall back to Russian (see `categoryLabelFor`).
 
 export interface CategoryLeaf {
   slug: string;
   label: string;
+  labelKk?: string;
 }
 
 export interface CategorySub {
   slug: string;
   label: string;
+  labelKk?: string;
   leaves: CategoryLeaf[];
 }
 
 export interface CategoryGroup {
   slug: string;
   label: string;
+  labelKk?: string;
   /** Not-yet-populated groups render disabled ("Скоро") in the filter. */
   enabled: boolean;
   subs: CategorySub[];
@@ -29,11 +33,13 @@ export const CATEGORY_TREE: CategoryGroup[] = [
   {
     slug: "dogovory",
     label: "Договоры",
+    labelKk: "Шарттар",
     enabled: true,
     subs: [
       {
         slug: "kuplya-prodazha",
         label: "Договор купли-продажи",
+        labelKk: "Сатып алу-сату шарты",
         leaves: [
           { slug: "kp-dvizhimoe", label: "Купли-продажи движимого имущества" },
           {
@@ -49,6 +55,7 @@ export const CATEGORY_TREE: CategoryGroup[] = [
       {
         slug: "postavka",
         label: "Поставка",
+        labelKk: "Жеткізу шарты",
         leaves: [
           { slug: "postavka-grafik", label: "Поставки по графику/заявкам" },
           { slug: "postavka-razovaya", label: "Разовой поставки" },
@@ -57,6 +64,7 @@ export const CATEGORY_TREE: CategoryGroup[] = [
       {
         slug: "arenda",
         label: "Аренда",
+        labelKk: "Жалдау шарты",
         leaves: [
           {
             slug: "arenda-kvartira-sutki",
@@ -104,6 +112,7 @@ export const CATEGORY_TREE: CategoryGroup[] = [
       {
         slug: "podryad",
         label: "Подряд",
+        labelKk: "Мердігерлік шарты",
         leaves: [
           { slug: "podryad-stroitelnyy", label: "Строительного подряда" },
           {
@@ -115,6 +124,7 @@ export const CATEGORY_TREE: CategoryGroup[] = [
       {
         slug: "uslugi",
         label: "Услуги",
+        labelKk: "Қызмет көрсету шарты",
         leaves: [
           { slug: "uslugi-razovyy", label: "Оказания услуг (разовый)" },
           {
@@ -149,6 +159,7 @@ export const CATEGORY_TREE: CategoryGroup[] = [
       {
         slug: "mena",
         label: "Мена",
+        labelKk: "Айырбас шарты",
         leaves: [
           { slug: "mena-dvizhimoe", label: "Мены движимых имуществ" },
           { slug: "mena-nedvizhimoe", label: "Мены недвижимых имуществ" },
@@ -162,6 +173,7 @@ export const CATEGORY_TREE: CategoryGroup[] = [
       {
         slug: "darenie",
         label: "Дарение",
+        labelKk: "Сыйға тарту шарты",
         leaves: [
           { slug: "darenie-dvizhimoe", label: "Дарения движимого имущества" },
           { slug: "darenie-ts", label: "Дарения транспортного средства" },
@@ -174,6 +186,7 @@ export const CATEGORY_TREE: CategoryGroup[] = [
       {
         slug: "publichnaya-oferta",
         label: "Публичный договор (оферта)",
+        labelKk: "Жария шарт (оферта)",
         leaves: [
           { slug: "oferta-prokat", label: "Публичный договор (прокат)" },
           {
@@ -186,6 +199,7 @@ export const CATEGORY_TREE: CategoryGroup[] = [
       {
         slug: "trudovoy-dogovor",
         label: "Трудовой договор",
+        labelKk: "Еңбек шарты",
         leaves: [],
       },
     ],
@@ -193,23 +207,38 @@ export const CATEGORY_TREE: CategoryGroup[] = [
   {
     slug: "korporativnye",
     label: "Корпоративные документы",
+    labelKk: "Корпоративтік құжаттар",
     enabled: false,
     subs: [],
   },
-  { slug: "trudovye", label: "Трудовые отношения", enabled: false, subs: [] },
+  {
+    slug: "trudovye",
+    label: "Трудовые отношения",
+    labelKk: "Еңбек қатынастары",
+    enabled: false,
+    subs: [],
+  },
   {
     slug: "pretenzii",
     label: "Претензии и уведомления",
+    labelKk: "Талаптар мен хабарламалар",
     enabled: false,
     subs: [],
   },
   {
     slug: "sudebnoe",
     label: "Судебное производство",
+    labelKk: "Сот ісін жүргізу",
     enabled: false,
     subs: [],
   },
-  { slug: "inye", label: "Иные документы", enabled: false, subs: [] },
+  {
+    slug: "inye",
+    label: "Иные документы",
+    labelKk: "Өзге құжаттар",
+    enabled: false,
+    subs: [],
+  },
 ];
 
 // Document types ("Вид документа"). A template has at most one.
@@ -251,6 +280,37 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   pismo: "Письмо",
 };
 
+export const DOCUMENT_TYPE_LABELS_KK: Record<DocumentType, string> = {
+  dogovor: "Шарт",
+  soglashenie: "Келісім",
+  prilozhenie: "Шартқа қосымша",
+  akt: "Акт",
+  reshenie: "Шешім",
+  protokol: "Хаттама",
+  prikaz: "Бұйрық",
+  uvedomlenie: "Хабарлама",
+  pretenziya: "Талап",
+  zayavlenie: "Өтініш",
+  isk: "Талап қою",
+  hodataystvo: "Өтінішхат",
+  zhaloba: "Шағым",
+  doverennost: "Сенімхат",
+  pismo: "Хат",
+};
+
+/** Ярлык вида документа для языка интерфейса (kk → казахский, иначе русский). */
+export function documentTypeLabelFor(
+  type: string | null | undefined,
+  locale: string
+): string | undefined {
+  if (!(type && isDocumentType(type))) {
+    return undefined;
+  }
+  return locale.startsWith("kk")
+    ? DOCUMENT_TYPE_LABELS_KK[type]
+    : DOCUMENT_TYPE_LABELS[type];
+}
+
 // Which document types are relevant per top-level group. Implements the PDF
 // rule: "Вид документа" is inactive until a category is chosen, then only the
 // relevant types for the chosen category(ies) are shown.
@@ -274,6 +334,20 @@ export const DOCUMENT_TYPES_BY_GROUP: Record<string, DocumentType[]> = {
 // slug → label, for every node (group, subcategory, leaf). Used by chips and
 // the catalogue card to render a human label from a stored slug.
 export const CATEGORY_LABEL_BY_SLUG: Record<string, string> = {};
+// slug → казахский ярлык; заполнен только там, где у узла есть `labelKk`.
+const CATEGORY_LABEL_KK_BY_SLUG: Record<string, string> = {};
+
+/** Ярлык категории для языка интерфейса: kk — казахский, если он задан у
+ * узла, иначе русский. */
+export function categoryLabelFor(
+  slug: string,
+  locale: string
+): string | undefined {
+  if (locale.startsWith("kk")) {
+    return CATEGORY_LABEL_KK_BY_SLUG[slug] ?? CATEGORY_LABEL_BY_SLUG[slug];
+  }
+  return CATEGORY_LABEL_BY_SLUG[slug];
+}
 
 // slug → itself + every descendant slug. A template stores its own terminal
 // slug(s); the catalogue expands a selection (at any level) downward through
@@ -290,16 +364,25 @@ const DEPTH_BY_SLUG = new Map<string, number>();
 
 for (const group of CATEGORY_TREE) {
   CATEGORY_LABEL_BY_SLUG[group.slug] = group.label;
+  if (group.labelKk) {
+    CATEGORY_LABEL_KK_BY_SLUG[group.slug] = group.labelKk;
+  }
   GROUP_BY_SLUG.set(group.slug, group.slug);
   DEPTH_BY_SLUG.set(group.slug, 0);
   const groupDescendants = [group.slug];
   for (const sub of group.subs) {
     CATEGORY_LABEL_BY_SLUG[sub.slug] = sub.label;
+    if (sub.labelKk) {
+      CATEGORY_LABEL_KK_BY_SLUG[sub.slug] = sub.labelKk;
+    }
     GROUP_BY_SLUG.set(sub.slug, group.slug);
     DEPTH_BY_SLUG.set(sub.slug, 1);
     const subDescendants = [sub.slug];
     for (const leaf of sub.leaves) {
       CATEGORY_LABEL_BY_SLUG[leaf.slug] = leaf.label;
+      if (leaf.labelKk) {
+        CATEGORY_LABEL_KK_BY_SLUG[leaf.slug] = leaf.labelKk;
+      }
       GROUP_BY_SLUG.set(leaf.slug, group.slug);
       DEPTH_BY_SLUG.set(leaf.slug, 2);
       subDescendants.push(leaf.slug);

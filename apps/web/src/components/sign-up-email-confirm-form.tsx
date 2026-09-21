@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ export function SignUpEmailConfirmForm({
   onChangeEmail: () => void;
   onVerified: () => void;
 }) {
+  const { t } = useTranslation();
   // Один input на каждый знак, плюс ref на первый — авто-фокус при монтаже.
   const [digits, setDigits] = useState<string[]>(() =>
     Array.from({ length: OTP_LENGTH }, () => "")
@@ -52,7 +54,9 @@ export function SignUpEmailConfirmForm({
       .getData("text")
       .replace(/\D/g, "")
       .slice(0, OTP_LENGTH);
-    if (!pasted) return;
+    if (!pasted) {
+      return;
+    }
     e.preventDefault();
     const next = Array.from({ length: OTP_LENGTH }, (_, i) => pasted[i] ?? "");
     setDigits(next);
@@ -69,14 +73,18 @@ export function SignUpEmailConfirmForm({
   }
 
   function submit(code: string) {
-    if (code.length !== OTP_LENGTH) return;
+    if (code.length !== OTP_LENGTH) {
+      return;
+    }
     setIsSubmitting(true);
     // Dev-stub: код всегда "111111". Заменить на authClient.emailOtp.verify
     // когда подключим SMTP/email-провайдера.
     if (code === STUB_CODE) {
       onVerified();
     } else {
-      toast.error(`Неверный код. Используйте ${STUB_CODE}`);
+      toast.error(
+        t("auth.signUp.emailConfirm.invalidCode", { code: STUB_CODE })
+      );
       setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
       inputsRef.current[0]?.focus();
     }
@@ -86,15 +94,15 @@ export function SignUpEmailConfirmForm({
   const code = digits.join("");
 
   // Авто-submit когда все 6 заполнены.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: срабатывает только при изменении кода, submit пересоздаётся на каждый рендер.
   useEffect(() => {
     if (code.length === OTP_LENGTH && !isSubmitting) {
       submit(code);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
 
   function resend() {
-    toast.info(`Тестовый код: ${STUB_CODE}`);
+    toast.info(t("auth.signUp.emailConfirm.testCode", { code: STUB_CODE }));
     setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
     inputsRef.current[0]?.focus();
   }
@@ -105,11 +113,14 @@ export function SignUpEmailConfirmForm({
         <ZhebeMark className="h-10 w-auto text-landing" />
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="font-medium text-3xl text-foreground">
-            Подтвердите электронную почту
+            {t("auth.signUp.emailConfirm.title")}
           </h1>
           <p className="max-w-[380px] text-base text-foreground/80">
-            Мы отправили 6-значный код на{" "}
-            <span className="text-foreground">{maskEmail(email)}</span>
+            <Trans
+              components={{ email: <span className="text-foreground" /> }}
+              i18nKey="auth.signUp.emailConfirm.codeSentTo"
+              values={{ email: maskEmail(email) }}
+            />
           </p>
         </div>
       </div>
@@ -144,22 +155,28 @@ export function SignUpEmailConfirmForm({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-foreground text-sm">Не та почта?</span>
+          <span className="text-foreground text-sm">
+            {t("auth.signUp.emailConfirm.wrongEmail")}
+          </span>
           <button
             className="text-primary text-sm hover:underline"
             onClick={onChangeEmail}
             type="button"
           >
-            Изменить адрес
+            {t("auth.signUp.emailConfirm.changeEmail")}
           </button>
         </div>
       </div>
 
       <p className="max-w-[380px] text-center text-foreground/80 text-sm">
-        Не нашли письмо? Проверьте папку «Спам» или{" "}
-        <button className="underline" onClick={resend} type="button">
-          переслать код
-        </button>
+        <Trans
+          components={{
+            resend: (
+              <button className="underline" onClick={resend} type="button" />
+            ),
+          }}
+          i18nKey="auth.signUp.emailConfirm.notReceived"
+        />
       </p>
     </div>
   );

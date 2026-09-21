@@ -1,6 +1,6 @@
 import {
-  CATEGORY_LABEL_BY_SLUG,
   categoryGroupOf,
+  categoryLabelFor,
   mostSpecificCategory,
 } from "@contract-builder/api/constants/template-options";
 import { useQuery } from "@tanstack/react-query";
@@ -335,7 +335,10 @@ function Hero() {
 
 interface Step {
   n: number;
+  // Скриншот продукта: русский интерфейс и его казахская версия (файлы
+  // *-kk.jpg; пока это копии русских — заменить, когда будут kk-скрины).
   image: string;
+  imageKk: string;
   // Смещение «скриншота приложения» внутри персиковой панели (в процентах от
   // её ширины/высоты) — каждая панель показывает свой участок продукта.
   offset: { left: string; top: string };
@@ -345,16 +348,19 @@ const STEPS: Step[] = [
   {
     n: 1,
     image: "/landing/step-catalog.jpg",
+    imageKk: "/landing/step-catalog-kk.jpg",
     offset: { left: "7%", top: "9%" },
   },
   {
     n: 2,
     image: "/landing/step-builder.jpg",
+    imageKk: "/landing/step-builder-kk.jpg",
     offset: { left: "-31%", top: "-35%" },
   },
   {
     n: 3,
     image: "/landing/step-builder.jpg",
+    imageKk: "/landing/step-builder-kk.jpg",
     offset: { left: "-33%", top: "10%" },
   },
 ];
@@ -383,7 +389,8 @@ const KEY_PAGE_SHARE = 0.8;
  * снимается и страница едет дальше. На мобильных — обычный поток.
  */
 function Steps() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isKk = i18n.language.startsWith("kk");
   const outerRef = useRef<HTMLDivElement | null>(null);
   const windowRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -566,7 +573,7 @@ function Steps() {
                         alt={t(`landing.steps.step${step.n}Title`)}
                         className="block h-auto w-full"
                         height={810}
-                        src={step.image}
+                        src={isKk ? step.imageKk : step.image}
                         width={1440}
                       />
                     </div>
@@ -645,9 +652,9 @@ function LibraryCard({
 }) {
   const { t, i18n } = useTranslation();
   const slug = mostSpecificCategory(tpl.categories);
-  // Ярлыки категорий приходят из общих констант API и пока только на русском.
   const tag =
-    (slug && CATEGORY_LABEL_BY_SLUG[slug]) || t("landing.library.fallbackTag");
+    (slug && categoryLabelFor(slug, i18n.language)) ||
+    t("landing.library.fallbackTag");
   const group = slug ? categoryGroupOf(slug) : undefined;
   const Icon = (group && LIBRARY_GROUP_ICONS[group]) || FileText;
   const cardClassName =

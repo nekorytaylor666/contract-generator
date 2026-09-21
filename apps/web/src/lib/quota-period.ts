@@ -4,17 +4,17 @@
 // quotaResetAt); здесь — единая подпись даты сброса для всех экранов, чтобы
 // «5 редактирований» нигде не читалось как «5 на весь срок подписки».
 
-/** «25 октября» / «25 қазан» — дата сброса в формате языка интерфейса. */
+import { formatDayMonth } from "@/lib/format-date";
+
+/** «25 октября» / «25 қазан» — дата сброса в формате языка интерфейса.
+ * `locative` даёт «25 қазанда» для фраз вида «обновится <дата>». */
 export function formatQuotaResetDate(
   language: string,
-  resetsAt: Date | string | null | undefined
+  resetsAt: Date | string | null | undefined,
+  options: { locative?: boolean } = {}
 ): string {
   if (!resetsAt) {
     return "";
   }
-  const locale = language === "kk" ? "kk-KZ" : "ru-RU";
-  return new Intl.DateTimeFormat(locale, {
-    day: "numeric",
-    month: "long",
-  }).format(new Date(resetsAt));
+  return formatDayMonth(language, resetsAt, options);
 }

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ellipsis, Plus, Search, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
@@ -26,15 +27,11 @@ import { useTRPC } from "@/utils/trpc";
 
 const NON_DIGIT_RE = /\D/g;
 
-const TABLE_HEADERS = [
-  "Наименование",
-  "ИИН/БИН",
-  "Юридический адрес",
-  "Номер телефона",
-  "Почта",
-] as const;
+// Заголовки колонок — counterparties.headers.<key> в i18n.
+const TABLE_HEADERS = ["name", "bin", "address", "phone", "email"] as const;
 
 function EmptyState({ hasCounterparties }: { hasCounterparties: boolean }) {
+  const { t } = useTranslation();
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border border-border border-dashed text-center">
       <div className="flex size-10 items-center justify-center rounded-lg bg-muted">
@@ -43,13 +40,13 @@ function EmptyState({ hasCounterparties }: { hasCounterparties: boolean }) {
       <div>
         <p className="font-medium text-foreground text-sm">
           {hasCounterparties
-            ? "Ничего не найдено"
-            : "У вас пока нет контрагентов"}
+            ? t("counterparties.notFoundTitle")
+            : t("counterparties.emptyTitle")}
         </p>
         <p className="mx-auto mt-1 max-w-[300px] text-muted-foreground text-xs">
           {hasCounterparties
-            ? "Попробуйте изменить поисковый запрос"
-            : "Добавьте контрагента здесь или при заполнении документа — его реквизиты сохранятся автоматически"}
+            ? t("counterparties.notFoundHint")
+            : t("counterparties.emptyHint")}
         </p>
       </div>
     </div>
@@ -65,6 +62,7 @@ export function CounterpartiesDialog({
   open,
   onOpenChange,
 }: CounterpartiesDialogProps) {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const { data: counterparties = [], isLoading } = useQuery({
@@ -91,7 +89,7 @@ export function CounterpartiesDialog({
       onSuccess: () => {
         queryClient.invalidateQueries(trpc.counterparties.list.queryFilter());
         setSelectedIds(new Set());
-        toast.success("Удалено");
+        toast.success(t("counterparties.deleted"));
       },
       onError: (err) => toast.error(err.message),
     })
@@ -157,17 +155,17 @@ export function CounterpartiesDialog({
       <Dialog onOpenChange={onOpenChange} open={open}>
         <DialogContent className="gap-4 sm:max-w-[800px]">
           <DialogHeader>
-            <DialogTitle>Контрагенты</DialogTitle>
+            <DialogTitle>{t("counterparties.title")}</DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="relative w-full sm:w-[320px]">
               <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                aria-label="Поиск контрагентов"
+                aria-label={t("counterparties.searchAria")}
                 className="h-9 pl-8 text-sm"
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Введите наименование или БИН"
+                placeholder={t("counterparties.searchPlaceholder")}
                 value={search}
               />
             </div>
@@ -180,7 +178,7 @@ export function CounterpartiesDialog({
                   type="button"
                   variant="outline"
                 >
-                  Удалить
+                  {t("counterparties.delete")}
                 </Button>
               )}
               <Button
@@ -190,7 +188,7 @@ export function CounterpartiesDialog({
                 variant="outline"
               >
                 <Plus className="size-4" />
-                Добавить контрагента
+                {t("counterparties.add")}
               </Button>
             </div>
           </div>
@@ -198,7 +196,7 @@ export function CounterpartiesDialog({
           <div className="h-[420px] overflow-y-auto">
             {isLoading && (
               <p className="py-10 text-center text-muted-foreground text-sm">
-                Загрузка контрагентов…
+                {t("counterparties.loading")}
               </p>
             )}
 
@@ -212,7 +210,7 @@ export function CounterpartiesDialog({
                   <tr className="border-border border-b">
                     <th className="w-8 py-3 pr-2 text-left">
                       <Checkbox
-                        aria-label="Выбрать всех"
+                        aria-label={t("counterparties.selectAll")}
                         checked={allSelected}
                         onCheckedChange={(checked) =>
                           toggleAll(checked === true)
@@ -224,11 +222,13 @@ export function CounterpartiesDialog({
                         className="py-3 pr-3 text-left font-medium text-foreground"
                         key={header}
                       >
-                        {header}
+                        {t(`counterparties.headers.${header}`)}
                       </th>
                     ))}
                     <th className="w-10 py-3">
-                      <span className="sr-only">Действия</span>
+                      <span className="sr-only">
+                        {t("counterparties.actions")}
+                      </span>
                     </th>
                   </tr>
                 </thead>
@@ -240,7 +240,9 @@ export function CounterpartiesDialog({
                     >
                       <td className="py-3 pr-2">
                         <Checkbox
-                          aria-label={`Выбрать ${item.name}`}
+                          aria-label={t("counterparties.selectOne", {
+                            name: item.name,
+                          })}
                           checked={selectedIds.has(item.id)}
                           onCheckedChange={(checked) =>
                             toggleRow(item.id, checked === true)
@@ -281,7 +283,9 @@ export function CounterpartiesDialog({
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
-                              aria-label={`Действия: ${item.name}`}
+                              aria-label={t("counterparties.actionsFor", {
+                                name: item.name,
+                              })}
                               size="icon-sm"
                               type="button"
                               variant="ghost"
@@ -291,7 +295,7 @@ export function CounterpartiesDialog({
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={() => openEdit(item)}>
-                              Редактировать
+                              {t("counterparties.edit")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
@@ -299,7 +303,7 @@ export function CounterpartiesDialog({
                                 deleteMut.mutate({ ids: [item.id] })
                               }
                             >
-                              Удалить
+                              {t("counterparties.delete")}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

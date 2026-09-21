@@ -1,6 +1,8 @@
 import { useForm } from "@tanstack/react-form";
+import type { TFunction } from "i18next";
 import { ArrowLeftIcon } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -8,7 +10,10 @@ import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 import Loader from "./loader";
-import { SignUpCreateAccountForm } from "./sign-up-create-account-form";
+import {
+  AcceptTermsText,
+  SignUpCreateAccountForm,
+} from "./sign-up-create-account-form";
 import { SignUpEmailConfirmForm } from "./sign-up-email-confirm-form";
 import { SignUpEmailForm } from "./sign-up-email-form";
 import { SignUpOrgForm } from "./sign-up-org-form";
@@ -31,14 +36,12 @@ type Step =
   | "password"
   | "email";
 
-const phoneSchema = z.object({
-  phone: z
-    .string()
-    .regex(
-      /^\+7 \d{3} \d{3} \d{2} \d{2}$/,
-      "Введите корректный номер телефона"
-    ),
-});
+const PHONE_RE = /^\+7 \d{3} \d{3} \d{2} \d{2}$/;
+
+const makePhoneSchema = (t: TFunction) =>
+  z.object({
+    phone: z.string().regex(PHONE_RE, t("auth.signUp.start.invalidPhone")),
+  });
 
 function formatKzPhone(value: string): string {
   const digits = value.replace(/\D/g, "");
@@ -65,12 +68,14 @@ function formatKzPhone(value: string): string {
 }
 
 export default function SignUpForm() {
+  const { t } = useTranslation();
   const { isPending } = authClient.useSession();
   const [accountType, setAccountType] = useState<AccountType | null>(null);
   const [step, setStep] = useState<Step>("account-type");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [emailForConfirm, setEmailForConfirm] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const phoneSchema = useMemo(() => makePhoneSchema(t), [t]);
 
   const phoneForm = useForm({
     defaultValues: {
@@ -82,12 +87,12 @@ export default function SignUpForm() {
         phoneNumber: phoneE164,
       });
       if (error) {
-        toast.error(error.message ?? "Не удалось отправить код");
+        toast.error(error.message ?? t("auth.signUp.start.sendFailed"));
         return;
       }
       setPhoneNumber(phoneE164);
       setStep("otp");
-      toast.success("Код отправлен — проверьте SMS");
+      toast.success(t("auth.signUp.start.codeSent"));
     },
     validators: {
       onSubmit: phoneSchema,
@@ -167,29 +172,32 @@ export default function SignUpForm() {
           <ZhebeMark className="h-10 w-auto text-landing" />
           <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="font-medium text-3xl text-foreground">
-              Регистрация
+              {t("auth.signUp.common.title")}
             </h1>
             <p className="max-w-[378px] text-base text-foreground/80">
-              Зарегистрируйтесь за минуту — и получите доступ к юридически
-              выверенным документам для Казахстана.
+              {t("auth.signUp.start.accountTypeSubtitle")}
             </p>
           </div>
         </div>
 
         <div className="flex w-[372px] max-w-full flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <p className="text-foreground text-sm">Выберите тип аккаунта</p>
+            <p className="text-foreground text-sm">
+              {t("auth.signUp.start.chooseAccountType")}
+            </p>
             <fieldset className="flex gap-3 border-0 p-0">
-              <legend className="sr-only">Тип аккаунта</legend>
+              <legend className="sr-only">
+                {t("auth.signUp.start.accountTypeLegend")}
+              </legend>
               <AccountTypeOption
                 checked={accountType === "individual"}
-                label="Физическое лицо"
+                label={t("auth.signUp.start.individual")}
                 onSelect={() => setAccountType("individual")}
                 value="individual"
               />
               <AccountTypeOption
                 checked={accountType === "legal"}
-                label="Юридическое лицо"
+                label={t("auth.signUp.start.legal")}
                 onSelect={() => setAccountType("legal")}
                 value="legal"
               />
@@ -205,7 +213,7 @@ export default function SignUpForm() {
             }}
             type="button"
           >
-            Продолжить
+            {t("auth.signUp.common.continue")}
           </Button>
         </div>
       </div>
@@ -219,11 +227,10 @@ export default function SignUpForm() {
           <ZhebeMark className="h-10 w-auto text-landing" />
           <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="font-medium text-3xl text-foreground">
-              Регистрация
+              {t("auth.signUp.common.title")}
             </h1>
             <p className="max-w-[378px] text-base text-foreground/80">
-              Зарегистрируйтесь за минуту — и получите доступ к 1000+ юридически
-              проверенных документов для Казахстана и СНГ.
+              {t("auth.signUp.start.methodSubtitle")}
             </p>
           </div>
         </div>
@@ -234,14 +241,14 @@ export default function SignUpForm() {
             onClick={() => setStep("phone")}
             type="button"
           >
-            Продолжить с номером телефона
+            {t("auth.signUp.start.continueWithPhone")}
           </Button>
           <Button
             className="h-10 w-full rounded-lg bg-muted text-foreground text-sm hover:bg-muted/80"
             onClick={() => setStep("email")}
             type="button"
           >
-            Продолжить с почтой
+            {t("auth.signUp.start.continueWithEmail")}
           </Button>
           <Button
             className="h-10 w-full gap-2 rounded-lg bg-foreground text-background text-sm hover:bg-foreground/90"
@@ -254,7 +261,7 @@ export default function SignUpForm() {
                 {
                   onError: (ctx) => {
                     toast.error(
-                      ctx.error.message || "Не удалось войти через Google"
+                      ctx.error.message || t("auth.signUp.start.googleFailed")
                     );
                   },
                 }
@@ -263,7 +270,7 @@ export default function SignUpForm() {
             type="button"
           >
             <GoogleIcon className="size-4" />
-            Продолжить через Google
+            {t("auth.signUp.start.continueWithGoogle")}
           </Button>
 
           <button
@@ -272,7 +279,7 @@ export default function SignUpForm() {
             type="button"
           >
             <ArrowLeftIcon className="size-3" />
-            Назад
+            {t("auth.signUp.common.back")}
           </button>
         </div>
       </div>
@@ -285,10 +292,10 @@ export default function SignUpForm() {
         <ZhebeMark className="h-10 w-auto text-landing" />
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="font-medium text-3xl text-foreground">
-            Введите номер телефона
+            {t("auth.signUp.start.phoneTitle")}
           </h1>
           <p className="max-w-[378px] text-base text-foreground/80">
-            Введите номер — отправим код подтверждения
+            {t("auth.signUp.start.phoneSubtitle")}
           </p>
         </div>
       </div>
@@ -340,15 +347,7 @@ export default function SignUpForm() {
             onCheckedChange={(checked) => setAcceptTerms(checked === true)}
           />
           <label className="flex-1 cursor-pointer" htmlFor="accept-terms">
-            Принимаю{" "}
-            <a className="underline" href="/terms">
-              условия использования
-            </a>{" "}
-            и{" "}
-            <a className="underline" href="/privacy">
-              политику конфиденциальности
-            </a>
-            .
+            <AcceptTermsText />
           </label>
         </div>
 
@@ -359,7 +358,9 @@ export default function SignUpForm() {
               disabled={!state.canSubmit || state.isSubmitting || !acceptTerms}
               type="submit"
             >
-              {state.isSubmitting ? "Отправляем..." : "Отправить код"}
+              {state.isSubmitting
+                ? t("auth.signUp.start.sending")
+                : t("auth.signUp.start.sendCode")}
             </Button>
           )}
         </phoneForm.Subscribe>
@@ -370,7 +371,7 @@ export default function SignUpForm() {
           type="button"
         >
           <ArrowLeftIcon className="size-3" />
-          Назад
+          {t("auth.signUp.common.back")}
         </button>
       </form>
     </div>

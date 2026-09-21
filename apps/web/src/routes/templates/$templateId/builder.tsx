@@ -106,15 +106,6 @@ function backfillNewFields(
   return gained ? merged : null;
 }
 
-function pluralFields(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod10 === 1 && mod100 !== 11) {
-    return "поля";
-  }
-  return "полей";
-}
-
 // The same variable-resolution chain the render path uses: admin-synced
 // per-locale variables, else fillable `#let`s parsed from that locale's typst.
 function variablesForLocale(
@@ -163,11 +154,12 @@ function SaveStatus({
   canEdit: boolean;
   onSave: () => void;
 }) {
+  const { t } = useTranslation();
   if (docLocked) {
     return (
       <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
         <DownloadIcon className="size-4" />
-        Скачан — правки закрыты
+        {t("builder.header.downloadedLocked")}
       </span>
     );
   }
@@ -175,21 +167,21 @@ function SaveStatus({
     return (
       <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
         <Loader2 className="size-4 animate-spin" />
-        Сохранение…
+        {t("builder.header.saving")}
       </span>
     );
   }
   if (hasChanges) {
     return (
       <Button disabled={!canEdit} onClick={onSave} size="sm" variant="outline">
-        Сохранить
+        {t("builder.header.save")}
       </Button>
     );
   }
   return (
     <span className="flex items-center gap-1.5 text-muted-foreground text-sm">
       <Check className="size-4 text-green-600" />
-      Сохранено
+      {t("builder.header.saved")}
     </span>
   );
 }
@@ -203,6 +195,7 @@ function EditableDocTitle({
   value: string;
   onCommit: (next: string) => void;
 }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -230,7 +223,7 @@ function EditableDocTitle({
           setDraft(value);
           setEditing(true);
         }}
-        title="Переименовать документ"
+        title={t("builder.header.renameDocument")}
         type="button"
       >
         <span className="truncate font-medium text-foreground">{value}</span>
@@ -273,6 +266,7 @@ function LawyerReviewButton({
   resetsAt: string | Date | null | undefined;
   onOpen: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const available = remaining === -1 || remaining > 0;
   if (available) {
     return (
@@ -282,7 +276,9 @@ function LawyerReviewButton({
         type="button"
       >
         <Share className="size-4" />
-        <span className="hidden sm:inline">На проверку юристу</span>
+        <span className="hidden sm:inline">
+          {t("builder.header.lawyerReview")}
+        </span>
       </button>
     );
   }
@@ -293,10 +289,12 @@ function LawyerReviewButton({
     if (isPaid) {
       hint =
         quota === 0
-          ? "Проверка юриста не входит в ваш тариф"
-          : `Лимит проверок на этот месяц исчерпан. Обновится ${formatQuotaResetDate("ru", resetsAt)}`;
+          ? t("builder.header.lawyerNotInPlan")
+          : t("builder.header.lawyerQuotaExhausted", {
+              date: formatQuotaResetDate(i18n.language, resetsAt),
+            });
     } else {
-      hint = "Проверка юриста доступна на платных тарифах";
+      hint = t("builder.header.lawyerPaidOnly");
     }
   }
   const disabledButton = (
@@ -306,7 +304,9 @@ function LawyerReviewButton({
       type="button"
     >
       <Share className="size-4" />
-      <span className="hidden sm:inline">На проверку юристу</span>
+      <span className="hidden sm:inline">
+        {t("builder.header.lawyerReview")}
+      </span>
     </button>
   );
   if (!hint) {
@@ -351,11 +351,12 @@ function MobileSheetControls({
   open: boolean;
   onToggle: (open: boolean) => void;
 }) {
+  const { t } = useTranslation();
   if (open) {
     // Тап по затемнённому документу за шторкой закрывает её.
     return (
       <button
-        aria-label="Закрыть заполнение"
+        aria-label={t("builder.form.closeFill")}
         className="fixed inset-0 z-30 cursor-default bg-black/40 lg:hidden"
         onClick={() => onToggle(false)}
         type="button"
@@ -369,7 +370,7 @@ function MobileSheetControls({
       type="button"
     >
       <PenLine className="size-4" />
-      Заполнить данные
+      {t("builder.form.fillData")}
     </button>
   );
 }
@@ -381,7 +382,7 @@ function RouteComponent() {
   const navigate = useNavigate();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [lawyerOpen, setLawyerOpen] = useState(false);
   const { data: myAccess } = useQuery(trpc.team.myAccess.queryOptions());
   const canEdit = myAccess?.canEdit !== false;
@@ -685,7 +686,9 @@ function RouteComponent() {
       try {
         const result = await autosaveMutation.mutateAsync(draft);
         if (result.created) {
-          toast.success(`Контрагент «${draft.name}» сохранён в справочник`);
+          toast.success(
+            t("builder.counterparty.savedToast", { name: draft.name })
+          );
           queryClient.invalidateQueries(trpc.counterparties.list.queryFilter());
         }
         if (values[party.storageKey] !== result.id) {
@@ -702,6 +705,7 @@ function RouteComponent() {
     autosaveMutation.mutateAsync,
     queryClient,
     trpc,
+    t,
   ]);
 
   const saveMutation = useMutation(
@@ -904,12 +908,10 @@ function RouteComponent() {
         triggerHighlight(changed);
         // Auto-translation is best-effort — in a legal document the user must
         // eyeball the substituted literals, so point them at the highlights.
-        toast.info(
-          `Значения ${changed.size} ${pluralFields(changed.size)} переведены под выбранный язык — проверьте подсвеченные поля`
-        );
+        toast.info(t("builder.form.valuesTranslated", { count: changed.size }));
       }
     },
-    [template, docLocale, formValues, triggerHighlight]
+    [template, docLocale, formValues, triggerHighlight, t]
   );
 
   const handlePreviewVersion = useCallback(
@@ -988,7 +990,9 @@ function RouteComponent() {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="text-muted-foreground">Загрузка шаблона...</div>
+        <div className="text-muted-foreground">
+          {t("builder.states.loading")}
+        </div>
       </div>
     );
   }
@@ -996,12 +1000,14 @@ function RouteComponent() {
   if (error || !template) {
     return (
       <div className="flex h-full flex-col items-center justify-center">
-        <p className="font-medium text-foreground text-sm">Шаблон не найден</p>
+        <p className="font-medium text-foreground text-sm">
+          {t("builder.states.notFound")}
+        </p>
         <Link
           className="mt-2 text-primary text-sm hover:underline"
           to="/templates"
         >
-          Назад к шаблонам
+          {t("builder.states.backToTemplates")}
         </Link>
       </div>
     );
@@ -1045,7 +1051,7 @@ function RouteComponent() {
             className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
             to="/documents"
           >
-            Мои документы
+            {t("builder.header.myDocuments")}
           </Link>
           <span className="text-muted-foreground">/</span>
           <EditableDocTitle
@@ -1053,7 +1059,7 @@ function RouteComponent() {
             value={docTitle ?? localized.title}
           />
           <button
-            aria-label="О документе"
+            aria-label={t("builder.header.aboutDocument")}
             className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground"
             onClick={() => setInfoOpen(true)}
             type="button"
@@ -1102,11 +1108,15 @@ function RouteComponent() {
                   <DownloadIcon className="size-4" />
                 )}
                 {compileMutation.isPending ? (
-                  "Скачивание…"
+                  t("builder.header.downloading")
                 ) : (
                   <>
-                    <span className="hidden sm:inline">Скачать документ</span>
-                    <span className="sm:hidden">Скачать</span>
+                    <span className="hidden sm:inline">
+                      {t("builder.header.downloadDocument")}
+                    </span>
+                    <span className="sm:hidden">
+                      {t("builder.header.download")}
+                    </span>
                   </>
                 )}
                 <ChevronDown className="size-4" />
@@ -1115,11 +1125,11 @@ function RouteComponent() {
             <DropdownMenuContent align="end" className="min-w-44">
               <DropdownMenuItem onSelect={() => handleDownload("docx")}>
                 <DownloadIcon className="size-4" />
-                Скачать в DocX
+                {t("builder.header.downloadDocx")}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => handleDownload("pdf")}>
                 <DownloadIcon className="size-4" />
-                Скачать в PDF
+                {t("builder.header.downloadPdf")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1146,7 +1156,11 @@ function RouteComponent() {
           <Button
             onClick={() => setSidebarOpen((o) => !o)}
             size="sm"
-            title={sidebarOpen ? "Скрыть панель" : "Показать панель"}
+            title={
+              sidebarOpen
+                ? t("builder.form.hidePanel")
+                : t("builder.form.showPanel")
+            }
             variant="ghost"
           >
             {sidebarOpen ? (
@@ -1199,10 +1213,10 @@ function RouteComponent() {
           {/* Шапка шторки — только мобильная */}
           <div className="flex items-center justify-between border-border border-b px-4 py-3 lg:hidden">
             <span className="font-medium text-foreground text-sm">
-              Заполнение данных
+              {t("builder.form.fillingData")}
             </span>
             <button
-              aria-label="Показать документ"
+              aria-label={t("builder.form.showDocument")}
               className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               onClick={() => setFormSheetOpen(false)}
               type="button"
@@ -1215,8 +1229,7 @@ function RouteComponent() {
               {localized.title}
             </h2>
             <p className="mt-2 mb-5 text-muted-foreground text-sm leading-relaxed">
-              {localized.description ||
-                "Заполните поля — документ слева обновится автоматически."}
+              {localized.description || t("builder.form.fillHint")}
             </p>
 
             <LogoUpload logo={logo} onLogoChange={handleLogoChange} />

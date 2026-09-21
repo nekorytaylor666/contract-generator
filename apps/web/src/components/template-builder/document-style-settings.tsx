@@ -5,6 +5,7 @@ import {
 } from "@contract-builder/api/constants/template-options";
 import { ChevronDown } from "lucide-react";
 import { Select as SelectPrimitive } from "radix-ui";
+import { useTranslation } from "react-i18next";
 import {
   Select,
   SelectContent,
@@ -37,11 +38,12 @@ const SERIF_FONTS = FONTS.filter((f) => f.category === "Serif");
 const SANS_FONTS = FONTS.filter((f) => f.category === "Sans-Serif");
 const MONO_FONTS = FONTS.filter((f) => f.category === "Monospace");
 
+// Enum values go to the server; only the label keys are localized.
 const PRESETS = [
-  { value: "compact", label: "Компактный" },
-  { value: "default", label: "По умолчанию" },
-  { value: "comfortable", label: "Комфортный" },
-  { value: "spacious", label: "Просторный" },
+  { value: "compact", labelKey: "builder.toolbar.presets.compact" },
+  { value: "default", labelKey: "builder.toolbar.presets.default" },
+  { value: "comfortable", labelKey: "builder.toolbar.presets.comfortable" },
+  { value: "spacious", labelKey: "builder.toolbar.presets.spacious" },
 ] as const;
 
 // Figma "Legal/Actions": compact white pill with a static control label and a
@@ -72,16 +74,17 @@ export function DocumentStyleSettings({
   locale,
   onLocaleChange,
 }: DocumentStyleSettingsProps) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-2">
       <Select
         onValueChange={(font) => onStyleChange({ ...style, font })}
         value={style.font}
       >
-        <PillTrigger label="Шрифт" />
+        <PillTrigger label={t("builder.toolbar.font")} />
         <SelectContent position="popper">
           <SelectGroup>
-            <SelectLabel>С засечками</SelectLabel>
+            <SelectLabel>{t("builder.toolbar.fontGroups.serif")}</SelectLabel>
             {SERIF_FONTS.map((font) => (
               <SelectItem key={font.value} value={font.value}>
                 <span style={{ fontFamily: font.value }}>{font.label}</span>
@@ -90,7 +93,7 @@ export function DocumentStyleSettings({
           </SelectGroup>
           <SelectSeparator />
           <SelectGroup>
-            <SelectLabel>Без засечек</SelectLabel>
+            <SelectLabel>{t("builder.toolbar.fontGroups.sans")}</SelectLabel>
             {SANS_FONTS.map((font) => (
               <SelectItem key={font.value} value={font.value}>
                 <span style={{ fontFamily: font.value }}>{font.label}</span>
@@ -99,7 +102,7 @@ export function DocumentStyleSettings({
           </SelectGroup>
           <SelectSeparator />
           <SelectGroup>
-            <SelectLabel>Моноширинный</SelectLabel>
+            <SelectLabel>{t("builder.toolbar.fontGroups.mono")}</SelectLabel>
             {MONO_FONTS.map((font) => (
               <SelectItem key={font.value} value={font.value}>
                 <span style={{ fontFamily: font.value }}>{font.label}</span>
@@ -110,7 +113,7 @@ export function DocumentStyleSettings({
       </Select>
 
       <Select onValueChange={onLocaleChange} value={locale}>
-        <PillTrigger label="Язык документа" />
+        <PillTrigger label={t("builder.toolbar.documentLanguage")} />
         <SelectContent position="popper">
           {TEMPLATE_LOCALES.map((code: TemplateLocale) => (
             <SelectItem key={code} value={code}>
@@ -124,11 +127,11 @@ export function DocumentStyleSettings({
         onValueChange={(preset) => onStyleChange({ ...style, preset })}
         value={style.preset}
       >
-        <PillTrigger label="Отступы" />
+        <PillTrigger label={t("builder.toolbar.spacing")} />
         <SelectContent position="popper">
           {PRESETS.map((preset) => (
             <SelectItem key={preset.value} value={preset.value}>
-              {preset.label}
+              {t(preset.labelKey)}
             </SelectItem>
           ))}
         </SelectContent>

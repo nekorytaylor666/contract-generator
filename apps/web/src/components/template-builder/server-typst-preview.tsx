@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { FileText } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { isNativeTypst } from "@/lib/native-typst";
 import { useTRPC } from "@/utils/trpc";
@@ -21,6 +22,7 @@ export function ServerTypstPreview({
   // Native `#let` values to substitute before compiling (omitted = defaults).
   values?: Record<string, unknown>;
 }) {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const containerRef = useRef<HTMLDivElement>(null);
   const [vectorData, setVectorData] = useState<string | null>(null);
@@ -61,7 +63,7 @@ export function ServerTypstPreview({
         <div>
           <FileText className="mx-auto size-12 text-muted-foreground/30" />
           <p className="mt-3 text-muted-foreground text-sm">
-            Не удалось отобразить предпросмотр документа
+            {t("builder.preview.previewFailed")}
           </p>
         </div>
       </div>
@@ -72,7 +74,7 @@ export function ServerTypstPreview({
     <div className="relative h-full overflow-auto">
       {compile.isPending && !vectorData && (
         <div className="flex h-40 items-center justify-center text-muted-foreground text-sm">
-          Рендеринг…
+          {t("builder.preview.rendering")}
         </div>
       )}
       <div

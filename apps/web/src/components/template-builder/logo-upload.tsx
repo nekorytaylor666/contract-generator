@@ -1,5 +1,6 @@
 import { ImagePlus, X } from "lucide-react";
 import { useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 
 interface LogoUploadProps {
@@ -8,6 +9,7 @@ interface LogoUploadProps {
 }
 
 export function LogoUpload({ logo, onLogoChange }: LogoUploadProps) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,18 +31,18 @@ export function LogoUpload({ logo, onLogoChange }: LogoUploadProps) {
     return (
       <div className="mb-4">
         <p className="mb-1.5 font-medium text-foreground text-xs">
-          Логотип компании
+          {t("builder.logo.title")}
         </p>
         <div className="flex items-center gap-2 rounded-md border border-border p-2">
           <img
-            alt="Логотип компании"
+            alt={t("builder.logo.title")}
             className="h-8 w-auto object-contain"
             height={32}
             src={logo}
             width={80}
           />
           <span className="flex-1 truncate text-muted-foreground text-xs">
-            Логотип загружен
+            {t("builder.logo.uploaded")}
           </span>
           <Button
             onClick={() => onLogoChange(null)}
@@ -58,7 +60,7 @@ export function LogoUpload({ logo, onLogoChange }: LogoUploadProps) {
   return (
     <div className="mb-4">
       <p className="mb-1.5 font-medium text-foreground text-xs">
-        Логотип компании
+        {t("builder.logo.title")}
       </p>
       <button
         className="flex w-full items-center gap-2 rounded-md border border-border border-dashed p-3 text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
@@ -66,7 +68,7 @@ export function LogoUpload({ logo, onLogoChange }: LogoUploadProps) {
         type="button"
       >
         <ImagePlus className="size-4" />
-        <span className="text-xs">Загрузить логотип</span>
+        <span className="text-xs">{t("builder.logo.upload")}</span>
       </button>
       <input
         accept="image/png,image/jpeg,image/svg+xml"

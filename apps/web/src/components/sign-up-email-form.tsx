@@ -1,6 +1,8 @@
 import { useForm } from "@tanstack/react-form";
+import type { TFunction } from "i18next";
 import { ArrowLeftIcon, EyeIcon, EyeOffIcon } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -10,11 +12,17 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { ZhebeMark } from "./zhebe-logo";
 
-const emailSchema = z.object({
-  name: z.string().min(2, "Имя должно быть не менее 2 символов"),
-  email: z.email("Некорректный адрес электронной почты"),
-  password: z.string().min(8, "Пароль должен быть не менее 8 символов"),
-});
+const MIN_NAME_LENGTH = 2;
+const MIN_PASSWORD_LENGTH = 8;
+
+const makeEmailSchema = (t: TFunction) =>
+  z.object({
+    name: z.string().min(MIN_NAME_LENGTH, t("auth.signUp.email.nameTooShort")),
+    email: z.email(t("auth.signUp.common.invalidEmail")),
+    password: z
+      .string()
+      .min(MIN_PASSWORD_LENGTH, t("auth.signUp.email.passwordTooShort")),
+  });
 
 export function SignUpEmailForm({
   accountType,
@@ -23,7 +31,9 @@ export function SignUpEmailForm({
   accountType: "individual" | "legal";
   onBack: () => void;
 }) {
+  const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
+  const emailSchema = useMemo(() => makeEmailSchema(t), [t]);
 
   const form = useForm({
     defaultValues: { name: "", email: "", password: "" },
@@ -38,9 +48,11 @@ export function SignUpEmailForm({
         {
           onSuccess: () => {
             toast.success(
-              `Регистрация успешна (${
-                accountType === "individual" ? "Физ. лицо" : "Юр. лицо"
-              })`
+              t("auth.signUp.email.success", {
+                accountType: t(
+                  `auth.signUp.email.accountTypeShort.${accountType}`
+                ),
+              })
             );
             window.location.href = "/continue-signup";
           },
@@ -59,10 +71,10 @@ export function SignUpEmailForm({
         <ZhebeMark className="h-10 w-auto text-landing" />
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="font-medium text-3xl text-foreground">
-            Регистрация по почте
+            {t("auth.signUp.email.title")}
           </h1>
           <p className="max-w-[378px] text-base text-foreground/80">
-            Создайте аккаунт с электронной почтой и паролем.
+            {t("auth.signUp.email.subtitle")}
           </p>
         </div>
       </div>
@@ -84,7 +96,7 @@ export function SignUpEmailForm({
                 name={field.name}
                 onBlur={field.handleBlur}
                 onChange={(e) => field.handleChange(e.target.value)}
-                placeholder="Ваше имя"
+                placeholder={t("auth.signUp.email.namePlaceholder")}
                 value={field.state.value}
               />
               {field.state.meta.errors.map((error) => (
@@ -105,7 +117,7 @@ export function SignUpEmailForm({
                 name={field.name}
                 onBlur={field.handleBlur}
                 onChange={(e) => field.handleChange(e.target.value)}
-                placeholder="Ваша электронная почта"
+                placeholder={t("auth.signUp.email.emailPlaceholder")}
                 type="email"
                 value={field.state.value}
               />
@@ -128,7 +140,7 @@ export function SignUpEmailForm({
                   name={field.name}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder="Пароль"
+                  placeholder={t("auth.signUp.email.passwordPlaceholder")}
                   type={showPassword ? "text" : "password"}
                   value={field.state.value}
                 />
@@ -160,7 +172,9 @@ export function SignUpEmailForm({
               disabled={!state.canSubmit || state.isSubmitting}
               type="submit"
             >
-              {state.isSubmitting ? "Загрузка..." : "Зарегистрироваться"}
+              {state.isSubmitting
+                ? t("auth.signUp.email.loading")
+                : t("auth.signUp.email.submit")}
             </Button>
           )}
         </form.Subscribe>
@@ -171,7 +185,7 @@ export function SignUpEmailForm({
           type="button"
         >
           <ArrowLeftIcon className="size-3" />
-          Назад
+          {t("auth.signUp.common.back")}
         </button>
       </form>
     </div>

@@ -2,6 +2,7 @@ import {
   CATEGORY_TREE,
   type CategoryGroup,
   type CategorySub,
+  categoryLabelFor,
   selfAndDescendants,
 } from "@contract-builder/api/constants/template-options";
 import { ChevronDown } from "lucide-react";
@@ -35,7 +36,7 @@ const keepOpen = (event: Event) => event.preventDefault();
  * match it (via `expandCategorySelection`).
  */
 export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const selectedSet = new Set(selected);
 
   const toggle = (slug: string) => {
@@ -87,7 +88,7 @@ export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
     if (!group.enabled) {
       return (
         <DropdownMenuItem className="justify-between" disabled key={group.slug}>
-          <span>{group.label}</span>
+          <span>{categoryLabelFor(group.slug, i18n.language)}</span>
           <span className="text-muted-foreground text-xs">
             {t("common.soon")}
           </span>
@@ -100,7 +101,9 @@ export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
     return (
       <DropdownMenuSub key={group.slug}>
         <DropdownMenuSubTrigger>
-          <span className="flex-1">{group.label}</span>
+          <span className="flex-1">
+            {categoryLabelFor(group.slug, i18n.language)}
+          </span>
           {count > 0 && <CountBadge value={count} />}
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent className="min-w-[230px]" sideOffset={16}>
@@ -120,7 +123,7 @@ export function CategoryFilter({ selected, onChange }: CategoryFilterProps) {
         onCheckedChange={() => toggle(sub.slug)}
         onSelect={keepOpen}
       >
-        {sub.label}
+        {categoryLabelFor(sub.slug, i18n.language)}
       </DropdownMenuCheckboxItem>
     );
   }

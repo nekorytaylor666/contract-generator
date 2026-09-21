@@ -118,7 +118,22 @@
       "paymentTerms": "Условия оплаты",
       "validity": "Срок действия",
       "participants": "Участники"
-    }
+    },
+    "updatedOn": "Обновлено — {{date}}",
+    "info": {
+      "title": "О документе",
+      "close": "Закрыть",
+      "loading": "Загрузка…",
+      "actions": "Действия с шаблоном"
+    },
+    "fieldCount_one": "{{count}} поле для заполнения",
+    "fieldCount_few": "{{count}} поля для заполнения",
+    "fieldCount_many": "{{count}} полей для заполнения",
+    "fieldCount_other": "{{count}} полей для заполнения",
+    "bookmarkSaved": "Шаблон сохранён",
+    "bookmarkRemoved": "Убрано из сохранённых",
+    "unbookmark": "Убрать из сохранённых",
+    "bookmarkTemplate": "Сохранить шаблон"
   },
   "counterparty": {
     "pickSaved": "Выбрать из сохранённых",
@@ -567,6 +582,15 @@
           "expired": "Просрочен",
           "failed": "Не оплачен",
           "pending": "Ожидает оплаты"
+        },
+        "purchaseLabel": "Покупка шаблона: {{title}}",
+        "downloadLabel": "Скачивание шаблона: {{title}}",
+        "subscriptionLabel": "Подписка: {{plan}} ({{period}})",
+        "subscriptionOnly": "Подписка: {{plan}}",
+        "period": {
+          "monthly": "месяц",
+          "quarterly": "квартал",
+          "yearly": "год"
         }
       },
       "success": {
@@ -627,7 +651,6 @@
     "personal": {
       "photo": {
         "title": "Фотография профиля",
-        "subtitle": "Ваша аватарка, которая отображается в команде",
         "change": "Сменить фото",
         "alt": "Аватар",
         "comingSoon": "Загрузка фото скоро будет доступна"
@@ -895,5 +918,398 @@
       "cooldownNoCode": "Слишком часто. Подождите таймер и запросите код заново.",
       "networkError": "Не удалось выполнить запрос. Попробуйте ещё раз."
     }
+  },
+  "builder": {
+    "header": {
+      "myDocuments": "Мои документы",
+      "renameDocument": "Переименовать документ",
+      "aboutDocument": "О документе",
+      "downloadedLocked": "Скачан — правки закрыты",
+      "saving": "Сохранение…",
+      "save": "Сохранить",
+      "saved": "Сохранено",
+      "lawyerReview": "На проверку юристу",
+      "lawyerNotInPlan": "Проверка юриста не входит в ваш тариф",
+      "lawyerQuotaExhausted": "Лимит проверок на этот месяц исчерпан. Обновится {{date}}",
+      "lawyerPaidOnly": "Проверка юриста доступна на платных тарифах",
+      "downloading": "Скачивание…",
+      "downloadDocument": "Скачать документ",
+      "download": "Скачать",
+      "downloadDocx": "Скачать в DocX",
+      "downloadPdf": "Скачать в PDF"
+    },
+    "toolbar": {
+      "font": "Шрифт",
+      "documentLanguage": "Язык документа",
+      "spacing": "Отступы",
+      "fontGroups": {
+        "serif": "С засечками",
+        "sans": "Без засечек",
+        "mono": "Моноширинный"
+      },
+      "presets": {
+        "compact": "Компактный",
+        "default": "По умолчанию",
+        "comfortable": "Комфортный",
+        "spacious": "Просторный"
+      }
+    },
+    "form": {
+      "fillHint": "Заполните поля — документ слева обновится автоматически.",
+      "fillData": "Заполнить данные",
+      "fillingData": "Заполнение данных",
+      "closeFill": "Закрыть заполнение",
+      "showDocument": "Показать документ",
+      "hidePanel": "Скрыть панель",
+      "showPanel": "Показать панель",
+      "expandSection": "Развернуть раздел",
+      "collapseSection": "Свернуть раздел",
+      "generating": "Генерация...",
+      "generatePdf": "Сгенерировать PDF",
+      "valuesTranslated_one": "Значения {{count}} поля переведены под выбранный язык — проверьте подсвеченные поля",
+      "valuesTranslated_few": "Значения {{count}} полей переведены под выбранный язык — проверьте подсвеченные поля",
+      "valuesTranslated_many": "Значения {{count}} полей переведены под выбранный язык — проверьте подсвеченные поля",
+      "valuesTranslated_other": "Значения {{count}} полей переведены под выбранный язык — проверьте подсвеченные поля",
+      "validation": {
+        "required": "{{label}} обязательно для заполнения",
+        "mustBeNumber": "{{label}} должно быть числом"
+      }
+    },
+    "versions": {
+      "title": "История версий",
+      "loading": "Загрузка истории...",
+      "current": "(текущая)",
+      "preview": "(просмотр)",
+      "revert": "Откатить",
+      "revertFailed": "Не удалось откатить версию",
+      "justNow": "только что",
+      "minutesAgo": "{{count}} мин. назад",
+      "hoursAgo": "{{count}} ч. назад",
+      "daysAgo": "{{count}} дн. назад"
+    },
+    "logo": {
+      "title": "Логотип компании",
+      "uploaded": "Логотип загружен",
+      "upload": "Загрузить логотип"
+    },
+    "counterparty": {
+      "savedToast": "Контрагент «{{name}}» сохранён в справочник"
+    },
+    "states": {
+      "loading": "Загрузка шаблона...",
+      "notFound": "Шаблон не найден",
+      "backToTemplates": "Назад к шаблонам"
+    },
+    "preview": {
+      "title": "Предпросмотр",
+      "pdfTitle": "Предпросмотр PDF",
+      "documentTitle": "Предпросмотр документа",
+      "editingTitle": "Редактирование документа",
+      "startFilling": "Начните заполнять форму для предпросмотра",
+      "pageCount": "{{count}} стр.",
+      "save": "Сохранить",
+      "saving": "Сохранение...",
+      "readOnly": "Только просмотр",
+      "readOnlyHint": "Режим просмотра — редактирование недоступно",
+      "downloadPdf": "Скачать PDF",
+      "downloading": "Скачивание...",
+      "updating": "Обновление...",
+      "rendering": "Рендеринг…",
+      "renderFailed": "Не удалось отобразить документ",
+      "previewFailed": "Не удалось отобразить предпросмотр документа",
+      "retry": "Попробовать снова"
+    },
+    "variables": {
+      "types": {
+        "text": "Текст",
+        "textarea": "Многострочный",
+        "number": "Число",
+        "date": "Дата",
+        "boolean": "Чекбокс",
+        "select": "Выбор"
+      },
+      "requiredBadge": "обяз.",
+      "unused": "не используется",
+      "typeMismatch": "тип не совпадает",
+      "name": "Имя",
+      "type": "Тип",
+      "label": "Подпись (Label)",
+      "requiredField": "Обязательное поле",
+      "defaultValue": "Значение по умолчанию",
+      "optionalPlaceholder": "(необязательно)",
+      "defaultOn": "По умолчанию включён",
+      "optionsLabel": "Опции (по одной на строку; комментарий под опцией — после //)",
+      "optionsPlaceholder": "Опция 1 // Комментарий\nОпция 2",
+      "wordFormsLabel": "Склонения (через запятую: 1, 2-4, 5+)",
+      "wordFormsPlaceholder": "день, дня, дней",
+      "deleteVariable": "Удалить переменную",
+      "dependsOn": "Условная видимость (dependsOn)",
+      "removeCondition": "убрать",
+      "fieldPlaceholder": "Поле",
+      "operatorEq": "равно",
+      "operatorNeq": "не равно",
+      "operatorIn": "входит в",
+      "valuePlaceholder": "значение",
+      "addCondition": "+ добавить условие"
+    }
+  },
+  "counterparties": {
+    "title": "Контрагенты",
+    "searchAria": "Поиск контрагента",
+    "searchPlaceholder": "Введите наименование или БИН",
+    "delete": "Удалить",
+    "add": "Добавить контрагента",
+    "loading": "Загрузка контрагентов…",
+    "emptyTitle": "У вас пока нет контрагентов",
+    "emptyHint": "Добавьте контрагента здесь или при заполнении документа — его реквизиты сохранятся автоматически",
+    "notFoundTitle": "Контрагент не найден",
+    "notFoundHint": "Проверьте запрос или добавьте нового контрагента.",
+    "deleted": "Удалено",
+    "selectAll": "Выбрать всех",
+    "selectOne": "Выбрать {{name}}",
+    "actions": "Действия",
+    "actionsFor": "Действия: {{name}}",
+    "edit": "Редактировать",
+    "headers": {
+      "name": "Наименование",
+      "bin": "ИИН/БИН",
+      "address": "Юридический адрес",
+      "phone": "Номер телефона",
+      "email": "Почта"
+    },
+    "form": {
+      "titleCreate": "Добавление контрагента",
+      "titleEdit": "Редактирование контрагента",
+      "steps": {
+        "about": "Об организации",
+        "contact": "Контактные данные",
+        "bank": "Банковские реквизиты",
+        "person": "Подписант"
+      },
+      "successTitle": "Контрагент добавлен!",
+      "successHint": "Реквизиты сохранены и доступны при заполнении договоров.",
+      "updated": "Данные успешно изменены!",
+      "types": {
+        "too": "ТОО",
+        "ip": "ИП",
+        "ao": "АО"
+      },
+      "fields": {
+        "name": "Наименование",
+        "namePlaceholder": "ТОО «Название компании»",
+        "bin": "БИН",
+        "type": "Тип",
+        "typePlaceholder": "Выберите тип",
+        "address": "Юридический адрес",
+        "addressPlaceholder": "Город, Улица, Дом/Офис, Квартира/Номер",
+        "phone": "Номер телефона",
+        "email": "Электронная почта",
+        "bank": "Банк",
+        "bankPlaceholder": "Наименование банка",
+        "iban": "IBAN",
+        "bik": "БИК",
+        "kbe": "КБе",
+        "knp": "КНП",
+        "signatory": "ФИО",
+        "signatoryPlaceholder": "Фамилия Имя Отчество",
+        "position": "Должность",
+        "positionPlaceholder": "Генеральный директор",
+        "basis": "Действует на основании",
+        "basisPlaceholder": "Устава / Доверенности №__ от"
+      },
+      "validation": {
+        "name": "Введите полное наименование организации",
+        "bin": "БИН должен содержать ровно 12 цифр",
+        "type": "Выберите тип организации",
+        "address": "Введите юридический адрес организации",
+        "phone": "Введите номер в формате +7 (___) ___-__-__",
+        "email": "Введите корректный адрес электронной почты",
+        "bank": "Введите полное наименование банка",
+        "iban": "IBAN должен начинаться с KZ и содержать 20 символов",
+        "bik": "БИК должен содержать 8 или 11 символов",
+        "kbe": "КБе должен содержать 2 цифры",
+        "knp": "КНП должен содержать 3 цифры",
+        "signatory": "Введите полное ФИО — фамилию, имя и отчество",
+        "position": "Введите должность подписанта",
+        "basis": "Укажите основание — Устав или номер доверенности"
+      },
+      "cancel": "Отменить",
+      "back": "Назад",
+      "saving": "Сохраняем",
+      "save": "Сохранить",
+      "continue": "Продолжить"
+    }
+  },
+  "sidebar": {
+    "usage": {
+      "title": "Использование",
+      "reset": "Обновится {{date}}",
+      "templates": "Шаблоны",
+      "editing": "Редактирование",
+      "upgrade": "Повысить тариф"
+    },
+    "toggleMenu": "Свернуть или развернуть меню",
+    "brandAdmin": "ZHEBE · Админка"
+  },
+  "auth": {
+    "signIn": {
+      "welcome": "Добро пожаловать!",
+      "continueGoogle": "Продолжить через Google",
+      "continuePhone": "Продолжить с номером телефона",
+      "continueEmail": "Продолжить с почтой",
+      "emailPlaceholder": "Введите электронную почту",
+      "passwordPlaceholder": "Введите ваш пароль",
+      "codePlaceholder": "Введите код",
+      "submit": "Войти",
+      "loading": "Загрузка...",
+      "verifying": "Проверяем...",
+      "sendingCode": "Отправляем код...",
+      "smsFallback": "Забыли пароль? Войти по коду из SMS",
+      "codeSentToPhone": "Мы отправили 6-значный код на {{phone}}",
+      "codeSentToEmail": "Мы отправили 6-значный код на почту {{email}}",
+      "codeSentToAccountEmail": "Мы отправили 6-значный код на почту вашего аккаунта",
+      "resend": "Повторить",
+      "resendIn": "{{seconds}} с.",
+      "changeNumber": "Изменить номер",
+      "back": "Назад",
+      "noAccount": "Еще нет аккаунта?",
+      "signUp": "Зарегистрироваться.",
+      "agreement": "Используя Zhebe, вы соглашаетесь с Условиями использования и Соглашением об обработке данных.",
+      "validation": {
+        "phoneInvalid": "Введите корректный номер телефона",
+        "codeLength": "Код должен состоять из 6 цифр",
+        "digitsOnly": "Только цифры",
+        "emailInvalid": "Некорректный адрес электронной почты",
+        "passwordMin": "Пароль должен быть не менее {{min}} символов",
+        "passwordRequired": "Введите пароль"
+      },
+      "toast": {
+        "signedIn": "Вход выполнен успешно",
+        "sendCodeFailed": "Не удалось отправить код",
+        "invalidEmailOrPassword": "Неверная почта или пароль",
+        "invalidPhoneOrPassword": "Неверный номер телефона или пароль",
+        "enterPhoneFirst": "Сначала введите номер телефона",
+        "smsCodeSent": "Код отправлен — проверьте SMS",
+        "invalidCode": "Неверный код",
+        "codeExpired": "Код устарел. Запросите новый.",
+        "tooManyAttempts": "Слишком много попыток. Запросите новый код.",
+        "sessionExpired": "Время входа истекло. Войдите ещё раз.",
+        "googleFailed": "Не удалось войти через Google"
+      }
+    },
+    "shell": {
+      "signInLink": "Войти в аккаунт",
+      "register": "Регистрация",
+      "copyright": "© ТОО «Primeis»",
+      "privacy": "Политика конфиденциальности",
+      "terms": "Условия использования"
+    },
+    "signUp": {
+      "common": {
+        "title": "Регистрация",
+        "continue": "Продолжить",
+        "back": "Назад",
+        "step": "Шаг {{current}} из {{total}}",
+        "acceptTerms": "Принимаю <terms>условия использования</terms> и <privacy>политику конфиденциальности</privacy>.",
+        "createAccount": "Создать аккаунт",
+        "creating": "Создаём...",
+        "createAccountFailed": "Не удалось создать аккаунт",
+        "invalidEmail": "Некорректный адрес электронной почты"
+      },
+      "start": {
+        "accountTypeSubtitle": "Зарегистрируйтесь за минуту — и получите доступ к юридически выверенным документам для Казахстана.",
+        "methodSubtitle": "Зарегистрируйтесь за минуту — и получите доступ к 1000+ юридически проверенных документов для Казахстана и СНГ.",
+        "chooseAccountType": "Выберите тип аккаунта",
+        "accountTypeLegend": "Тип аккаунта",
+        "individual": "Физическое лицо",
+        "legal": "Юридическое лицо",
+        "continueWithPhone": "Продолжить с номером телефона",
+        "continueWithEmail": "Продолжить с почтой",
+        "continueWithGoogle": "Продолжить через Google",
+        "googleFailed": "Не удалось войти через Google",
+        "phoneTitle": "Введите номер телефона",
+        "phoneSubtitle": "Введите номер — отправим код подтверждения",
+        "invalidPhone": "Введите корректный номер телефона",
+        "sendCode": "Отправить код",
+        "sending": "Отправляем...",
+        "sendFailed": "Не удалось отправить код",
+        "codeSent": "Код отправлен — проверьте SMS"
+      },
+      "otp": {
+        "title": "Введите код из SMS",
+        "subtitle": "Мы отправили 6-значный код на указанный номер, введите его, чтобы завершить регистрацию",
+        "codePlaceholder": "Введите код",
+        "codeLength": "Код должен состоять из 6 цифр",
+        "digitsOnly": "Только цифры",
+        "invalidCode": "Неверный код",
+        "verify": "Подтвердить код",
+        "verifying": "Проверяем...",
+        "changeNumber": "Изменить номер"
+      },
+      "createAccount": {
+        "title": "Создание аккаунта",
+        "subtitle": "Введите вашу электронную почту и придумайте пароль для входа",
+        "emailPlaceholder": "Электронная почта",
+        "passwordPlaceholder": "Придумайте пароль"
+      },
+      "email": {
+        "title": "Регистрация по почте",
+        "subtitle": "Создайте аккаунт с электронной почтой и паролем.",
+        "namePlaceholder": "Ваше имя",
+        "emailPlaceholder": "Ваша электронная почта",
+        "passwordPlaceholder": "Пароль",
+        "nameTooShort": "Имя должно быть не менее 2 символов",
+        "passwordTooShort": "Пароль должен быть не менее 8 символов",
+        "submit": "Зарегистрироваться",
+        "loading": "Загрузка...",
+        "success": "Регистрация успешна ({{accountType}})",
+        "accountTypeShort": {
+          "individual": "Физ. лицо",
+          "legal": "Юр. лицо"
+        }
+      },
+      "emailConfirm": {
+        "title": "Подтвердите электронную почту",
+        "codeSentTo": "Мы отправили 6-значный код на <email>{{email}}</email>",
+        "wrongEmail": "Не та почта?",
+        "changeEmail": "Изменить адрес",
+        "notReceived": "Не нашли письмо? Проверьте папку «Спам» или <resend>переслать код</resend>",
+        "invalidCode": "Неверный код. Используйте {{code}}",
+        "testCode": "Тестовый код: {{code}}"
+      },
+      "org": {
+        "orgNamePlaceholder": "Название организации",
+        "binPlaceholder": "БИН организации",
+        "fullNamePlaceholder": "Ваше имя и фамилия",
+        "positionPlaceholder": "Должность",
+        "orgNameRequired": "Введите название организации",
+        "binInvalid": "БИН — 12 цифр, без пробелов",
+        "fullNameRequired": "Введите имя и фамилию",
+        "positionRequired": "Введите должность"
+      },
+      "password": {
+        "title": "Придумайте пароль",
+        "subtitle": "Он понадобится для входа в аккаунт",
+        "passwordPlaceholder": "Пароль",
+        "confirmPlaceholder": "Повторите пароль",
+        "requirementsNotMet": "Пароль не соответствует требованиям",
+        "mismatch": "Пароли не совпадают",
+        "submit": "Приступить к работе",
+        "saving": "Сохраняем...",
+        "saved": "Пароль сохранён",
+        "saveFailed": "Не удалось установить пароль"
+      }
+    }
+  },
+  "lawyerReview": {
+    "title": "Отправить документ на проверку?",
+    "sentTitle": "Документ отправлен",
+    "close": "Закрыть",
+    "description": "Юрист получит текущую версию документа и пришлёт заключение на вашу почту — обычно в течение 1–2 рабочих дней.",
+    "sentSuccess": "Документ отправлен на проверку!",
+    "sentHint": "Ответ придёт на {{email}}",
+    "cancel": "Отменить",
+    "send": "Отправить",
+    "sending": "Отправляем"
   }
 }

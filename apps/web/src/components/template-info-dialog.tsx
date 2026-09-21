@@ -1,6 +1,6 @@
 import {
-  CATEGORY_LABEL_BY_SLUG,
-  DOCUMENT_TYPE_LABELS,
+  categoryLabelFor,
+  documentTypeLabelFor,
   resolveLocalized,
 } from "@contract-builder/api/constants/template-options";
 import { useQuery } from "@tanstack/react-query";
@@ -17,16 +17,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatMonthYear } from "@/lib/format-date";
 import { useTRPC } from "@/utils/trpc";
 
-// «Март 2025» — capitalized month + year. ru-RU с year:"numeric" добавляет
-// суффикс « г.», которого нет в макете, поэтому собираем строку вручную.
-export function formatUpdated(value: Date | string): string {
-  const date = new Date(value);
-  const month = new Intl.DateTimeFormat("ru-RU", { month: "long" }).format(
-    date
-  );
-  return `${month.charAt(0).toUpperCase()}${month.slice(1)} ${date.getFullYear()}`;
+// «Март 2025» / «Наурыз 2025» — capitalized month + year на языке интерфейса.
+export function formatUpdated(value: Date | string, language: string): string {
+  return formatMonthYear(language, value);
 }
 
 /**
@@ -101,14 +97,15 @@ export function TemplateInfoDialog({
   // инфо-панели страницы шаблона.
   const tags: string[] = [];
   if (template) {
-    const docTypeLabel = template.documentType
-      ? (DOCUMENT_TYPE_LABELS as Record<string, string>)[template.documentType]
-      : undefined;
+    const docTypeLabel = documentTypeLabelFor(
+      template.documentType,
+      i18n.language
+    );
     if (docTypeLabel) {
       tags.push(docTypeLabel);
     }
     for (const slug of template.categories ?? []) {
-      const label = CATEGORY_LABEL_BY_SLUG[slug];
+      const label = categoryLabelFor(slug, i18n.language);
       if (label) {
         tags.push(label);
       }
@@ -122,9 +119,11 @@ export function TemplateInfoDialog({
         showCloseButton={false}
       >
         <DialogHeader className="shrink-0 flex-row items-center justify-between border-border border-b p-4">
-          <DialogTitle className="text-base">О документе</DialogTitle>
+          <DialogTitle className="text-base">
+            {t("templates.info.title")}
+          </DialogTitle>
           <DialogClose
-            aria-label="Закрыть"
+            aria-label={t("templates.info.close")}
             className="flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted"
           >
             <X className="size-4" />
@@ -134,7 +133,7 @@ export function TemplateInfoDialog({
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-4">
           {isLoading || !localized ? (
             <p className="py-6 text-center text-muted-foreground text-sm">
-              Загрузка…
+              {t("templates.info.loading")}
             </p>
           ) : (
             <>
@@ -163,7 +162,9 @@ export function TemplateInfoDialog({
                   <div className="flex items-start gap-3">
                     <CircleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                     <p className="text-muted-foreground text-sm leading-[18px]">
-                      Обновлено — {formatUpdated(template.updatedAt)}
+                      {t("templates.updatedOn", {
+                        date: formatUpdated(template.updatedAt, i18n.language),
+                      })}
                     </p>
                   </div>
                 )}

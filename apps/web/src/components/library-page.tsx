@@ -1,5 +1,5 @@
 import {
-  CATEGORY_LABEL_BY_SLUG,
+  categoryLabelFor,
   expandCategorySelection,
   mostSpecificCategory,
 } from "@contract-builder/api/constants/template-options";
@@ -83,12 +83,13 @@ function sortTemplates(list: LibraryTemplate[], sort: SortKey) {
   }
 }
 
-// Ярлыки категорий приходят из общих констант API и пока только на русском.
+// Ярлыки категорий — из общих констант API, для kk берётся labelKk.
 function categoryLabel(
-  categories: string[] | null | undefined
+  categories: string[] | null | undefined,
+  locale: string
 ): string | undefined {
   const slug = mostSpecificCategory(categories);
-  return slug ? CATEGORY_LABEL_BY_SLUG[slug] : undefined;
+  return slug ? categoryLabelFor(slug, locale) : undefined;
 }
 
 function formatPrice(tenge: number): string {
@@ -104,8 +105,8 @@ function LibraryCard({
   tpl: LibraryTemplate;
   authed: boolean;
 }) {
-  const { t } = useTranslation();
-  const tag = categoryLabel(tpl.categories);
+  const { t, i18n } = useTranslation();
+  const tag = categoryLabel(tpl.categories, i18n.language);
   const isPaid = (tpl.price ?? 0) > 0;
   const cardClassName =
     "group flex h-full min-h-[242px] flex-col justify-between rounded-2xl border border-[#ececec] p-5 transition-colors hover:border-foreground/30";
@@ -116,7 +117,7 @@ function LibraryCard({
           {tpl.updatedAt ? (
             <span className="flex shrink-0 items-center gap-1 rounded-lg border border-[#e5e5e5] px-2 py-1 font-medium text-[12px] text-foreground leading-4">
               <Calendar className="size-3" />
-              {formatUpdated(tpl.updatedAt)}
+              {formatUpdated(tpl.updatedAt, i18n.language)}
             </span>
           ) : (
             <span />
@@ -228,7 +229,7 @@ export function LibraryPage() {
       templates.map((item) => ({
         id: item.id,
         label: item.title,
-        sublabel: categoryLabel(item.categories),
+        sublabel: categoryLabel(item.categories, i18n.language),
       })),
     [templates]
   );

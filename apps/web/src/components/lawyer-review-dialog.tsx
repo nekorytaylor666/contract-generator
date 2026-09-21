@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, FileText, Loader2, Mail, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
@@ -64,6 +65,7 @@ export function LawyerReviewDialog({
   buildPayload: () => LawyerReviewPayload | null;
   userEmail: string;
 }) {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [sent, setSent] = useState(false);
@@ -108,10 +110,10 @@ export function LawyerReviewDialog({
       >
         <DialogHeader className="flex-row items-center justify-between border-[#e5e5e5] border-b p-4">
           <DialogTitle className="font-medium text-base leading-5">
-            {sent ? "Документ отправлен" : "Отправить документ на проверку?"}
+            {sent ? t("lawyerReview.sentTitle") : t("lawyerReview.title")}
           </DialogTitle>
           <DialogClose
-            aria-label="Закрыть"
+            aria-label={t("lawyerReview.close")}
             className="flex size-6 items-center justify-center rounded-md text-foreground outline-none hover:bg-muted"
           >
             <X className="size-4" />
@@ -120,8 +122,8 @@ export function LawyerReviewDialog({
 
         {sent ? (
           <StatusView
-            hint={`Ответ придёт на ${userEmail}`}
-            title="Документ отправлен на проверку!"
+            hint={t("lawyerReview.sentHint", { email: userEmail })}
+            title={t("lawyerReview.sentSuccess")}
             tone="success"
           />
         ) : (
@@ -129,8 +131,7 @@ export function LawyerReviewDialog({
             <div className="flex flex-col items-center gap-5 px-6 pt-8 pb-2">
               <ReviewIllustration />
               <p className="max-w-[260px] text-center text-muted-foreground text-sm leading-[18px]">
-                Юрист получит текущую версию документа и пришлёт заключение на
-                вашу почту — обычно в течение 1–2 рабочих дней.
+                {t("lawyerReview.description")}
               </p>
             </div>
             <div className="flex justify-center gap-2 p-6">
@@ -139,7 +140,7 @@ export function LawyerReviewDialog({
                 disabled={sending}
                 type="button"
               >
-                Отменить
+                {t("lawyerReview.cancel")}
               </DialogClose>
               <button
                 className={PRIMARY_BUTTON_CLASS}
@@ -148,7 +149,7 @@ export function LawyerReviewDialog({
                 type="button"
               >
                 {sending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                {sending ? "Отправляем" : "Отправить"}
+                {sending ? t("lawyerReview.sending") : t("lawyerReview.send")}
               </button>
             </div>
           </>

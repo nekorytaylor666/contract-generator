@@ -1,5 +1,6 @@
 import { Download, FileText, Save } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 
 interface TypstCanvasPreviewProps {
@@ -123,6 +124,7 @@ export function TypstCanvasPreview({
   onSave,
   isSaving,
 }: TypstCanvasPreviewProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [pageCount, setPageCount] = useState(0);
   const renderingRef = useRef(false);
@@ -169,9 +171,11 @@ export function TypstCanvasPreview({
       <div className="flex aspect-[8.5/11] items-center justify-center rounded-lg border border-border border-dashed bg-background">
         <div className="text-center">
           <FileText className="mx-auto size-16 text-muted-foreground/30" />
-          <p className="mt-3 text-muted-foreground text-sm">Предпросмотр PDF</p>
+          <p className="mt-3 text-muted-foreground text-sm">
+            {t("builder.preview.pdfTitle")}
+          </p>
           <p className="mt-0.5 text-muted-foreground/60 text-xs">
-            Начните заполнять форму для предпросмотра
+            {t("builder.preview.startFilling")}
           </p>
         </div>
       </div>
@@ -182,10 +186,10 @@ export function TypstCanvasPreview({
     <div className="flex h-full flex-col gap-3">
       <div className="flex items-center justify-between">
         <h2 className="font-medium text-foreground text-sm">
-          Предпросмотр
+          {t("builder.preview.title")}
           {pageCount > 0 && (
             <span className="ml-2 text-muted-foreground text-xs">
-              ({pageCount} {pageCount === 1 ? "стр." : "стр."})
+              ({t("builder.preview.pageCount", { count: pageCount })})
             </span>
           )}
         </h2>
@@ -198,7 +202,9 @@ export function TypstCanvasPreview({
               variant="outline"
             >
               <Save className="mr-1.5 size-3.5" />
-              {isSaving ? "Сохранение..." : "Сохранить"}
+              {isSaving
+                ? t("builder.preview.saving")
+                : t("builder.preview.save")}
             </Button>
           )}
           <Button
@@ -208,7 +214,9 @@ export function TypstCanvasPreview({
             variant="outline"
           >
             <Download className="mr-1.5 size-3.5" />
-            {isDownloading ? "Скачивание..." : "Скачать PDF"}
+            {isDownloading
+              ? t("builder.preview.downloading")
+              : t("builder.preview.downloadPdf")}
           </Button>
         </div>
       </div>
@@ -218,7 +226,7 @@ export function TypstCanvasPreview({
             <div className="flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 shadow-sm backdrop-blur-sm">
               <div className="size-3.5 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-primary" />
               <span className="text-muted-foreground text-xs">
-                Обновление...
+                {t("builder.preview.updating")}
               </span>
             </div>
           </div>

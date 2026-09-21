@@ -9,7 +9,11 @@ import { toast } from "sonner";
 import { ChangePasswordDialog } from "@/components/change-password-dialog";
 import { DeleteAccountDialog } from "@/components/delete-account-dialog";
 import { ForgotPasswordDialog } from "@/components/forgot-password-dialog";
-import { type DbPlan, PlansPicker } from "@/components/plans-picker";
+import {
+  type DbPlan,
+  PlansPicker,
+  planDisplayName,
+} from "@/components/plans-picker";
 import { SubscriptionManageDialog } from "@/components/subscription-manage-dialog";
 import { TwoFactorDialog } from "@/components/two-factor-dialog";
 import { Button } from "@/components/ui/button";
@@ -36,6 +40,7 @@ import {
 } from "@/components/ui/tooltip";
 import { VerifyContactDialog } from "@/components/verify-contact-dialog";
 import { requireAuth } from "@/lib/auth-guard";
+import { formatDayMonth, formatDayMonthYear } from "@/lib/format-date";
 import { formatQuotaResetDate } from "@/lib/quota-period";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
@@ -70,18 +75,114 @@ const PROFILE_TABS: { id: ProfileTab; labelKey: string }[] = [
 // Карточки тарифов и переключатель периода живут в общем компоненте
 // PlansPicker (используется и попапом «Тарифы» в модалках шаблона).
 
-/** «21 сентября» / «21 қыркүйек» — день и месяц на языке интерфейса. */
-function formatDayMonth(language: string, d: Date): string {
-  const locale = language === "kk" ? "kk-KZ" : "ru-RU";
-  return new Intl.DateTimeFormat(locale, {
-    day: "numeric",
-    month: "long",
-  }).format(d);
+// Поля связей необязательны: старый бэкенд их не присылает.
+interface HistoryItem {
+  description: string | null;
+  purpose: string;
+  templateTitle?: string | null;
+  planName?: string | null;
+  planNameKk?: string | null;
+  subscriptionPeriod?: string | null;
+}
+
+// Старый формат: description записан по-русски в момент оплаты
+// («Подписка: Премиум (месяц)», «Покупка шаблона: …»). Разбираем его, когда
+// сервер не прислал связанные поля (старый бэкенд / записи без связей).
+const LEGACY_SUBSCRIPTION_RE = /^Подписка:\s*(.+?)(?:\s*\(([^)]+)\))?$/;
+const LEGACY_PURCHASE_RE = /^Покупка шаблона:\s*(.+)$/;
+const LEGACY_DOWNLOAD_RE = /^Скачивание шаблона:\s*(.+)$/;
+const LEGACY_PERIOD_KEYS: Record<string, string> = {
+  месяц: "monthly",
+  квартал: "quarterly",
+  год: "yearly",
+};
+
+interface PurchaseParts {
+  kind: "subscription" | "purchase" | "download";
+  // Название тарифа (по-русски, как в БД) либо название шаблона.
+  name: string;
+  periodKey: string | null;
+}
+
+function purchaseParts(item: HistoryItem): PurchaseParts | null {
+  const description = item.description ?? "";
+  if (item.purpose === "subscription" && item.planName) {
+    return {
+      kind: "subscription",
+      name: item.planName,
+      periodKey: item.subscriptionPeriod ?? null,
+    };
+  }
+  if (item.templateTitle) {
+    return {
+      kind: LEGACY_DOWNLOAD_RE.test(description) ? "download" : "purchase",
+      name: item.templateTitle,
+      periodKey: null,
+    };
+  }
+  const subscription = LEGACY_SUBSCRIPTION_RE.exec(description);
+  if (subscription) {
+    return {
+      kind: "subscription",
+      name: subscription[1],
+      periodKey: LEGACY_PERIOD_KEYS[subscription[2] ?? ""] ?? null,
+    };
+  }
+  const download = LEGACY_DOWNLOAD_RE.exec(description);
+  if (download) {
+    return { kind: "download", name: download[1], periodKey: null };
+  }
+  const purchase = LEGACY_PURCHASE_RE.exec(description);
+  if (purchase) {
+    return { kind: "purchase", name: purchase[1], periodKey: null };
+  }
+  return null;
+}
+
+// Подпись строки истории на языке интерфейса. Казахское имя тарифа берём из
+// ответа сервера, а если его нет — из загруженного списка тарифов по
+// русскому названию.
+function purchaseLabel(
+  t: TFunction,
+  language: string,
+  item: HistoryItem,
+  plans: DbPlan[]
+): string {
+  const parts = purchaseParts(item);
+  if (!parts) {
+    return (
+      item.description ||
+      (item.purpose === "subscription"
+        ? t("profile.subscription.history.subscription")
+        : t("profile.subscription.history.document"))
+    );
+  }
+  if (parts.kind === "subscription") {
+    const planNameKk =
+      item.planNameKk ??
+      plans.find((plan) => plan.name === parts.name)?.nameKk ??
+      null;
+    const plan = planDisplayName(
+      { planName: parts.name, planNameKk },
+      language
+    );
+    return parts.periodKey
+      ? t("profile.subscription.history.subscriptionLabel", {
+          plan,
+          period: t(`profile.subscription.history.period.${parts.periodKey}`),
+        })
+      : t("profile.subscription.history.subscriptionOnly", { plan });
+  }
+  return t(
+    parts.kind === "download"
+      ? "profile.subscription.history.downloadLabel"
+      : "profile.subscription.history.purchaseLabel",
+    { title: parts.name }
+  );
 }
 
 function formatPurchaseDate(language: string, value: Date | string): string {
-  const d = new Date(value);
-  return `${formatDayMonth(language, d)}, ${d.getFullYear()}`;
+  return formatDayMonthYear(language, value);
 }
 
 function statusMeta(
@@ -188,6 +289,8 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
   );
 
   const typedPlans = dbPlans as DbPlan[];
+  // Название тарифа в языке интерфейса (kk — из name_kk, если админ заполнил).
+  const planName = my ? planDisplayName(my, i18n.language) : null;
   // Квота проверок — из колонки тарифа, а не из текста фичи «Проверка
   // документов»: гейт кнопки «На проверку юристу» считает по ней же, и при
   // расхождении профиль обещал бы проверки, которых сервер не даёт.
@@ -213,7 +316,7 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-5">
         <div className="flex flex-col gap-1">
           <h3 className="font-semibold text-foreground text-lg leading-6">
-            {my?.planName ?? t("profile.subscription.noPlan")}
+            {planName ?? t("profile.subscription.noPlan")}
           </h3>
           <p className="text-muted-foreground text-sm">
             {subscriptionSubtitle(t, i18n.language, my)}
@@ -286,11 +389,12 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
               <tbody>
                 {history.map((item) => {
                   const meta = statusMeta(t, item.status);
-                  const label =
-                    item.description ||
-                    (item.purpose === "subscription"
-                      ? t("profile.subscription.history.subscription")
-                      : t("profile.subscription.history.document"));
+                  const label = purchaseLabel(
+                    t,
+                    i18n.language,
+                    item,
+                    typedPlans
+                  );
                   return (
                     <tr
                       className="border-border border-b last:border-b-0"
@@ -351,7 +455,7 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
               </h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
                 {t("profile.subscription.success.activated", {
-                  plan: my?.planName,
+                  plan: planName,
                 })}
                 {expiresAtDate &&
                   ` ${t("profile.subscription.success.activeUntil", {
@@ -942,9 +1046,6 @@ function PersonalDataTab() {
             <h3 className="font-semibold text-base text-foreground leading-5">
               {t("profile.personal.photo.title")}
             </h3>
-            <p className="text-base text-muted-foreground leading-5">
-              {t("profile.personal.photo.subtitle")}
-            </p>
           </div>
         </div>
         <Button

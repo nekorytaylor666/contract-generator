@@ -1,6 +1,8 @@
 import { useForm } from "@tanstack/react-form";
+import type { TFunction } from "i18next";
 import { ChevronDown } from "lucide-react";
 import { useRef, useState, useSyncExternalStore } from "react";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -90,11 +92,16 @@ function buildDefaultValues(
   return defaults;
 }
 
-function buildZodSchema(variables: TemplateVariable[]) {
+// Сообщения валидации — на языке документа (как и подписи полей в них), поэтому
+// `t` сюда приходит уже привязанный к locale документа.
+function buildZodSchema(variables: TemplateVariable[], t: TFunction) {
   const shape: Record<string, z.ZodTypeAny> = {};
 
   for (const v of variables) {
     let field: z.ZodTypeAny;
+    const requiredMessage = t("builder.form.validation.required", {
+      label: v.label,
+    });
 
     switch (v.type) {
       case "number":
@@ -105,7 +112,7 @@ function buildZodSchema(variables: TemplateVariable[]) {
               if (v.required) {
                 ctx.addIssue({
                   code: z.ZodIssueCode.custom,
-                  message: `${v.label} обязательно для заполнения`,
+                  message: requiredMessage,
                 });
                 return z.NEVER;
               }
@@ -115,7 +122,9 @@ function buildZodSchema(variables: TemplateVariable[]) {
             if (Number.isNaN(parsed)) {
               ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: `${v.label} должно быть числом`,
+                message: t("builder.form.validation.mustBeNumber", {
+                  label: v.label,
+                }),
               });
               return z.NEVER;
             }
@@ -128,13 +137,11 @@ function buildZodSchema(variables: TemplateVariable[]) {
         break;
       case "date":
         field = v.required
-          ? z.date({ error: `${v.label} обязательно для заполнения` })
+          ? z.date({ error: requiredMessage })
           : z.date().optional();
         break;
       default:
-        field = v.required
-          ? z.string().min(1, `${v.label} обязательно для заполнения`)
-          : z.string();
+        field = v.required ? z.string().min(1, requiredMessage) : z.string();
         break;
     }
 
@@ -194,6 +201,10 @@ export function TemplateForm({
   sections,
   locale,
 }: TemplateFormProps) {
+  const { t, i18n } = useTranslation();
+  // Валидация подписывает поля документа — её сообщения следуют языку
+  // документа, а не интерфейса.
+  const docT = locale ? i18n.getFixedT(locale) : t;
   const onValuesChangeRef = useRef(onValuesChange);
   onValuesChangeRef.current = onValuesChange;
 
@@ -219,7 +230,7 @@ export function TemplateForm({
       onSubmit?.(value);
     },
     validators: {
-      onSubmit: buildZodSchema(variables),
+      onSubmit: buildZodSchema(variables, docT),
     },
     listeners: {
       onChangeDebounceMs: 300,
@@ -346,7 +357,9 @@ export function TemplateForm({
                   <Button
                     aria-expanded={!isCollapsed}
                     aria-label={
-                      isCollapsed ? "Развернуть раздел" : "Свернуть раздел"
+                      isCollapsed
+                        ? t("builder.form.expandSection")
+                        : t("builder.form.collapseSection")
                     }
                     className="-mt-1 -mr-2 size-9 shrink-0 text-muted-foreground"
                     onClick={() => toggleSection(section.title)}
@@ -405,8 +418,8 @@ export function TemplateForm({
               type="submit"
             >
               {isSubmitting || state.isSubmitting
-                ? "Генерация..."
-                : "Сгенерировать PDF"}
+                ? t("builder.form.generating")
+                : t("builder.form.generatePdf")}
             </Button>
           )}
         </form.Subscribe>

@@ -1,5 +1,8 @@
 import { useForm } from "@tanstack/react-form";
+import type { TFunction } from "i18next";
 import { ArrowLeftIcon } from "lucide-react";
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -9,12 +12,16 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { ZhebeMark } from "./zhebe-logo";
 
-const otpSchema = z.object({
-  code: z
-    .string()
-    .length(6, "Код должен состоять из 6 цифр")
-    .regex(/^\d{6}$/, "Только цифры"),
-});
+const OTP_LENGTH = 6;
+const OTP_RE = /^\d{6}$/;
+
+const makeOtpSchema = (t: TFunction) =>
+  z.object({
+    code: z
+      .string()
+      .length(OTP_LENGTH, t("auth.signUp.otp.codeLength"))
+      .regex(OTP_RE, t("auth.signUp.otp.digitsOnly")),
+  });
 
 export function SignUpOtpForm({
   accountType,
@@ -27,6 +34,9 @@ export function SignUpOtpForm({
   onVerified: () => void;
   phone: string;
 }) {
+  const { t } = useTranslation();
+  const otpSchema = useMemo(() => makeOtpSchema(t), [t]);
+
   const form = useForm({
     defaultValues: { code: "" },
     onSubmit: async ({ value }) => {
@@ -35,7 +45,7 @@ export function SignUpOtpForm({
         code: value.code,
       });
       if (error) {
-        toast.error(error.message ?? "Неверный код");
+        toast.error(error.message ?? t("auth.signUp.otp.invalidCode"));
         return;
       }
       // Сохраняем тип аккаунта на пользователе после подтверждения номера.
@@ -51,11 +61,10 @@ export function SignUpOtpForm({
         <ZhebeMark className="h-10 w-auto text-landing" />
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="font-medium text-3xl text-foreground">
-            Введите код из SMS
+            {t("auth.signUp.otp.title")}
           </h1>
           <p className="max-w-[378px] text-base text-foreground/80">
-            Мы отправили 6-значный код на указанный номер, введите его, чтобы
-            завершить регистрацию
+            {t("auth.signUp.otp.subtitle")}
           </p>
         </div>
       </div>
@@ -75,13 +84,13 @@ export function SignUpOtpForm({
                 autoComplete="one-time-code"
                 className="h-10 rounded-lg border-border bg-background px-4 text-sm placeholder:text-muted-foreground"
                 inputMode="numeric"
-                maxLength={6}
+                maxLength={OTP_LENGTH}
                 name={field.name}
                 onBlur={field.handleBlur}
                 onChange={(e) =>
                   field.handleChange(e.target.value.replace(/\D/g, ""))
                 }
-                placeholder="Введите код"
+                placeholder={t("auth.signUp.otp.codePlaceholder")}
                 value={field.state.value}
               />
               {field.state.meta.errors.map((error) => (
@@ -100,7 +109,9 @@ export function SignUpOtpForm({
               disabled={!state.canSubmit || state.isSubmitting}
               type="submit"
             >
-              {state.isSubmitting ? "Проверяем..." : "Подтвердить код"}
+              {state.isSubmitting
+                ? t("auth.signUp.otp.verifying")
+                : t("auth.signUp.otp.verify")}
             </Button>
           )}
         </form.Subscribe>
@@ -111,7 +122,7 @@ export function SignUpOtpForm({
           type="button"
         >
           <ArrowLeftIcon className="size-3" />
-          Изменить номер
+          {t("auth.signUp.otp.changeNumber")}
         </button>
       </form>
     </div>

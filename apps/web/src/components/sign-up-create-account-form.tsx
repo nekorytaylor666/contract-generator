@@ -1,6 +1,8 @@
 import { useForm } from "@tanstack/react-form";
+import type { TFunction } from "i18next";
 import { ArrowLeftIcon, EyeIcon, EyeOffIcon } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -11,15 +13,44 @@ import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { ZhebeMark } from "./zhebe-logo";
 
-const schema = z.object({
-  email: z.email("Некорректный адрес электронной почты"),
-  password: z
-    .string()
-    .min(8, "Минимум 8 символов")
-    .regex(/[a-z]/, "Минимум одна строчная буква")
-    .regex(/[A-Z]/, "Минимум одна заглавная буква")
-    .regex(/\d/, "Минимум одна цифра"),
-});
+const LOWERCASE_RE = /[a-z]/;
+const UPPERCASE_RE = /[A-Z]/;
+const DIGIT_RE = /\d/;
+const MIN_PASSWORD_LENGTH = 8;
+
+// Тексты требований к паролю общие с подсказкой — security.passwordRules.*.
+const makeSchema = (t: TFunction) =>
+  z.object({
+    email: z.email(t("auth.signUp.common.invalidEmail")),
+    password: z
+      .string()
+      .min(MIN_PASSWORD_LENGTH, t("security.passwordRules.minLength"))
+      .regex(LOWERCASE_RE, t("security.passwordRules.lowercase"))
+      .regex(UPPERCASE_RE, t("security.passwordRules.uppercase"))
+      .regex(DIGIT_RE, t("security.passwordRules.digit")),
+  });
+
+function LegalLink({ children, href }: { children?: ReactNode; href: string }) {
+  return (
+    <a className="underline" href={href}>
+      {children}
+    </a>
+  );
+}
+
+// Текст согласия с условиями — общий для шагов с телефоном и с почтой.
+// Содержимое ссылок подставляет <Trans> из перевода.
+export function AcceptTermsText() {
+  return (
+    <Trans
+      components={{
+        terms: <LegalLink href="/terms" />,
+        privacy: <LegalLink href="/privacy" />,
+      }}
+      i18nKey="auth.signUp.common.acceptTerms"
+    />
+  );
+}
 
 export function SignUpCreateAccountForm({
   accountType,
@@ -30,8 +61,10 @@ export function SignUpCreateAccountForm({
   onBack: () => void;
   onDone: (email: string) => void;
 }) {
+  const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const schema = useMemo(() => makeSchema(t), [t]);
 
   const form = useForm({
     defaultValues: { email: "", password: "" },
@@ -44,7 +77,9 @@ export function SignUpCreateAccountForm({
         accountType,
       });
       if (error) {
-        toast.error(error.message ?? "Не удалось создать аккаунт");
+        toast.error(
+          error.message ?? t("auth.signUp.common.createAccountFailed")
+        );
         return;
       }
       onDone(value.email);
@@ -58,10 +93,10 @@ export function SignUpCreateAccountForm({
         <ZhebeMark className="h-10 w-auto text-landing" />
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="font-medium text-3xl text-foreground">
-            Создание аккаунта
+            {t("auth.signUp.createAccount.title")}
           </h1>
           <p className="max-w-[378px] text-base text-foreground/80">
-            Введите вашу электронную почту и придумайте пароль для входа
+            {t("auth.signUp.createAccount.subtitle")}
           </p>
         </div>
       </div>
@@ -83,7 +118,7 @@ export function SignUpCreateAccountForm({
                 name={field.name}
                 onBlur={field.handleBlur}
                 onChange={(e) => field.handleChange(e.target.value)}
-                placeholder="Электронная почта"
+                placeholder={t("auth.signUp.createAccount.emailPlaceholder")}
                 type="email"
                 value={field.state.value}
               />
@@ -106,7 +141,9 @@ export function SignUpCreateAccountForm({
                   name={field.name}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
-                  placeholder="Придумайте пароль"
+                  placeholder={t(
+                    "auth.signUp.createAccount.passwordPlaceholder"
+                  )}
                   type={showPassword ? "text" : "password"}
                   value={field.state.value}
                 />
@@ -139,15 +176,7 @@ export function SignUpCreateAccountForm({
             onCheckedChange={(checked) => setAcceptTerms(checked === true)}
           />
           <label className="flex-1 cursor-pointer" htmlFor="ca-accept-terms">
-            Принимаю{" "}
-            <a className="underline" href="/terms">
-              условия использования
-            </a>{" "}
-            и{" "}
-            <a className="underline" href="/privacy">
-              политику конфиденциальности
-            </a>
-            .
+            <AcceptTermsText />
           </label>
         </div>
 
@@ -158,7 +187,9 @@ export function SignUpCreateAccountForm({
               disabled={!state.canSubmit || state.isSubmitting || !acceptTerms}
               type="submit"
             >
-              {state.isSubmitting ? "Создаём..." : "Создать аккаунт"}
+              {state.isSubmitting
+                ? t("auth.signUp.common.creating")
+                : t("auth.signUp.common.createAccount")}
             </Button>
           )}
         </form.Subscribe>
@@ -169,7 +200,7 @@ export function SignUpCreateAccountForm({
           type="button"
         >
           <ArrowLeftIcon className="size-4" />
-          Назад
+          {t("auth.signUp.common.back")}
         </Button>
       </form>
     </div>

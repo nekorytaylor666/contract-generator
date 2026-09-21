@@ -122,6 +122,7 @@ function quotaRemaining(quota: number, used: number): number {
 
 /** Карточка «Использование» внизу сайдбара: месячные квоты тарифа. */
 function SidebarUsageCard() {
+  const { t, i18n } = useTranslation();
   const { data: session } = authClient.useSession();
   const { setOpenMobile } = useSidebar();
   const trpc = useTRPC();
@@ -140,7 +141,11 @@ function SidebarUsageCard() {
   }
 
   // Квоты месячные — окно от даты активации подписки, дату сброса даёт сервер.
-  const resetLabel = `Обновится ${formatQuotaResetDate("ru", sub.quotaResetAt)}`;
+  const resetLabel = t("sidebar.usage.reset", {
+    date: formatQuotaResetDate(i18n.language, sub.quotaResetAt, {
+      locative: true,
+    }),
+  });
 
   const lowQuota =
     quotaRemaining(sub.downloadQuota, sub.downloadsUsed) <
@@ -151,17 +156,17 @@ function SidebarUsageCard() {
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 group-data-[collapsible=icon]:hidden">
       <div className="flex flex-col gap-0.5">
         <p className="font-medium text-sidebar-foreground text-sm">
-          Использование
+          {t("sidebar.usage.title")}
         </p>
         <p className="text-muted-foreground text-xs">{resetLabel}</p>
       </div>
       <UsageMeter
-        label="Шаблоны"
+        label={t("sidebar.usage.templates")}
         quota={sub.downloadQuota}
         used={sub.downloadsUsed}
       />
       <UsageMeter
-        label="Редактирование"
+        label={t("sidebar.usage.editing")}
         quota={sub.editQuota}
         used={sub.editsUsed}
       />
@@ -177,7 +182,7 @@ function SidebarUsageCard() {
             to="/profile"
           >
             <Zap className="size-3.5" />
-            Повысить тариф
+            {t("sidebar.usage.upgrade")}
           </Link>
         </Button>
       )}
@@ -186,11 +191,12 @@ function SidebarUsageCard() {
 }
 
 function SidebarToggle() {
+  const { t } = useTranslation();
   const { toggleSidebar } = useSidebar();
 
   return (
     <Button
-      aria-label="Свернуть или развернуть меню"
+      aria-label={t("sidebar.toggleMenu")}
       className="size-8 text-sidebar-foreground"
       data-sidebar="trigger"
       onClick={toggleSidebar}
@@ -215,7 +221,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="h-[54px] flex-row items-center justify-between px-4 py-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
         <Link
-          aria-label={isAdminContext ? "ZHEBE · Админка" : "ZHEBE"}
+          aria-label={isAdminContext ? t("sidebar.brandAdmin") : "ZHEBE"}
           className="text-sidebar-foreground group-data-[collapsible=icon]:hidden"
           onClick={() => setOpenMobile(false)}
           to={isAdminContext ? "/admin/templates" : "/"}

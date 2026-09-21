@@ -64,7 +64,7 @@ export function TemplateCard({
   updatedAt,
   dataTour,
 }: TemplateCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -77,7 +77,11 @@ export function TemplateCard({
         queryClient.invalidateQueries({
           queryKey: trpc.templates.myBookmarks.queryKey(),
         });
-        toast.success(res.saved ? "Шаблон сохранён" : "Убрано из сохранённых");
+        toast.success(
+          res.saved
+            ? t("templates.bookmarkSaved")
+            : t("templates.bookmarkRemoved")
+        );
       },
       onError: (err) => toast.error(err.message),
     })
@@ -97,7 +101,7 @@ export function TemplateCard({
             {updatedAt ? (
               <span className="flex shrink-0 items-center gap-1 rounded-lg border border-[#e5e5e5] px-2 py-1 font-medium text-[12px] text-foreground leading-4">
                 <Calendar className="size-3" />
-                {formatUpdated(updatedAt)}
+                {formatUpdated(updatedAt, i18n.language)}
               </span>
             ) : (
               <span />
@@ -105,7 +109,7 @@ export function TemplateCard({
             <div className="flex items-center gap-0.5">
               {/* Info — открывает модалку «О документе» */}
               <button
-                aria-label="О документе"
+                aria-label={t("templates.info.title")}
                 className="flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted"
                 onClick={(e) => {
                   e.preventDefault();
@@ -119,7 +123,9 @@ export function TemplateCard({
               {/* Saved marker — filled when bookmarked; click toggles. */}
               <button
                 aria-label={
-                  saved ? "Убрать из сохранённых" : "Сохранить шаблон"
+                  saved
+                    ? t("templates.unbookmark")
+                    : t("templates.bookmarkTemplate")
                 }
                 className="flex size-6 items-center justify-center rounded-md outline-none hover:bg-muted"
                 disabled={bookmarkMutation.isPending}
@@ -141,7 +147,7 @@ export function TemplateCard({
               </button>
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  aria-label="Действия с шаблоном"
+                  aria-label={t("templates.info.actions")}
                   className="flex size-6 items-center justify-center rounded-md text-foreground outline-none hover:bg-muted"
                   onClick={(e) => {
                     e.preventDefault();
@@ -195,7 +201,9 @@ export function TemplateCard({
                     <Bookmark
                       className={cn("size-4", saved && "fill-current")}
                     />
-                    {saved ? "Убрать из сохранённых" : t("templates.bookmark")}
+                    {saved
+                      ? t("templates.unbookmark")
+                      : t("templates.bookmark")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

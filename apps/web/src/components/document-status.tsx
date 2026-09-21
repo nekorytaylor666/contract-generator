@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { formatDayMonth } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 
 /**
@@ -113,11 +114,7 @@ function formatDocumentDate(
   if (diffDays === 1) {
     return t("documents.yesterday");
   }
-  const locale = language === "kk" ? "kk-KZ" : "ru-RU";
-  return new Intl.DateTimeFormat(locale, {
-    day: "numeric",
-    month: "long",
-  }).format(date);
+  return formatDayMonth(language, date);
 }
 
 /** Чип с датой последнего изменения — рядом с бейджем статуса. */

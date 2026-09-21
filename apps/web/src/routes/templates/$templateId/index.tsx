@@ -1,6 +1,6 @@
 import {
-  CATEGORY_LABEL_BY_SLUG,
-  DOCUMENT_TYPE_LABELS,
+  categoryLabelFor,
+  documentTypeLabelFor,
   resolveLocalized,
   resolveLocalizedVariables,
 } from "@contract-builder/api/constants/template-options";
@@ -28,6 +28,7 @@ import { TemplateDownloadDialog } from "@/components/template-download-dialog";
 import { TemplateEditDialog } from "@/components/template-edit-dialog";
 import { requireAuth } from "@/lib/auth-guard";
 import { type InitialPayment, readDownloadReturn } from "@/lib/download-return";
+import { formatMonthYear } from "@/lib/format-date";
 import { isNativeTypst } from "@/lib/native-typst";
 import { cn } from "@/lib/utils";
 import { useTRPC } from "@/utils/trpc";
@@ -183,23 +184,19 @@ function TemplateInfoSidebar({
   updatedAt: Date | string;
   fieldCount: number;
 }) {
+  const { t, i18n } = useTranslation();
   const chips: string[] = [];
-  const docTypeLabel = documentType
-    ? (DOCUMENT_TYPE_LABELS as Record<string, string>)[documentType]
-    : undefined;
+  const docTypeLabel = documentTypeLabelFor(documentType, i18n.language);
   if (docTypeLabel) {
     chips.push(docTypeLabel);
   }
   for (const slug of categories) {
-    const label = CATEGORY_LABEL_BY_SLUG[slug];
+    const label = categoryLabelFor(slug, i18n.language);
     if (label) {
       chips.push(label);
     }
   }
-  const updatedLabel = new Intl.DateTimeFormat("ru-RU", {
-    month: "long",
-    year: "numeric",
-  }).format(new Date(updatedAt));
+  const updatedLabel = formatMonthYear(i18n.language, updatedAt);
 
   return (
     <aside className="flex w-full shrink-0 flex-col gap-4 border-border border-t bg-background p-4 sm:p-6 lg:w-[365px] lg:overflow-auto lg:border-t-0 lg:border-l">
@@ -229,13 +226,13 @@ function TemplateInfoSidebar({
 
       <div className="flex items-center gap-2 text-foreground text-sm">
         <FileText className="size-4 shrink-0 text-muted-foreground" />
-        {fieldCount} полей для заполнения
+        {t("templates.fieldCount", { count: fieldCount })}
       </div>
 
       <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
         <CircleAlert className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
         <p className="text-muted-foreground text-sm leading-snug">
-          Обновлено — {updatedLabel}
+          {t("templates.updatedOn", { date: updatedLabel })}
         </p>
       </div>
     </aside>

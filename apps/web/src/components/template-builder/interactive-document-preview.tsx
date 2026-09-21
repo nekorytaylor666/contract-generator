@@ -1,5 +1,7 @@
+import type { TFunction } from "i18next";
 import { Download, FileText, Save } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   computeDerivedVariables,
@@ -421,11 +423,15 @@ interface InteractiveDocumentPreviewProps {
 
 const EMPTY_SET = new Set<string>();
 
-function getSaveLabel(canSave: boolean, isSaving: boolean): string {
+function getSaveLabel(
+  t: TFunction,
+  canSave: boolean,
+  isSaving: boolean
+): string {
   if (!canSave) {
-    return "Только просмотр";
+    return t("builder.preview.readOnly");
   }
-  return isSaving ? "Сохранение..." : "Сохранить";
+  return isSaving ? t("builder.preview.saving") : t("builder.preview.save");
 }
 
 export function InteractiveDocumentPreview({
@@ -442,6 +448,7 @@ export function InteractiveDocumentPreview({
   isSaving,
   canSave = true,
 }: InteractiveDocumentPreviewProps) {
+  const { t } = useTranslation();
   const parsed = useMemo(
     () => parseTypstTemplate(typstContent),
     [typstContent]
@@ -489,7 +496,7 @@ export function InteractiveDocumentPreview({
         <div className="text-center">
           <FileText className="mx-auto size-16 text-muted-foreground/30" />
           <p className="mt-3 text-muted-foreground text-sm">
-            Предпросмотр документа
+            {t("builder.preview.documentTitle")}
           </p>
         </div>
       </div>
@@ -500,7 +507,7 @@ export function InteractiveDocumentPreview({
     <div className="flex h-full flex-col gap-3">
       <div className="flex items-center justify-between">
         <h2 className="font-medium text-foreground text-sm">
-          Редактирование документа
+          {t("builder.preview.editingTitle")}
         </h2>
         <div className="flex items-center gap-2">
           {onSave && (
@@ -508,15 +515,11 @@ export function InteractiveDocumentPreview({
               disabled={isSaving || !canSave}
               onClick={onSave}
               size="sm"
-              title={
-                canSave
-                  ? undefined
-                  : "Режим просмотра — редактирование недоступно"
-              }
+              title={canSave ? undefined : t("builder.preview.readOnlyHint")}
               variant="outline"
             >
               <Save className="mr-1.5 size-3.5" />
-              {getSaveLabel(canSave, Boolean(isSaving))}
+              {getSaveLabel(t, canSave, Boolean(isSaving))}
             </Button>
           )}
           {onDownload && (
@@ -527,7 +530,9 @@ export function InteractiveDocumentPreview({
               variant="outline"
             >
               <Download className="mr-1.5 size-3.5" />
-              {isDownloading ? "Скачивание..." : "Скачать PDF"}
+              {isDownloading
+                ? t("builder.preview.downloading")
+                : t("builder.preview.downloadPdf")}
             </Button>
           )}
         </div>

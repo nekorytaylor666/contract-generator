@@ -1,6 +1,8 @@
 import { useForm } from "@tanstack/react-form";
+import type { TFunction } from "i18next";
 import { ArrowLeftIcon, EyeIcon, EyeOffIcon } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -15,21 +17,64 @@ import { ZhebeMark } from "./zhebe-logo";
 
 type Method = "email" | "phone";
 
-const phoneSchema = z.object({
-  phone: z
-    .string()
-    .regex(
-      /^\+7 \d{3} \d{3} \d{2} \d{2}$/,
-      "Введите корректный номер телефона"
-    ),
-});
-const otpSchema = z.object({
-  code: z
-    .string()
-    .length(6, "Код должен состоять из 6 цифр")
-    .regex(/^\d{6}$/, "Только цифры"),
-});
+const PHONE_REGEX = /^\+7 \d{3} \d{3} \d{2} \d{2}$/;
+const OTP_REGEX = /^\d{6}$/;
+const OTP_LENGTH = 6;
+const MIN_PASSWORD_LENGTH = 8;
 const TWO_FA_RESEND_COOLDOWN_SECONDS = 60;
+
+// Схемы собираются через t, чтобы сообщения валидации шли на языке интерфейса.
+const makePhoneSchema = (t: TFunction) =>
+  z.object({
+    phone: z
+      .string()
+      .regex(PHONE_REGEX, t("auth.signIn.validation.phoneInvalid")),
+  });
+
+const makeOtpSchema = (t: TFunction) =>
+  z.object({
+    code: z
+      .string()
+      .length(OTP_LENGTH, t("auth.signIn.validation.codeLength"))
+      .regex(OTP_REGEX, t("auth.signIn.validation.digitsOnly")),
+  });
+
+const makeEmailSchema = (t: TFunction) =>
+  z.object({
+    email: z.email(t("auth.signIn.validation.emailInvalid")),
+    password: z
+      .string()
+      .min(
+        MIN_PASSWORD_LENGTH,
+        t("auth.signIn.validation.passwordMin", { min: MIN_PASSWORD_LENGTH })
+      ),
+  });
+
+// Коды ошибок better-auth → ключи переводов. Сами коды не меняем; сервер
+// отдаёт сообщения на английском, поэтому известные коды показываем на языке
+// интерфейса, а для остальных оставляем сообщение сервера.
+const ERROR_CODE_KEYS: Record<string, string> = {
+  INVALID_EMAIL_OR_PASSWORD: "auth.signIn.toast.invalidEmailOrPassword",
+  INVALID_PHONE_NUMBER_OR_PASSWORD: "auth.signIn.toast.invalidPhoneOrPassword",
+  INVALID_OTP: "auth.signIn.toast.invalidCode",
+  INVALID_CODE: "auth.signIn.toast.invalidCode",
+  OTP_EXPIRED: "auth.signIn.toast.codeExpired",
+  OTP_HAS_EXPIRED: "auth.signIn.toast.codeExpired",
+  TOO_MANY_ATTEMPTS: "auth.signIn.toast.tooManyAttempts",
+  TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE: "auth.signIn.toast.tooManyAttempts",
+};
+
+function authErrorMessage(
+  t: TFunction,
+  error: { code?: string; message?: string },
+  fallbackKey: string
+): string {
+  const key = error.code ? ERROR_CODE_KEYS[error.code] : undefined;
+  if (key) {
+    return t(key);
+  }
+  return error.message || t(fallbackKey);
+}
 
 // better-auth не создаёт сессию, если у аккаунта включена 2FA: вместо неё
 // приходит { twoFactorRedirect: true } и «полусессия»-кука на 10 минут.
@@ -93,7 +138,11 @@ export default function SignInForm({
 }: {
   onSwitchToSignUp: () => void;
 }) {
+  const { t } = useTranslation();
   const { isPending } = authClient.useSession();
+  const phoneSchema = useMemo(() => makePhoneSchema(t), [t]);
+  const otpSchema = useMemo(() => makeOtpSchema(t), [t]);
+  const emailSchema = useMemo(() => makeEmailSchema(t), [t]);
   const [method, setMethod] = useState<Method>("email");
   const [phoneStep, setPhoneStep] = useState<"phone" | "otp">("phone");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -106,7 +155,7 @@ export default function SignInForm({
   const twoFaResend = useCountdown();
 
   const onSignedIn = () => {
-    toast.success("Вход выполнен успешно");
+    toast.success(t("auth.signIn.toast.signedIn"));
     window.location.href = "/dashboard";
   };
 
@@ -115,7 +164,9 @@ export default function SignInForm({
     try {
       const { error } = await authClient.twoFactor.sendOtp();
       if (error) {
-        toast.error(error.message ?? "Не удалось отправить код");
+        toast.error(
+          authErrorMessage(t, error, "auth.signIn.toast.sendCodeFailed")
+        );
         return;
       }
       twoFaResend.start(TWO_FA_RESEND_COOLDOWN_SECONDS);
@@ -140,7 +191,9 @@ export default function SignInForm({
         password: value.password,
       });
       if (error) {
-        toast.error(error.message || "Неверная почта или пароль");
+        toast.error(
+          authErrorMessage(t, error, "auth.signIn.toast.invalidEmailOrPassword")
+        );
         return;
       }
       if (hasTwoFactorRedirect(data)) {
@@ -150,10 +203,7 @@ export default function SignInForm({
       onSignedIn();
     },
     validators: {
-      onSubmit: z.object({
-        email: z.email("Некорректный адрес электронной почты"),
-        password: z.string().min(8, "Пароль должен быть не менее 8 символов"),
-      }),
+      onSubmit: emailSchema,
     },
   });
 
@@ -168,7 +218,7 @@ export default function SignInForm({
         password: value.password,
       });
       if (error) {
-        toast.error("Неверный номер телефона или пароль");
+        toast.error(t("auth.signIn.toast.invalidPhoneOrPassword"));
         return;
       }
       if (hasTwoFactorRedirect(data)) {
@@ -179,7 +229,9 @@ export default function SignInForm({
     },
     validators: {
       onSubmit: phoneSchema.extend({
-        password: z.string().min(1, "Введите пароль"),
+        password: z
+          .string()
+          .min(1, t("auth.signIn.validation.passwordRequired")),
       }),
     },
   });
@@ -188,8 +240,8 @@ export default function SignInForm({
   const [smsSending, setSmsSending] = useState(false);
   const sendSmsCode = async () => {
     const phone = phoneForm.state.values.phone;
-    if (!phoneSchema.shape.phone.safeParse(phone).success) {
-      toast.error("Сначала введите номер телефона");
+    if (!PHONE_REGEX.test(phone)) {
+      toast.error(t("auth.signIn.toast.enterPhoneFirst"));
       return;
     }
     setSmsSending(true);
@@ -199,12 +251,14 @@ export default function SignInForm({
         phoneNumber: phoneE164,
       });
       if (error) {
-        toast.error(error.message ?? "Не удалось отправить код");
+        toast.error(
+          authErrorMessage(t, error, "auth.signIn.toast.sendCodeFailed")
+        );
         return;
       }
       setPhoneNumber(phoneE164);
       setPhoneStep("otp");
-      toast.success("Код отправлен — проверьте SMS");
+      toast.success(t("auth.signIn.toast.smsCodeSent"));
     } finally {
       setSmsSending(false);
     }
@@ -218,7 +272,9 @@ export default function SignInForm({
         code: value.code,
       });
       if (error) {
-        toast.error(error.message ?? "Неверный код");
+        toast.error(
+          authErrorMessage(t, error, "auth.signIn.toast.invalidCode")
+        );
         return;
       }
       if (hasTwoFactorRedirect(data)) {
@@ -240,15 +296,15 @@ export default function SignInForm({
       if (error) {
         const message = error.message ?? "";
         if (message.includes("expired")) {
-          toast.error("Код устарел. Запросите новый.");
+          toast.error(t("auth.signIn.toast.codeExpired"));
         } else if (message.includes("Too many attempts")) {
-          toast.error("Слишком много попыток. Запросите новый код.");
+          toast.error(t("auth.signIn.toast.tooManyAttempts"));
         } else if (message.includes("cookie")) {
           // «Полусессия» (10 минут) истекла — начинаем вход заново.
-          toast.error("Время входа истекло. Войдите ещё раз.");
+          toast.error(t("auth.signIn.toast.sessionExpired"));
           setTwoFaActive(false);
         } else {
-          toast.error("Неверный код");
+          toast.error(t("auth.signIn.toast.invalidCode"));
         }
         return;
       }
@@ -269,7 +325,9 @@ export default function SignInForm({
       },
       {
         onError: (ctx) => {
-          toast.error(ctx.error.message || "Не удалось войти через Google");
+          toast.error(
+            authErrorMessage(t, ctx.error, "auth.signIn.toast.googleFailed")
+          );
         },
       }
     );
@@ -309,7 +367,7 @@ export default function SignInForm({
               name={field.name}
               onBlur={field.handleBlur}
               onChange={(e) => field.handleChange(e.target.value)}
-              placeholder="Введите электронную почту"
+              placeholder={t("auth.signIn.emailPlaceholder")}
               type="email"
               value={field.state.value}
             />
@@ -332,7 +390,7 @@ export default function SignInForm({
                 name={field.name}
                 onBlur={field.handleBlur}
                 onChange={(e) => field.handleChange(e.target.value)}
-                placeholder="Введите ваш пароль"
+                placeholder={t("auth.signIn.passwordPlaceholder")}
                 type={showPassword ? "text" : "password"}
                 value={field.state.value}
               />
@@ -364,7 +422,9 @@ export default function SignInForm({
             disabled={!state.canSubmit || state.isSubmitting}
             type="submit"
           >
-            {state.isSubmitting ? "Загрузка..." : "Войти"}
+            {state.isSubmitting
+              ? t("auth.signIn.loading")
+              : t("auth.signIn.submit")}
           </Button>
         )}
       </emailForm.Subscribe>
@@ -423,7 +483,7 @@ export default function SignInForm({
                 name={field.name}
                 onBlur={field.handleBlur}
                 onChange={(e) => field.handleChange(e.target.value)}
-                placeholder="Введите ваш пароль"
+                placeholder={t("auth.signIn.passwordPlaceholder")}
                 type={showPassword ? "text" : "password"}
                 value={field.state.value}
               />
@@ -455,7 +515,9 @@ export default function SignInForm({
             disabled={!state.canSubmit || state.isSubmitting}
             type="submit"
           >
-            {state.isSubmitting ? "Загрузка..." : "Войти"}
+            {state.isSubmitting
+              ? t("auth.signIn.loading")
+              : t("auth.signIn.submit")}
           </Button>
         )}
       </phoneForm.Subscribe>
@@ -467,8 +529,8 @@ export default function SignInForm({
         type="button"
       >
         {smsSending
-          ? "Отправляем код..."
-          : "Забыли пароль? Войти по коду из SMS"}
+          ? t("auth.signIn.sendingCode")
+          : t("auth.signIn.smsFallback")}
       </button>
     </form>
   );
@@ -483,7 +545,7 @@ export default function SignInForm({
       }}
     >
       <p className="text-center text-muted-foreground text-sm">
-        Мы отправили 6-значный код на {phoneNumber}
+        {t("auth.signIn.codeSentToPhone", { phone: phoneNumber })}
       </p>
       <otpForm.Field name="code">
         {(field) => (
@@ -498,7 +560,7 @@ export default function SignInForm({
               onChange={(e) =>
                 field.handleChange(e.target.value.replace(/\D/g, ""))
               }
-              placeholder="Введите код"
+              placeholder={t("auth.signIn.codePlaceholder")}
               value={field.state.value}
             />
             {field.state.meta.errors.map((error) => (
@@ -517,7 +579,9 @@ export default function SignInForm({
             disabled={!state.canSubmit || state.isSubmitting}
             type="submit"
           >
-            {state.isSubmitting ? "Проверяем..." : "Войти"}
+            {state.isSubmitting
+              ? t("auth.signIn.verifying")
+              : t("auth.signIn.submit")}
           </Button>
         )}
       </otpForm.Subscribe>
@@ -528,7 +592,7 @@ export default function SignInForm({
         type="button"
       >
         <ArrowLeftIcon className="size-3" />
-        Изменить номер
+        {t("auth.signIn.changeNumber")}
       </button>
     </form>
   );
@@ -543,8 +607,9 @@ export default function SignInForm({
       }}
     >
       <p className="text-center text-muted-foreground text-sm">
-        Мы отправили 6-значный код на{" "}
-        {twoFaEmail ? `почту ${twoFaEmail}` : "почту вашего аккаунта"}
+        {twoFaEmail
+          ? t("auth.signIn.codeSentToEmail", { email: twoFaEmail })
+          : t("auth.signIn.codeSentToAccountEmail")}
       </p>
       <twoFaForm.Field name="code">
         {(field) => (
@@ -560,13 +625,15 @@ export default function SignInForm({
                 onChange={(e) =>
                   field.handleChange(e.target.value.replace(/\D/g, ""))
                 }
-                placeholder="Введите код"
+                placeholder={t("auth.signIn.codePlaceholder")}
                 value={field.state.value}
               />
               <div className="absolute top-1/2 right-3 -translate-y-1/2 text-sm">
                 {twoFaResend.active ? (
                   <span className="text-muted-foreground">
-                    {twoFaResend.remainingSeconds} с.
+                    {t("auth.signIn.resendIn", {
+                      seconds: twoFaResend.remainingSeconds,
+                    })}
                   </span>
                 ) : (
                   <button
@@ -575,7 +642,7 @@ export default function SignInForm({
                     onClick={sendTwoFaCode}
                     type="button"
                   >
-                    Повторить
+                    {t("auth.signIn.resend")}
                   </button>
                 )}
               </div>
@@ -596,7 +663,9 @@ export default function SignInForm({
             disabled={!state.canSubmit || state.isSubmitting}
             type="submit"
           >
-            {state.isSubmitting ? "Проверяем..." : "Войти"}
+            {state.isSubmitting
+              ? t("auth.signIn.verifying")
+              : t("auth.signIn.submit")}
           </Button>
         )}
       </twoFaForm.Subscribe>
@@ -607,7 +676,7 @@ export default function SignInForm({
         type="button"
       >
         <ArrowLeftIcon className="size-3" />
-        Назад
+        {t("auth.signIn.back")}
       </button>
     </form>
   );
@@ -624,7 +693,7 @@ export default function SignInForm({
     <div className="space-y-6">
       <div className="text-center">
         <ZhebeMark className="mx-auto mb-4 h-10 w-auto text-landing" />
-        <h1 className="font-bold text-3xl">Добро пожаловать!</h1>
+        <h1 className="font-bold text-3xl">{t("auth.signIn.welcome")}</h1>
       </div>
 
       {/* Always-visible method buttons; the fields below change with the choice */}
@@ -635,21 +704,21 @@ export default function SignInForm({
           type="button"
         >
           <GoogleMark />
-          Продолжить через Google
+          {t("auth.signIn.continueGoogle")}
         </Button>
         <Button
           className={selectorClass(method === "phone")}
           onClick={() => selectMethod("phone")}
           type="button"
         >
-          Продолжить с номером телефона
+          {t("auth.signIn.continuePhone")}
         </Button>
         <Button
           className={selectorClass(method === "email")}
           onClick={() => selectMethod("email")}
           type="button"
         >
-          Продолжить с почтой
+          {t("auth.signIn.continueEmail")}
         </Button>
       </div>
 
@@ -658,20 +727,19 @@ export default function SignInForm({
 
       <div className="text-center">
         <span className="text-muted-foreground text-sm">
-          Еще нет аккаунта?{" "}
+          {t("auth.signIn.noAccount")}{" "}
         </span>
         <button
           className="text-primary text-sm hover:underline"
           onClick={onSwitchToSignUp}
           type="button"
         >
-          Зарегистрироваться.
+          {t("auth.signIn.signUp")}
         </button>
       </div>
 
       <p className="text-center text-muted-foreground text-xs">
-        Используя Zhebe, вы соглашаетесь с Условиями использования и Соглашением
-        об обработке данных.
+        {t("auth.signIn.agreement")}
       </p>
     </div>
   );

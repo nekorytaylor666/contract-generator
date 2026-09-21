@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { Clock, Eye, History, RotateCcw } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -21,7 +23,7 @@ interface VersionHistoryProps {
   ) => void;
 }
 
-function formatRelativeTime(date: Date): string {
+function formatRelativeTime(date: Date, t: TFunction): string {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMin = Math.floor(diffMs / 60_000);
@@ -29,16 +31,16 @@ function formatRelativeTime(date: Date): string {
   const diffDay = Math.floor(diffHr / 24);
 
   if (diffMin < 1) {
-    return "только что";
+    return t("builder.versions.justNow");
   }
   if (diffMin < 60) {
-    return `${diffMin} мин. назад`;
+    return t("builder.versions.minutesAgo", { count: diffMin });
   }
   if (diffHr < 24) {
-    return `${diffHr} ч. назад`;
+    return t("builder.versions.hoursAgo", { count: diffHr });
   }
   if (diffDay < 7) {
-    return `${diffDay} дн. назад`;
+    return t("builder.versions.daysAgo", { count: diffDay });
   }
   return date.toLocaleDateString();
 }
@@ -49,6 +51,7 @@ export function VersionHistory({
   onPreviewVersion,
   onRevert,
 }: VersionHistoryProps) {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [previewingVersion, setPreviewingVersion] = useState<number | null>(
@@ -106,14 +109,14 @@ export function VersionHistory({
       // Без обработчика отказ отката (например, «Документ уже скачан») молча
       // проглатывался — кнопка просто ничего не делала.
       onError: (err) =>
-        toast.error(err.message || "Не удалось откатить версию"),
+        toast.error(err.message || t("builder.versions.revertFailed")),
     })
   );
 
   if (isLoading) {
     return (
       <div className="py-4 text-center text-muted-foreground text-xs">
-        Загрузка истории...
+        {t("builder.versions.loading")}
       </div>
     );
   }
@@ -126,7 +129,9 @@ export function VersionHistory({
     <div className="border-border border-t pt-4">
       <div className="mb-3 flex items-center gap-1.5">
         <History className="size-3.5 text-muted-foreground" />
-        <h3 className="font-medium text-foreground text-xs">История версий</h3>
+        <h3 className="font-medium text-foreground text-xs">
+          {t("builder.versions.title")}
+        </h3>
       </div>
       <div className="flex flex-col gap-1">
         {versions.map((ver) => {
@@ -161,15 +166,17 @@ export function VersionHistory({
                     v{ver.version}
                     {isCurrent && (
                       <span className="ml-1 text-muted-foreground">
-                        (текущая)
+                        {t("builder.versions.current")}
                       </span>
                     )}
                     {isPreviewing && !isCurrent && (
-                      <span className="ml-1 text-primary/70">(просмотр)</span>
+                      <span className="ml-1 text-primary/70">
+                        {t("builder.versions.preview")}
+                      </span>
                     )}
                   </span>
                   <p className="text-[10px] text-muted-foreground">
-                    {formatRelativeTime(new Date(ver.createdAt))}
+                    {formatRelativeTime(new Date(ver.createdAt), t)}
                   </p>
                 </div>
               </div>
@@ -188,7 +195,9 @@ export function VersionHistory({
                   variant="ghost"
                 >
                   <RotateCcw className="mr-1 size-3" />
-                  <span className="text-xs">Откатить</span>
+                  <span className="text-xs">
+                    {t("builder.versions.revert")}
+                  </span>
                 </Button>
               )}
             </button>

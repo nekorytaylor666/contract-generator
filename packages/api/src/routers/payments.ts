@@ -283,6 +283,9 @@ export const paymentsRouter = router({
         )
       );
 
+    // description хранится по-русски на момент оплаты; фронт собирает подпись
+    // строки на языке интерфейса из templateTitle / planName + period, а
+    // description остаётся фолбэком.
     return await db
       .select({
         invId: payment.invId,
@@ -291,8 +294,17 @@ export const paymentsRouter = router({
         amount: payment.amount,
         status: payment.status,
         createdAt: payment.createdAt,
+        templateTitle: template.title,
+        planName: subscriptionPlan.name,
+        planNameKk: subscriptionPlan.nameKk,
+        subscriptionPeriod: payment.subscriptionPeriod,
       })
       .from(payment)
+      .leftJoin(template, eq(template.id, payment.templateId))
+      .leftJoin(
+        subscriptionPlan,
+        eq(subscriptionPlan.id, payment.subscriptionPlanId)
+      )
       .where(eq(payment.userId, ctx.session.user.id))
       .orderBy(desc(payment.createdAt));
   }),

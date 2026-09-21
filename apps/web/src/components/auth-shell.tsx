@@ -1,10 +1,14 @@
 import { Link } from "@tanstack/react-router";
 import { LogInIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
 
 const TOGGLE_CLASS =
   "h-9 gap-2 rounded-lg border-[#d4d4d4] bg-white/10 px-4 text-foreground text-sm backdrop-blur-sm hover:bg-white/30";
+// Нейтральный вид под макет экрана входа: без глобальных цветовых токенов.
+const LANGUAGE_TRIGGER_CLASS = "p-2 text-[#1b1b1b] hover:bg-black/5";
 
 export function AuthShell({
   mode,
@@ -13,6 +17,8 @@ export function AuthShell({
   mode: "login" | "register";
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex min-h-svh w-full flex-col bg-muted">
       <header className="flex h-[72px] shrink-0 items-center justify-between px-4 py-3 sm:px-6">
@@ -20,18 +26,21 @@ export function AuthShell({
           <ZhebeLogo />
         </Link>
 
-        {mode === "register" ? (
-          <Button asChild className={TOGGLE_CLASS} variant="outline">
-            <Link to="/login">
-              <LogInIcon className="size-4" />
-              Войти в аккаунт
-            </Link>
-          </Button>
-        ) : (
-          <Button asChild className={TOGGLE_CLASS} variant="outline">
-            <Link to="/register">Регистрация</Link>
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher triggerClassName={LANGUAGE_TRIGGER_CLASS} />
+          {mode === "register" ? (
+            <Button asChild className={TOGGLE_CLASS} variant="outline">
+              <Link to="/login">
+                <LogInIcon className="size-4" />
+                {t("auth.shell.signInLink")}
+              </Link>
+            </Button>
+          ) : (
+            <Button asChild className={TOGGLE_CLASS} variant="outline">
+              <Link to="/register">{t("auth.shell.register")}</Link>
+            </Button>
+          )}
+        </div>
       </header>
 
       <div className="flex flex-1 items-center justify-center px-4 py-6 sm:px-6">
@@ -44,12 +53,12 @@ export function AuthShell({
       </div>
 
       <footer className="flex flex-wrap items-center justify-center px-4 py-3 text-center text-muted-foreground text-sm sm:px-6">
-        <span className="px-4 py-2">© ТОО «Primeis»</span>
+        <span className="px-4 py-2">{t("auth.shell.copyright")}</span>
         <a className="px-4 py-2 hover:text-foreground" href="/privacy">
-          Политика конфиденциальности
+          {t("auth.shell.privacy")}
         </a>
         <a className="px-4 py-2 hover:text-foreground" href="/terms">
-          Условия использования
+          {t("auth.shell.terms")}
         </a>
       </footer>
     </div>

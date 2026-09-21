@@ -173,6 +173,7 @@ function HeaderAdminToggle() {
 // Кнопка «Контрагенты» в шапке страницы документов. Доступна на любой
 // подписке, кроме разовой — как и смена статусов документов.
 function HeaderCounterparties() {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const { data: mySubscription } = useQuery(
     trpc.subscriptions.mySubscription.queryOptions()
@@ -191,7 +192,7 @@ function HeaderCounterparties() {
         variant="outline"
       >
         <BookUser className="size-4" />
-        <span className="hidden sm:inline">Контрагенты</span>
+        <span className="hidden sm:inline">{t("counterparties.title")}</span>
       </Button>
       <CounterpartiesDialog onOpenChange={setOpen} open={open} />
     </>
