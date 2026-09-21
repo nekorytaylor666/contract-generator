@@ -29,12 +29,16 @@ export const Route = createFileRoute("/admin/subscriptions")({
 interface PlanFeature {
   label: string;
   value: string;
+  labelKk?: string;
+  valueKk?: string;
 }
 
 interface PlanRow {
   id: string;
   name: string;
   description: string;
+  nameKk: string | null;
+  descriptionKk: string | null;
   priceMonthly: number;
   priceQuarterly: number | null;
   priceYearly: number | null;
@@ -45,6 +49,18 @@ interface PlanRow {
   sortOrder: number;
   isActive: boolean;
   isDefault: boolean;
+}
+
+// Строка функции в форме: стабильный ключ, чтобы React не пересоздавал инпуты
+// при вводе (ключ по label терял фокус после каждого символа).
+interface FeatureDraft extends PlanFeature {
+  key: string;
+}
+
+let featureKeySeq = 0;
+function newFeatureDraft(feature: PlanFeature): FeatureDraft {
+  featureKeySeq += 1;
+  return { ...feature, key: `f${featureKeySeq}` };
 }
 
 function quotaLabel(value: number): string {
@@ -200,6 +216,8 @@ function PlansTab() {
 const EMPTY_PLAN = {
   name: "",
   description: "",
+  nameKk: "",
+  descriptionKk: "",
   priceMonthly: "0",
   priceQuarterly: "",
   priceYearly: "",
@@ -209,13 +227,15 @@ const EMPTY_PLAN = {
   sortOrder: "0",
   isActive: true,
   isDefault: false,
-  features: [] as PlanFeature[],
+  features: [] as FeatureDraft[],
 };
 
 function planToForm(plan: PlanRow) {
   return {
     name: plan.name,
     description: plan.description,
+    nameKk: plan.nameKk ?? "",
+    descriptionKk: plan.descriptionKk ?? "",
     priceMonthly: String(plan.priceMonthly),
     priceQuarterly:
       plan.priceQuarterly == null ? "" : String(plan.priceQuarterly),
@@ -226,7 +246,7 @@ function planToForm(plan: PlanRow) {
     sortOrder: String(plan.sortOrder),
     isActive: plan.isActive,
     isDefault: plan.isDefault,
-    features: plan.features ?? [],
+    features: (plan.features ?? []).map(newFeatureDraft),
   };
 }
 
@@ -264,6 +284,8 @@ function PlanDialog({
     const payload = {
       name: form.name,
       description: form.description,
+      nameKk: form.nameKk,
+      descriptionKk: form.descriptionKk,
       priceMonthly: Number(form.priceMonthly) || 0,
       priceQuarterly: form.priceQuarterly ? Number(form.priceQuarterly) : null,
       priceYearly: form.priceYearly ? Number(form.priceYearly) : null,
@@ -273,7 +295,14 @@ function PlanDialog({
       sortOrder: Number(form.sortOrder) || 0,
       isActive: form.isActive,
       isDefault: form.isDefault,
-      features: form.features.filter((f) => f.label.trim()),
+      features: form.features
+        .filter((f) => f.label.trim())
+        .map((f) => ({
+          label: f.label,
+          value: f.value,
+          labelKk: f.labelKk?.trim() || undefined,
+          valueKk: f.valueKk?.trim() || undefined,
+        })),
     };
     if (plan) {
       updateMutation.mutate({ id: plan.id, ...payload });
@@ -282,7 +311,7 @@ function PlanDialog({
     }
   };
 
-  const setFeature = (i: number, next: PlanFeature) => {
+  const setFeature = (i: number, next: FeatureDraft) => {
     const features = [...form.features];
     features[i] = next;
     setForm({ ...form, features });
@@ -296,23 +325,47 @@ function PlanDialog({
         </DialogHeader>
 
         <div className="flex-1 space-y-4 overflow-auto p-6">
-          <div className="grid gap-2">
-            <Label htmlFor="plan-name">Название</Label>
-            <Input
-              id="plan-name"
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              value={form.name}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label htmlFor="plan-name">Название (рус.)</Label>
+              <Input
+                id="plan-name"
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                value={form.name}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="plan-name-kk">Название (каз.)</Label>
+              <Input
+                id="plan-name-kk"
+                onChange={(e) => setForm({ ...form, nameKk: e.target.value })}
+                placeholder="пусто = как на русском"
+                value={form.nameKk}
+              />
+            </div>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="plan-desc">Описание</Label>
-            <Input
-              id="plan-desc"
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
-              value={form.description}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label htmlFor="plan-desc">Описание (рус.)</Label>
+              <Input
+                id="plan-desc"
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+                value={form.description}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="plan-desc-kk">Описание (каз.)</Label>
+              <Input
+                id="plan-desc-kk"
+                onChange={(e) =>
+                  setForm({ ...form, descriptionKk: e.target.value })
+                }
+                placeholder="пусто = как на русском"
+                value={form.descriptionKk}
+              />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
@@ -429,7 +482,10 @@ function PlanDialog({
                 onClick={() =>
                   setForm({
                     ...form,
-                    features: [...form.features, { label: "", value: "" }],
+                    features: [
+                      ...form.features,
+                      newFeatureDraft({ label: "", value: "" }),
+                    ],
                   })
                 }
                 size="sm"
@@ -438,34 +494,57 @@ function PlanDialog({
                 <Plus className="size-3.5" />
               </Button>
             </div>
+            <p className="text-muted-foreground text-xs">
+              Первая строка — по-русски (по ней карточка находит функцию),
+              вторая — по-казахски. Пустые казахские поля показываются
+              по-русски.
+            </p>
             {form.features.map((f, i) => (
-              <div className="flex gap-2" key={`${f.label}-${i}`}>
-                <Input
-                  onChange={(e) =>
-                    setFeature(i, { ...f, label: e.target.value })
-                  }
-                  placeholder="Название"
-                  value={f.label}
-                />
-                <Input
-                  onChange={(e) =>
-                    setFeature(i, { ...f, value: e.target.value })
-                  }
-                  placeholder="Значение"
-                  value={f.value}
-                />
-                <Button
-                  onClick={() =>
-                    setForm({
-                      ...form,
-                      features: form.features.filter((_, j) => j !== i),
-                    })
-                  }
-                  size="sm"
-                  variant="outline"
-                >
-                  <X className="size-3.5" />
-                </Button>
+              <div className="grid gap-1.5 rounded-md border p-2" key={f.key}>
+                <div className="flex gap-2">
+                  <Input
+                    onChange={(e) =>
+                      setFeature(i, { ...f, label: e.target.value })
+                    }
+                    placeholder="Название (рус.)"
+                    value={f.label}
+                  />
+                  <Input
+                    onChange={(e) =>
+                      setFeature(i, { ...f, value: e.target.value })
+                    }
+                    placeholder="Значение (рус.)"
+                    value={f.value}
+                  />
+                  <Button
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        features: form.features.filter((_, j) => j !== i),
+                      })
+                    }
+                    size="sm"
+                    variant="outline"
+                  >
+                    <X className="size-3.5" />
+                  </Button>
+                </div>
+                <div className="flex gap-2 pr-[calc(theme(spacing.8)+theme(spacing.2))]">
+                  <Input
+                    onChange={(e) =>
+                      setFeature(i, { ...f, labelKk: e.target.value })
+                    }
+                    placeholder="Название (каз.)"
+                    value={f.labelKk ?? ""}
+                  />
+                  <Input
+                    onChange={(e) =>
+                      setFeature(i, { ...f, valueKk: e.target.value })
+                    }
+                    placeholder="Значение (каз.)"
+                    value={f.valueKk ?? ""}
+                  />
+                </div>
               </div>
             ))}
           </div>

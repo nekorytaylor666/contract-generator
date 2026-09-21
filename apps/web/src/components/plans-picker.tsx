@@ -1,5 +1,6 @@
 import { Check, X } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -17,12 +18,17 @@ export type PeriodKey = (typeof PERIODS)[number]["key"];
 export interface PlanFeature {
   label: string;
   value: string;
+  labelKk?: string;
+  valueKk?: string;
 }
 
 export interface DbPlan {
   id: string;
   name: string;
   description: string;
+  // Казахские варианты заполняет админ; пустые — показываем русский текст.
+  nameKk?: string | null;
+  descriptionKk?: string | null;
   priceMonthly: number;
   priceQuarterly: number | null;
   priceYearly: number | null;
@@ -59,11 +65,58 @@ const CARD_FEATURES = [
   "Проверка документов",
 ];
 
-function cardFeatures(features: PlanFeature[]): PlanFeature[] {
-  return CARD_FEATURES.map(
-    (label) =>
-      features.find((f) => f.label === label) ?? { label, value: NOT_INCLUDED }
-  );
+// Строки карточки ищем по русскому label (он первичен в БД), а показываем в
+// языке интерфейса: казахские labelKk/valueKk с фолбэком на русские.
+function cardFeatures(features: PlanFeature[], kk: boolean): PlanFeature[] {
+  return CARD_FEATURES.map((label) => {
+    const feature = features.find((f) => f.label === label);
+    if (!feature) {
+      return { label, value: NOT_INCLUDED };
+    }
+    return localizeFeature(feature, kk);
+  });
+}
+
+function pickKk(kk: boolean, ru: string, kkValue?: string | null): string {
+  return kk && kkValue?.trim() ? kkValue : ru;
+}
+
+export function localizeFeature(
+  feature: PlanFeature,
+  kk: boolean
+): PlanFeature {
+  return {
+    label: pickKk(kk, feature.label, feature.labelKk),
+    value: pickKk(kk, feature.value, feature.valueKk),
+  };
+}
+
+/** Название/описание тарифа в языке интерфейса (kk → казахские поля из БД,
+ * если админ их заполнил, иначе русские). */
+export function localizePlanText(
+  plan: Pick<DbPlan, "name" | "description" | "nameKk" | "descriptionKk">,
+  language: string
+): { name: string; description: string } {
+  const kk = isKazakh(language);
+  return {
+    name: pickKk(kk, plan.name, plan.nameKk),
+    description: pickKk(kk, plan.description, plan.descriptionKk),
+  };
+}
+
+export function isKazakh(language: string): boolean {
+  return language.startsWith("kk");
+}
+
+/** Название тарифа для текущего языка из ответа mySubscription. */
+export function planDisplayName(
+  sub: { planName: string | null; planNameKk?: string | null },
+  language: string
+): string | null {
+  if (!sub.planName) {
+    return null;
+  }
+  return pickKk(isKazakh(language), sub.planName, sub.planNameKk);
 }
 
 function FeatureRow({ label, value }: PlanFeature) {
@@ -205,26 +258,28 @@ export function priceForPeriod(p: DbPlan, period: PeriodKey): number {
 export function dbPlanToCard(
   p: DbPlan,
   currentPlanId: string | null,
-  period: PeriodKey
+  period: PeriodKey,
+  language = "ru"
 ): PlanCardData {
   const isFree = p.priceMonthly === 0;
   const isCurrent = p.id === currentPlanId;
   const amount = priceForPeriod(p, period);
   const suffix = PERIODS.find((x) => x.key === period)?.suffix ?? "/ в месяц";
+  const { name, description } = localizePlanText(p, language);
   return {
     id: p.id,
-    name: p.name,
+    name,
     discount: p.discountLabel ?? undefined,
-    description: p.description,
+    description,
     price: isFree ? "Бесплатно" : `${amount.toLocaleString("ru-RU")} ₸`,
     period: isFree ? undefined : suffix,
-    cta: planCta(p.name, isFree, isCurrent),
+    cta: planCta(name, isFree, isCurrent),
     current: isCurrent,
     quotas: [
       { label: "Скачивание", value: quotaText(p.downloadQuota) },
       { label: "Редактирование", value: quotaText(p.editQuota) },
     ],
-    features: cardFeatures(p.features ?? []),
+    features: cardFeatures(p.features ?? [], isKazakh(language)),
   };
 }
 
@@ -276,8 +331,11 @@ export function PlansPicker({
   onSelectPlan: (planId: string, period: PeriodKey) => void;
   loadingPlanId?: string | null;
 }) {
+  const { i18n } = useTranslation();
   const [period, setPeriod] = useState<PeriodKey>("monthly");
-  const cards = plans.map((p) => dbPlanToCard(p, currentPlanId, period));
+  const cards = plans.map((p) =>
+    dbPlanToCard(p, currentPlanId, period, i18n.language)
+  );
 
   return (
     <div className="flex flex-col gap-4">

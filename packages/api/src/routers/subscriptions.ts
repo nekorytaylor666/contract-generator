@@ -55,6 +55,8 @@ export const subscriptionsRouter = router({
         id: subscriptionPlan.id,
         name: subscriptionPlan.name,
         description: subscriptionPlan.description,
+        nameKk: subscriptionPlan.nameKk,
+        descriptionKk: subscriptionPlan.descriptionKk,
         priceMonthly: subscriptionPlan.priceMonthly,
         priceQuarterly: subscriptionPlan.priceQuarterly,
         priceYearly: subscriptionPlan.priceYearly,
@@ -89,6 +91,8 @@ export const subscriptionsRouter = router({
     return {
       planId: plan?.id ?? null,
       planName: plan?.name ?? null,
+      // Казахское название тарифа (если админ заполнил) — для i18n-экранов.
+      planNameKk: plan?.nameKk ?? null,
       // Платная подписка (не дефолтный «Разовый» тариф) — открывает смену
       // статусов документов.
       isPaid,

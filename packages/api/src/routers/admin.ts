@@ -19,9 +19,18 @@ const paginationInput = z.object({
   pageSize: z.number().int().min(1).max(100).default(25),
 });
 
+// Пустые казахские поля храним как NULL — фронт тогда падает на русский.
+const optionalKk = z
+  .string()
+  .nullable()
+  .optional()
+  .transform((v) => (v?.trim() ? v.trim() : null));
+
 const planInput = z.object({
   name: z.string().min(1),
   description: z.string().default(""),
+  nameKk: optionalKk,
+  descriptionKk: optionalKk,
   priceMonthly: z.number().int().min(0).default(0),
   priceQuarterly: z.number().int().min(0).nullable().optional(),
   priceYearly: z.number().int().min(0).nullable().optional(),
@@ -30,7 +39,14 @@ const planInput = z.object({
   downloadQuota: z.number().int().default(0),
   editQuota: z.number().int().default(0),
   features: z
-    .array(z.object({ label: z.string(), value: z.string() }))
+    .array(
+      z.object({
+        label: z.string(),
+        value: z.string(),
+        labelKk: z.string().optional(),
+        valueKk: z.string().optional(),
+      })
+    )
     .default([]),
   sortOrder: z.number().int().default(0),
   isActive: z.boolean().default(true),

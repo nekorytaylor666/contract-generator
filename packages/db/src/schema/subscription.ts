@@ -11,15 +11,22 @@ import {
 
 import { user } from "./auth";
 
+// Русские label/value — основные (по label карточка находит строку). Казахские
+// варианты заполняет админ; пустые — фронт показывает русский текст.
 export interface PlanFeature {
   label: string;
   value: string;
+  labelKk?: string;
+  valueKk?: string;
 }
 
 export const subscriptionPlan = pgTable("subscription_plan", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
+  // Казахская версия названия/описания. NULL или пусто — фолбэк на русский.
+  nameKk: text("name_kk"),
+  descriptionKk: text("description_kk"),
   // Prices in whole tenge (0 = free). Quarterly/yearly are nullable — when not
   // set the checkout falls back to monthly × 3 / × 12.
   priceMonthly: integer("price_monthly").notNull().default(0),

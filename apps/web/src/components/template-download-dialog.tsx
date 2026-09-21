@@ -4,7 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import type { DbPlan, PeriodKey } from "@/components/plans-picker";
+import {
+  type DbPlan,
+  type PeriodKey,
+  planDisplayName,
+} from "@/components/plans-picker";
 import {
   ChoiceCard,
   formatTenge,
@@ -629,7 +633,9 @@ export function TemplateDownloadDialog({
 
   const successHint = `${
     upgradeContext && sub?.planName
-      ? `${t("downloadDialog.planActivated", { plan: sub.planName })} `
+      ? `${t("downloadDialog.planActivated", {
+          plan: planDisplayName(sub, i18n.language),
+        })} `
       : ""
   }${t("downloadDialog.successHint")}`;
 

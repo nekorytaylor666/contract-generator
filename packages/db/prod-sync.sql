@@ -364,6 +364,8 @@ CREATE TABLE IF NOT EXISTS "subscription_plan" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text DEFAULT '' NOT NULL,
+	"name_kk" text,
+	"description_kk" text,
 	"price_monthly" integer DEFAULT 0 NOT NULL,
 	"price_quarterly" integer,
 	"price_yearly" integer,
@@ -381,6 +383,8 @@ CREATE TABLE IF NOT EXISTS "subscription_plan" (
 ALTER TABLE "subscription_plan" ADD COLUMN IF NOT EXISTS "id" text PRIMARY KEY NOT NULL;
 ALTER TABLE "subscription_plan" ADD COLUMN IF NOT EXISTS "name" text NOT NULL;
 ALTER TABLE "subscription_plan" ADD COLUMN IF NOT EXISTS "description" text DEFAULT '' NOT NULL;
+ALTER TABLE "subscription_plan" ADD COLUMN IF NOT EXISTS "name_kk" text;
+ALTER TABLE "subscription_plan" ADD COLUMN IF NOT EXISTS "description_kk" text;
 ALTER TABLE "subscription_plan" ADD COLUMN IF NOT EXISTS "price_monthly" integer DEFAULT 0 NOT NULL;
 ALTER TABLE "subscription_plan" ADD COLUMN IF NOT EXISTS "price_quarterly" integer;
 ALTER TABLE "subscription_plan" ADD COLUMN IF NOT EXISTS "price_yearly" integer;

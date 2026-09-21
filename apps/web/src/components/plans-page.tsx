@@ -5,6 +5,9 @@ import { useTranslation } from "react-i18next";
 
 import {
   type DbPlan,
+  isKazakh,
+  localizeFeature,
+  localizePlanText,
   type PeriodKey,
   PlanCard,
   priceForPeriod,
@@ -48,7 +51,7 @@ function quotaText(n: number, perMonth: string): string {
 }
 
 export function PlansPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { data: session } = authClient.useSession();
   const trpc = useTRPC();
@@ -67,14 +70,16 @@ export function PlansPage() {
   };
 
   const perMonth = t("plansPage.perMonthShort");
+  const kk = isKazakh(i18n.language);
   const cards = plans.map((p: DbPlan) => {
     const isFree = p.priceMonthly === 0;
     const amount = priceForPeriod(p, period);
+    const { name, description } = localizePlanText(p, i18n.language);
     return {
       id: p.id,
-      name: p.name,
+      name,
       discount: p.discountLabel ?? undefined,
-      description: p.description,
+      description,
       price: isFree
         ? t("plansPage.free")
         : `${amount.toLocaleString("ru-RU")} ₸`,
@@ -88,13 +93,14 @@ export function PlansPage() {
         },
         { label: t("plansPage.edit"), value: quotaText(p.editQuota, perMonth) },
       ],
-      features: CARD_FEATURES.map(
-        (label) =>
-          (p.features ?? []).find((f) => f.label === label) ?? {
-            label,
-            value: NOT_INCLUDED,
-          }
-      ),
+      // Строку ищем по русскому label (первичен в БД), показываем в языке
+      // интерфейса.
+      features: CARD_FEATURES.map((label) => {
+        const feature = (p.features ?? []).find((f) => f.label === label);
+        return feature
+          ? localizeFeature(feature, kk)
+          : { label, value: NOT_INCLUDED };
+      }),
     };
   });
 
