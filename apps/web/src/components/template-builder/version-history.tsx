@@ -103,7 +103,7 @@ export function VersionHistory({
           queryKey: trpc.documents.getById.queryKey({ id: documentId }),
         });
       },
-      // Без обработчика отказ отката (например, «Договор уже скачан») молча
+      // Без обработчика отказ отката (например, «Документ уже скачан») молча
       // проглатывался — кнопка просто ничего не делала.
       onError: (err) =>
         toast.error(err.message || "Не удалось откатить версию"),

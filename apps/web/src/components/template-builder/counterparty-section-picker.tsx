@@ -40,12 +40,12 @@ interface CounterpartySectionPickerProps {
   variablesByName: ReadonlyMap<string, TemplateVariable>;
   field: PickerFieldInstance;
   setFieldValue: (name: string, value: unknown) => void;
-  /** Язык договора — подписи пикера следуют ему, а не языку интерфейса. */
+  /** Язык документа — подписи пикера следуют ему, а не языку интерфейса. */
   locale?: string;
 }
 
 /**
- * Пикер «Выбрать из сохранённых» над секцией стороны договора (макет
+ * Пикер «Выбрать из сохранённых» над секцией стороны документа (макет
  * /Редактирование): выбор контрагента префиллит поля секции, пункт
  * «+ Добавить контрагента» открывает мастер и применяет созданного.
  * Скрыт на разовом тарифе (серверный гейт остаётся авторитетным).
@@ -59,7 +59,7 @@ export function CounterpartySectionPicker({
   locale,
 }: CounterpartySectionPickerProps) {
   const { t: uiT, i18n } = useTranslation();
-  // Секция рендерится на языке договора (заголовки, плейсхолдеры полей) —
+  // Секция рендерится на языке документа (заголовки, плейсхолдеры полей) —
   // подписи пикера не должны от неё отличаться.
   const t = locale ? i18n.getFixedT(locale) : uiT;
   const trpc = useTRPC();

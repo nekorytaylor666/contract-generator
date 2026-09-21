@@ -144,7 +144,7 @@ function PreviewPane({
       ) : (
         // biome-ignore lint/a11y/noNoninteractiveElementInteractions: onError only switches to the client-side fallback render
         <img
-          alt="Предпросмотр договора"
+          alt="Предпросмотр документа"
           className="aspect-[210/297] w-full object-cover object-top"
           height={2245}
           onError={() => setPhotoFailed(true)}
@@ -423,7 +423,7 @@ function RouteComponent() {
     })
   );
 
-  // Edit: платные шаблоны идут через модалку «Редактирование договора» по
+  // Edit: платные шаблоны идут через модалку «Редактирование документа» по
   // макетам («Разовый» — стоимость/экономия/итог и оплата, «Подписка» —
   // сводка и создание копии). Бесплатные — сразу черновик и конструктор.
   const handleEdit = () => {
@@ -541,7 +541,7 @@ function RouteComponent() {
               <Download className="size-4" />
               {t("templates.download")}
             </button>
-            {/* Цена не в подписи, а в модалке «Редактирование договора» —
+            {/* Цена не в подписи, а в модалке «Редактирование документа» —
                 платные шаблоны всегда открывают её. */}
             <button
               className="inline-flex min-h-8 items-center justify-center gap-1.5 rounded-lg bg-[#9e1f5a] px-3 font-medium text-[#fafafa] text-sm transition-colors hover:bg-[#8b1a50] disabled:opacity-60"

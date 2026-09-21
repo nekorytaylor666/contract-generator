@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckIcon, InfoIcon, Loader2Icon } from "lucide-react";
 import { useEffect, useId, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
@@ -10,7 +11,6 @@ import { useTRPC } from "@/utils/trpc";
 import {
   ErrorNote,
   formatCountdown,
-  NETWORK_ERROR,
   OUTLINE_BTN,
   PasswordInput,
   PRIMARY_BTN,
@@ -31,41 +31,40 @@ const CODE_LENGTH = 6;
 const CODE_REGEX = /^\d{6}$/;
 const NON_DIGIT_REGEX = /\D/g;
 const RESEND_COOLDOWN_SECONDS = 60;
-const NO_PASSWORD_ERROR = "Для аккаунта не установлен пароль";
-const NO_EMAIL_ERROR = "Сначала укажите почту в разделе «Личные данные».";
-const INVALID_CODE_ERROR = "Неверный код";
-const EXPIRED_CODE_ERROR = "Код устарел. Запросите новый.";
-const TOO_MANY_ATTEMPTS_ERROR = "Слишком много попыток. Запросите новый код.";
 
 type Mode = "enable" | "disable";
 type Step = "intro" | "password" | "code" | "success";
+type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 function passwordFailureMessage(
   result:
     | { status: "no_password" }
     | { status: "no_email" }
-    | { status: "invalid"; attemptsLeft: number }
+    | { status: "invalid"; attemptsLeft: number },
+  t: Translate
 ): string {
   if (result.status === "invalid") {
     return result.attemptsLeft === 1
-      ? "Неверный пароль.\nОсталась одна попытка."
-      : "Неверный пароль";
+      ? t("security.twoFactor.wrongPasswordLastAttempt")
+      : t("security.twoFactor.wrongPassword");
   }
-  return result.status === "no_email" ? NO_EMAIL_ERROR : NO_PASSWORD_ERROR;
+  return result.status === "no_email"
+    ? t("security.twoFactor.noEmail")
+    : t("security.twoFactor.noPassword");
 }
 
 // better-auth отдаёт ошибки проверки кода текстом — переводим известные.
-function mapVerifyOtpError(message: string): string {
+function mapVerifyOtpError(message: string, t: Translate): string {
   if (message.includes("Invalid code")) {
-    return INVALID_CODE_ERROR;
+    return t("security.twoFactor.invalidCode");
   }
   if (message.includes("expired")) {
-    return EXPIRED_CODE_ERROR;
+    return t("security.twoFactor.expiredCode");
   }
   if (message.includes("Too many attempts")) {
-    return TOO_MANY_ATTEMPTS_ERROR;
+    return t("security.twoFactor.tooManyAttempts");
   }
-  return message || NETWORK_ERROR;
+  return message || t("security.twoFactor.networkError");
 }
 
 function CodeStep({
@@ -91,15 +90,22 @@ function CodeStep({
   verifying: boolean;
   busy: boolean;
 }) {
+  const { t } = useTranslation();
   const codeFieldId = useId();
   return (
     <>
       <div className="flex flex-col gap-4 py-1">
         <p className="text-foreground text-sm">
-          Мы отправили код на <span className="underline">{email}</span>
+          <Trans
+            components={{ u: <span className="underline" /> }}
+            i18nKey="security.twoFactor.codeSentTo"
+            values={{ email: email ?? "" }}
+          />
         </p>
         <div className="flex flex-col gap-2">
-          <Label htmlFor={codeFieldId}>Введите код</Label>
+          <Label htmlFor={codeFieldId}>
+            {t("security.twoFactor.codeLabel")}
+          </Label>
           <div className="relative">
             <Input
               autoComplete="one-time-code"
@@ -116,13 +122,15 @@ function CodeStep({
                     .slice(0, CODE_LENGTH)
                 )
               }
-              placeholder="Введите код"
+              placeholder={t("security.twoFactor.codePlaceholder")}
               value={code}
             />
             <div className="absolute top-1/2 right-3 -translate-y-1/2 text-sm">
               {resendRemainingSeconds > 0 ? (
                 <span className="text-muted-foreground">
-                  {resendRemainingSeconds} с.
+                  {t("security.twoFactor.resendIn", {
+                    seconds: resendRemainingSeconds,
+                  })}
                 </span>
               ) : (
                 <button
@@ -131,7 +139,7 @@ function CodeStep({
                   onClick={onResend}
                   type="button"
                 >
-                  Повторить
+                  {t("security.twoFactor.resend")}
                 </button>
               )}
             </div>
@@ -147,7 +155,7 @@ function CodeStep({
           type="button"
           variant="outline"
         >
-          Назад
+          {t("security.twoFactor.back")}
         </Button>
         <Button
           className={PRIMARY_BTN}
@@ -157,11 +165,11 @@ function CodeStep({
         >
           {verifying ? (
             <>
-              Подтверждаем
+              {t("security.twoFactor.confirming")}
               <Loader2Icon className="size-4 animate-spin" />
             </>
           ) : (
-            "Подтвердить"
+            t("security.twoFactor.confirm")
           )}
         </Button>
       </DialogFooter>
@@ -184,6 +192,7 @@ export function TwoFactorDialog({
   mode: Mode;
   email: string | null;
 }) {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const passwordFieldId = useId();
@@ -220,6 +229,8 @@ export function TwoFactorDialog({
     }
   }, [open, mode]);
 
+  const networkError = t("security.twoFactor.networkError");
+
   const invalidateMe = () =>
     queryClient.invalidateQueries(trpc.account.me.queryFilter());
 
@@ -235,7 +246,7 @@ export function TwoFactorDialog({
       setPasswordError(null);
       return;
     }
-    setPasswordError(passwordFailureMessage(result));
+    setPasswordError(passwordFailureMessage(result, t));
   };
 
   const sendCode = async () => {
@@ -243,7 +254,7 @@ export function TwoFactorDialog({
     try {
       const { error } = await authClient.twoFactor.sendOtp();
       if (error) {
-        toast.error(error.message ?? NETWORK_ERROR);
+        toast.error(error.message ?? networkError);
         return;
       }
       resend.start(RESEND_COOLDOWN_SECONDS);
@@ -265,7 +276,7 @@ export function TwoFactorDialog({
       setPasswordError(null);
       await sendCode();
     } catch {
-      toast.error(NETWORK_ERROR);
+      toast.error(networkError);
     }
   };
 
@@ -277,10 +288,10 @@ export function TwoFactorDialog({
         return;
       }
       invalidateMe();
-      toast.success("Двухфакторная аутентификация отключена");
+      toast.success(t("security.twoFactor.disabledToast"));
       onClose();
     } catch {
-      toast.error(NETWORK_ERROR);
+      toast.error(networkError);
     }
   };
 
@@ -293,7 +304,7 @@ export function TwoFactorDialog({
       const { error } = await authClient.twoFactor.verifyOtp({ code });
       if (error) {
         setCode("");
-        setCodeError(mapVerifyOtpError(error.message ?? ""));
+        setCodeError(mapVerifyOtpError(error.message ?? "", t));
         return;
       }
       invalidateMe();
@@ -315,7 +326,9 @@ export function TwoFactorDialog({
   };
 
   const passwordStepError = lock.active
-    ? `Слишком много попыток.\nПовторите через ${formatCountdown(lock.remainingSeconds)}.`
+    ? t("security.twoFactor.lockedRetry", {
+        time: formatCountdown(lock.remainingSeconds),
+      })
     : passwordError;
 
   const passwordPending = enableMutation.isPending || disableMutation.isPending;
@@ -336,7 +349,7 @@ export function TwoFactorDialog({
         showCloseButton={!busy}
       >
         <DialogHeader>
-          <DialogTitle>Двухфакторная аутентификация</DialogTitle>
+          <DialogTitle>{t("security.twoFactor.title")}</DialogTitle>
         </DialogHeader>
 
         {step === "intro" && (
@@ -345,11 +358,14 @@ export function TwoFactorDialog({
               <InfoIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
               <div className="flex flex-col gap-1">
                 <p className="font-medium text-foreground text-sm">
-                  Дополнительная защита аккаунта
+                  {t("security.twoFactor.introTitle")}
                 </p>
                 <p className="text-muted-foreground text-sm">
-                  При входе будем присылать 6-значный код на почту{" "}
-                  <span className="underline">{email}</span>
+                  <Trans
+                    components={{ u: <span className="underline" /> }}
+                    i18nKey="security.twoFactor.introText"
+                    values={{ email: email ?? "" }}
+                  />
                 </p>
               </div>
             </div>
@@ -360,14 +376,14 @@ export function TwoFactorDialog({
                 type="button"
                 variant="outline"
               >
-                Отменить
+                {t("security.twoFactor.cancel")}
               </Button>
               <Button
                 className={PRIMARY_BTN}
                 onClick={() => setStep("password")}
                 type="button"
               >
-                Продолжить
+                {t("security.twoFactor.continue")}
               </Button>
             </DialogFooter>
           </>
@@ -376,7 +392,9 @@ export function TwoFactorDialog({
         {step === "password" && (
           <>
             <div className="flex flex-col gap-2 py-1">
-              <Label htmlFor={passwordFieldId}>Введите пароль</Label>
+              <Label htmlFor={passwordFieldId}>
+                {t("security.twoFactor.passwordLabel")}
+              </Label>
               <PasswordInput
                 autoComplete="current-password"
                 id={passwordFieldId}
@@ -394,8 +412,8 @@ export function TwoFactorDialog({
               ) : (
                 <p className="text-muted-foreground text-sm">
                   {mode === "enable"
-                    ? "Для подключения двухфакторной аутентификации, подтвердите, что это вы."
-                    : "Чтобы отключить двухфакторную аутентификацию, подтвердите, что это вы."}
+                    ? t("security.twoFactor.enableHint")
+                    : t("security.twoFactor.disableHint")}
                 </p>
               )}
             </div>
@@ -407,7 +425,9 @@ export function TwoFactorDialog({
                 type="button"
                 variant="outline"
               >
-                {mode === "enable" ? "Назад" : "Отменить"}
+                {mode === "enable"
+                  ? t("security.twoFactor.back")
+                  : t("security.twoFactor.cancel")}
               </Button>
               <Button
                 className={PRIMARY_BTN}
@@ -417,11 +437,11 @@ export function TwoFactorDialog({
               >
                 {passwordPending || sendingCode ? (
                   <>
-                    Проверяем
+                    {t("security.twoFactor.checking")}
                     <Loader2Icon className="size-4 animate-spin" />
                   </>
                 ) : (
-                  "Продолжить"
+                  t("security.twoFactor.continue")
                 )}
               </Button>
             </DialogFooter>
@@ -452,11 +472,15 @@ export function TwoFactorDialog({
               <CheckIcon className="size-6 text-green-700" />
             </div>
             <div className="flex flex-col gap-1">
-              <p className="font-medium text-base text-foreground">Готово!</p>
+              <p className="font-medium text-base text-foreground">
+                {t("security.twoFactor.successTitle")}
+              </p>
               <p className="text-muted-foreground text-sm">
-                При каждом входе будем отправлять
-                <br />
-                код на <span className="underline">{email}</span>
+                <Trans
+                  components={{ br: <br />, u: <span className="underline" /> }}
+                  i18nKey="security.twoFactor.successText"
+                  values={{ email: email ?? "" }}
+                />
               </p>
             </div>
           </div>

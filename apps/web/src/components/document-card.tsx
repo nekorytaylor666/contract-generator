@@ -10,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
@@ -48,7 +49,7 @@ interface DocumentCardProps {
   templateId: string;
   status: string;
   updatedAt: Date | string;
-  /** Момент скачивания PDF — скачанный договор показан серым и не редактируется. */
+  /** Момент скачивания PDF — скачанный документ показан серым и не редактируется. */
   downloadedAt?: Date | string | null;
   /** Смена статуса доступна только на платной подписке. */
   canChangeStatus: boolean;
@@ -71,6 +72,7 @@ export function DocumentCard({
   canChangeStatus,
   templateDownload,
 }: DocumentCardProps) {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -88,20 +90,24 @@ export function DocumentCard({
     trpc.documents.setStatus.mutationOptions({
       onSuccess: (updated) => {
         invalidateList();
-        toast.success(`Статус изменён: ${documentStatusLabel(updated.status)}`);
+        toast.success(
+          t("documents.card.statusChanged", {
+            status: documentStatusLabel(updated.status, t),
+          })
+        );
       },
       onError: (err) =>
-        toast.error(err.message || "Не удалось изменить статус"),
+        toast.error(err.message || t("documents.card.statusChangeFailed")),
     })
   );
   const deleteMutation = useMutation(
     trpc.documents.delete.mutationOptions({
       onSuccess: () => {
         invalidateList();
-        toast.success("Документ удалён");
+        toast.success(t("documents.card.deleted"));
       },
       onError: (err) =>
-        toast.error(err.message || "Не удалось удалить документ"),
+        toast.error(err.message || t("documents.card.deleteFailed")),
     })
   );
 
@@ -114,7 +120,7 @@ export function DocumentCard({
 
   return (
     <>
-      {/* Скачанный договор в конструктор не ведёт — ссылка отключена. */}
+      {/* Скачанный документ в конструктор не ведёт — ссылка отключена. */}
       <Link
         className={cn("group block", downloaded && "cursor-default")}
         disabled={downloaded}
@@ -142,12 +148,14 @@ export function DocumentCard({
               ) : (
                 <PenLine className="size-3" />
               )}
-              {templateDownload ? "Шаблон" : "Редактирование"}
+              {templateDownload
+                ? t("documents.card.template")
+                : t("documents.card.editing")}
             </span>
             <div className="flex items-center gap-0.5">
-              {/* Info — модалка «О договоре» шаблона, как на карточке шаблона */}
+              {/* Info — модалка «О документе» шаблона, как на карточке шаблона */}
               <button
-                aria-label="О договоре"
+                aria-label={t("documents.card.about")}
                 className="flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground"
                 onClick={(e) => {
                   e.preventDefault();
@@ -160,7 +168,7 @@ export function DocumentCard({
               </button>
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  aria-label="Действия с документом"
+                  aria-label={t("documents.card.actions")}
                   className="-mt-1 -mr-1 shrink-0 rounded-md p-1 text-muted-foreground outline-none hover:bg-muted hover:text-foreground"
                   onClick={(e) => {
                     e.preventDefault();
@@ -182,14 +190,14 @@ export function DocumentCard({
                   {editable && (
                     <DropdownMenuItem onSelect={openBuilder}>
                       <PenLine className="size-4" />
-                      Редактировать
+                      {t("documents.card.edit")}
                     </DropdownMenuItem>
                   )}
                   {canChangeStatus ? (
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger>
                         <CircleDashed className="mr-2 size-4 text-muted-foreground" />
-                        Поменять статус
+                        {t("documents.card.changeStatus")}
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="min-w-36">
                         {SETTABLE_STATUSES.map((value) => (
@@ -203,7 +211,7 @@ export function DocumentCard({
                               })
                             }
                           >
-                            {documentStatusLabel(value)}
+                            {documentStatusLabel(value, t)}
                             {value === currentStatus && (
                               <Check className="size-4" />
                             )}
@@ -218,10 +226,10 @@ export function DocumentCard({
                     >
                       <span className="flex items-center gap-2">
                         <CircleDashed className="size-4" />
-                        Поменять статус
+                        {t("documents.card.changeStatus")}
                       </span>
                       <span className="pl-6 text-muted-foreground text-xs">
-                        Доступно на платной подписке
+                        {t("documents.card.paidOnly")}
                       </span>
                     </DropdownMenuItem>
                   )}
@@ -230,7 +238,7 @@ export function DocumentCard({
                     variant="destructive"
                   >
                     <Trash2 className="size-4" />
-                    Удалить
+                    {t("documents.card.delete")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -258,7 +266,7 @@ export function DocumentCard({
             {downloaded && (
               <span className="inline-flex items-center gap-1 whitespace-nowrap text-muted-foreground text-xs">
                 <Download className="size-3.5" />
-                Скачан
+                {t("documents.card.downloaded")}
               </span>
             )}
             <DocumentDateChip value={updatedAt} />
@@ -276,21 +284,23 @@ export function DocumentCard({
       <AlertDialog onOpenChange={setConfirmDeleteOpen} open={confirmDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить документ?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t("documents.card.deleteTitle")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              «{title}» и вся история его версий будут удалены безвозвратно.
+              {t("documents.card.deleteDescription", { title })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>
-              Отменить
+              {t("documents.card.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
               disabled={deleteMutation.isPending}
               onClick={() => deleteMutation.mutate({ documentId: id })}
             >
-              Удалить
+              {t("documents.card.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -51,11 +51,6 @@ export const Route = createFileRoute("/documents")({
 
 const SORT_KEYS = ["new", "old", "title"] as const;
 type SortKey = (typeof SORT_KEYS)[number];
-const SORT_LABELS: Record<SortKey, string> = {
-  new: "Сначала новые",
-  old: "Сначала старые",
-  title: "По названию",
-};
 
 function toTime(value: Date | string): number {
   return new Date(value).getTime();
@@ -75,13 +70,9 @@ function sortDocuments<T extends { title: string; updatedAt: Date | string }>(
   return copy.sort((a, b) => toTime(b.updatedAt) - toTime(a.updatedAt));
 }
 
-const DOC_TABS = [
-  { id: "all", label: "Все договора" },
-  { id: "saved", label: "Сохранённые" },
-  { id: "drafts", label: "Черновики" },
-  { id: "completed", label: "Завершённые" },
-] as const;
-type DocTab = (typeof DOC_TABS)[number]["id"];
+// Подписи вкладок — documents.tabs.<id> в i18n.
+const DOC_TABS = ["all", "saved", "drafts", "completed"] as const;
+type DocTab = (typeof DOC_TABS)[number];
 
 const PAGE_SIZE = 12;
 const MILLIS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -166,7 +157,7 @@ function RouteComponent() {
   const visibleDocuments = useMemo(() => {
     let list = documents;
     if (tab === "drafts") {
-      // Скачанный («выданный») договор черновиком уже не является, даже если
+      // Скачанный («выданный») документ черновиком уже не является, даже если
       // статус остался draft.
       list = list.filter(
         (doc) =>
@@ -231,7 +222,7 @@ function RouteComponent() {
       if (status === "signed") {
         signed += 1;
       }
-      // Выданные (скачанные) договоры активной работой не считаем.
+      // Выданные (скачанные) документы активной работой не считаем.
       if (IN_WORK_STATUSES.has(status) && !doc.downloadedAt) {
         inWork += 1;
       }
@@ -338,15 +329,15 @@ function RouteComponent() {
         {/* Tabs: на мобильных не влезают — скроллим по горизонтали */}
         <div className="flex items-center gap-1 overflow-x-auto border-border border-b">
           {DOC_TABS.map((docTab) => {
-            const isActive = tab === docTab.id;
+            const isActive = tab === docTab;
             return (
               <button
                 className={cn(
                   "-mb-px shrink-0 whitespace-nowrap border-b pb-2 transition-colors",
                   isActive ? "border-foreground" : "border-transparent"
                 )}
-                key={docTab.id}
-                onClick={() => setTab(docTab.id)}
+                key={docTab}
+                onClick={() => setTab(docTab)}
                 type="button"
               >
                 <span
@@ -357,7 +348,7 @@ function RouteComponent() {
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {docTab.label}
+                  {t(`documents.tabs.${docTab}`)}
                 </span>
               </button>
             );
@@ -367,27 +358,29 @@ function RouteComponent() {
         {/* Dashboard (по макету: всего / подписано / в работе / за 30 дней) */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
-            hint="За всё время"
+            hint={t("documents.stats.totalHint")}
             icon={FileText}
-            label="Всего договоров"
+            label={t("documents.stats.totalLabel")}
             value={stats.total}
           />
           <StatCard
-            hint={`${stats.signedPct}% от всех`}
+            hint={t("documents.stats.signedHint", { pct: stats.signedPct })}
             icon={CircleCheck}
-            label="Подписано"
+            label={t("documents.stats.signedLabel")}
             value={stats.signed}
           />
           <StatCard
-            hint="Черновики и ожидающие"
+            hint={t("documents.stats.inWorkHint")}
             icon={Clock}
-            label="В работе"
+            label={t("documents.stats.inWorkLabel")}
             value={stats.inWork}
           />
           <StatCard
-            hint={`${stats.delta >= 0 ? "+" : ""}${stats.delta} к прошлому месяцу`}
+            hint={t("documents.stats.last30Hint", {
+              delta: `${stats.delta >= 0 ? "+" : ""}${stats.delta}`,
+            })}
             icon={CalendarDays}
-            label="За 30 дней"
+            label={t("documents.stats.last30Label")}
             value={stats.last30}
           />
         </div>
@@ -448,7 +441,7 @@ function RouteComponent() {
                           );
                         }}
                       >
-                        {documentStatusLabel(value)}
+                        {documentStatusLabel(value, t)}
                         {active && <Check className="size-4" />}
                       </DropdownMenuItem>
                     );
@@ -480,7 +473,7 @@ function RouteComponent() {
                     key={key}
                     onSelect={() => setSort(key)}
                   >
-                    {SORT_LABELS[key]}
+                    {t(`documents.sort.${key}`)}
                     {key === sort && <Check className="size-4" />}
                   </DropdownMenuItem>
                 ))}
@@ -578,15 +571,16 @@ interface SavedTemplate {
 }
 
 function SavedTemplatesGrid({ templates }: { templates: SavedTemplate[] }) {
+  const { t } = useTranslation();
   if (templates.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <FileText className="mb-3 size-12 text-muted-foreground/30" />
         <p className="font-medium text-foreground text-sm">
-          Нет сохранённых шаблонов
+          {t("documents.savedEmpty")}
         </p>
         <p className="mt-1 text-muted-foreground text-xs">
-          Сохраняйте шаблоны из каталога — они появятся здесь
+          {t("documents.savedEmptyHint")}
         </p>
       </div>
     );

@@ -171,7 +171,7 @@ export default function SignUpForm() {
             </h1>
             <p className="max-w-[378px] text-base text-foreground/80">
               Зарегистрируйтесь за минуту — и получите доступ к юридически
-              выверенным договорам для Казахстана.
+              выверенным документам для Казахстана.
             </p>
           </div>
         </div>
@@ -223,7 +223,7 @@ export default function SignUpForm() {
             </h1>
             <p className="max-w-[378px] text-base text-foreground/80">
               Зарегистрируйтесь за минуту — и получите доступ к 1000+ юридически
-              проверенных договоров для Казахстана и СНГ.
+              проверенных документов для Казахстана и СНГ.
             </p>
           </div>
         </div>

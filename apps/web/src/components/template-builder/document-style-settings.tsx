@@ -110,7 +110,7 @@ export function DocumentStyleSettings({
       </Select>
 
       <Select onValueChange={onLocaleChange} value={locale}>
-        <PillTrigger label="Язык договора" />
+        <PillTrigger label="Язык документа" />
         <SelectContent position="popper">
           {TEMPLATE_LOCALES.map((code: TemplateLocale) => (
             <SelectItem key={code} value={code}>

@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { Loader2Icon } from "lucide-react";
 import { useEffect, useId, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { useTRPC } from "@/utils/trpc";
@@ -10,7 +11,6 @@ import {
   ErrorNote,
   formatCountdown,
   getNewPasswordState,
-  NETWORK_ERROR,
   NewPasswordFields,
   OUTLINE_BTN,
   PasswordChangedSuccess,
@@ -27,8 +27,6 @@ import {
 } from "./ui/dialog";
 import { Label } from "./ui/label";
 
-const NO_PASSWORD_ERROR = "Для аккаунта не установлен пароль";
-
 type Step = "current" | "new" | "success";
 
 export function ChangePasswordDialog({
@@ -38,6 +36,7 @@ export function ChangePasswordDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const currentFieldId = useId();
 
@@ -90,6 +89,8 @@ export function ChangePasswordDialog({
     }
   }, [lockedUntil, locked]);
 
+  const networkError = t("security.changePassword.networkError");
+
   const applyCheckFailure = (
     check:
       | { status: "no_password" }
@@ -105,12 +106,12 @@ export function ChangePasswordDialog({
     if (check.status === "invalid") {
       setCurrentError(
         check.attemptsLeft === 1
-          ? "Неверный пароль.\nОсталась одна попытка."
-          : "Неверный пароль"
+          ? t("security.changePassword.wrongPasswordLastAttempt")
+          : t("security.changePassword.wrongPassword")
       );
       return;
     }
-    setCurrentError(NO_PASSWORD_ERROR);
+    setCurrentError(t("security.changePassword.noPassword"));
   };
 
   const handleContinue = async () => {
@@ -125,7 +126,7 @@ export function ChangePasswordDialog({
       }
       applyCheckFailure(result);
     } catch {
-      toast.error(NETWORK_ERROR);
+      toast.error(networkError);
     }
   };
 
@@ -149,18 +150,21 @@ export function ChangePasswordDialog({
       setCurrentPassword("");
       applyCheckFailure(result);
     } catch {
-      toast.error(NETWORK_ERROR);
+      toast.error(networkError);
     }
   };
 
   const { error: newStepError, canSave } = getNewPasswordState({
+    t,
     newPassword,
     confirmPassword,
     mustDifferFrom: currentPassword,
   });
 
   const currentStepError = locked
-    ? `Слишком много попыток.\nПовторите через ${formatCountdown(lockRemainingSeconds)}.`
+    ? t("security.changePassword.lockedRetry", {
+        time: formatCountdown(lockRemainingSeconds),
+      })
     : currentError;
 
   // Пока запрос в полёте, диалог нельзя закрыть (крестик/Esc/клик вне),
@@ -188,13 +192,15 @@ export function ChangePasswordDialog({
         showCloseButton={!busy}
       >
         <DialogHeader>
-          <DialogTitle>Смена пароля</DialogTitle>
+          <DialogTitle>{t("security.changePassword.title")}</DialogTitle>
         </DialogHeader>
 
         {step === "current" && (
           <>
             <div className="flex flex-col gap-2 py-1">
-              <Label htmlFor={currentFieldId}>Текущий пароль</Label>
+              <Label htmlFor={currentFieldId}>
+                {t("security.changePassword.currentLabel")}
+              </Label>
               <PasswordInput
                 autoComplete="current-password"
                 id={currentFieldId}
@@ -217,7 +223,7 @@ export function ChangePasswordDialog({
                 type="button"
                 variant="outline"
               >
-                Отменить
+                {t("security.changePassword.cancel")}
               </Button>
               <Button
                 className={PRIMARY_BTN}
@@ -229,7 +235,9 @@ export function ChangePasswordDialog({
                 onClick={handleContinue}
                 type="button"
               >
-                {verifyMutation.isPending ? "Проверяем..." : "Продолжить"}
+                {verifyMutation.isPending
+                  ? t("security.changePassword.checking")
+                  : t("security.changePassword.continue")}
               </Button>
             </DialogFooter>
           </>
@@ -252,7 +260,7 @@ export function ChangePasswordDialog({
                 type="button"
                 variant="outline"
               >
-                Назад
+                {t("security.changePassword.back")}
               </Button>
               <Button
                 className={PRIMARY_BTN}
@@ -262,11 +270,11 @@ export function ChangePasswordDialog({
               >
                 {changeMutation.isPending ? (
                   <>
-                    Сохраняем
+                    {t("security.changePassword.saving")}
                     <Loader2Icon className="size-4 animate-spin" />
                   </>
                 ) : (
-                  "Сохранить"
+                  t("security.changePassword.save")
                 )}
               </Button>
             </DialogFooter>

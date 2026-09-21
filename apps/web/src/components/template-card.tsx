@@ -103,9 +103,9 @@ export function TemplateCard({
               <span />
             )}
             <div className="flex items-center gap-0.5">
-              {/* Info — открывает модалку «О договоре» */}
+              {/* Info — открывает модалку «О документе» */}
               <button
-                aria-label="О договоре"
+                aria-label="О документе"
                 className="flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted"
                 onClick={(e) => {
                   e.preventDefault();
@@ -238,7 +238,7 @@ export function TemplateCard({
         </div>
       </Link>
 
-      {/* Модалка «О договоре» — сестра <Link>, не ребёнок: React-события из
+      {/* Модалка «О документе» — сестра <Link>, не ребёнок: React-события из
           портала всплывают по React-дереву, и клик внутри модалки уводил бы
           по ссылке карточки. */}
       <TemplateInfoDialog

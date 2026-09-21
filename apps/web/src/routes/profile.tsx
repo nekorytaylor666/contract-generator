@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import type { TFunction } from "i18next";
 import { Check, Plus, Settings, User } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { ChangePasswordDialog } from "@/components/change-password-dialog";
@@ -57,52 +59,57 @@ export const Route = createFileRoute("/profile")({
 
 type ProfileTab = "personal" | "security" | "requisites" | "subscription";
 
-const PROFILE_TABS: { id: ProfileTab; label: string }[] = [
-  { id: "personal", label: "Личные данные" },
-  { id: "security", label: "Безопасность" },
-  { id: "requisites", label: "Реквизиты" },
-  { id: "subscription", label: "Подписка" },
+// id уходит в URL (?tab=…) — не переводим, подпись берём из словаря.
+const PROFILE_TABS: { id: ProfileTab; labelKey: string }[] = [
+  { id: "personal", labelKey: "profile.tabs.personal" },
+  { id: "security", labelKey: "profile.tabs.security" },
+  { id: "requisites", labelKey: "profile.tabs.requisites" },
+  { id: "subscription", labelKey: "profile.tabs.subscription" },
 ];
 
 // Карточки тарифов и переключатель периода живут в общем компоненте
 // PlansPicker (используется и попапом «Тарифы» в модалках шаблона).
 
-const MONTHS_RU = [
-  "января",
-  "февраля",
-  "марта",
-  "апреля",
-  "мая",
-  "июня",
-  "июля",
-  "августа",
-  "сентября",
-  "октября",
-  "ноября",
-  "декабря",
-];
-
-function formatPurchaseDate(value: Date | string): string {
-  const d = new Date(value);
-  return `${d.getDate()} ${MONTHS_RU[d.getMonth()]}, ${d.getFullYear()}`;
+/** «21 сентября» / «21 қыркүйек» — день и месяц на языке интерфейса. */
+function formatDayMonth(language: string, d: Date): string {
+  const locale = language === "kk" ? "kk-KZ" : "ru-RU";
+  return new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "long",
+  }).format(d);
 }
 
-function formatExpiryFull(value: Date | string): string {
+function formatPurchaseDate(language: string, value: Date | string): string {
   const d = new Date(value);
-  return `${d.getDate()} ${MONTHS_RU[d.getMonth()]} ${d.getFullYear()} года`;
+  return `${formatDayMonth(language, d)}, ${d.getFullYear()}`;
 }
 
-function statusMeta(status: string): { label: string; className: string } {
+function statusMeta(
+  t: TFunction,
+  status: string
+): { label: string; className: string } {
   if (status === "paid") {
-    return { label: "Оплачен", className: "text-[#2e6b2e]" };
+    return {
+      label: t("profile.subscription.history.status.paid"),
+      className: "text-[#2e6b2e]",
+    };
   }
   if (status === "expired") {
-    return { label: "Просрочен", className: "text-destructive" };
+    return {
+      label: t("profile.subscription.history.status.expired"),
+      className: "text-destructive",
+    };
   }
   if (status === "failed") {
-    return { label: "Не оплачен", className: "text-destructive" };
+    return {
+      label: t("profile.subscription.history.status.failed"),
+      className: "text-destructive",
+    };
   }
-  return { label: "Ожидает оплаты", className: "text-muted-foreground" };
+  return {
+    label: t("profile.subscription.history.status.pending"),
+    className: "text-muted-foreground",
+  };
 }
 
 function UsageCard({
@@ -138,6 +145,8 @@ function UsageCard({
 // «действует до», а не «следующее списание»; отменённая подписка живёт до
 // конца оплаченного периода.
 function subscriptionSubtitle(
+  t: TFunction,
+  language: string,
   my:
     | {
         isPaid: boolean;
@@ -147,18 +156,23 @@ function subscriptionSubtitle(
     | undefined
 ): string {
   if (!my?.isPaid) {
-    return "Бесплатный тариф — без ограничения по сроку";
+    return t("profile.subscription.subtitle.free");
   }
   if (!my.expiresAt) {
-    return "Подписка без ограничения по сроку";
+    return t("profile.subscription.subtitle.unlimited");
   }
   if (my.cancelledAt) {
-    return `Подписка отменена — активна до ${formatPurchaseDate(my.expiresAt)}`;
+    return t("profile.subscription.subtitle.cancelled", {
+      date: formatPurchaseDate(language, my.expiresAt),
+    });
   }
-  return `Действует до ${formatPurchaseDate(my.expiresAt)}`;
+  return t("profile.subscription.subtitle.activeUntil", {
+    date: formatPurchaseDate(language, my.expiresAt),
+  });
 }
 
 function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [successOpen, setSuccessOpen] = useState(Boolean(justPaid));
   const [manageOpen, setManageOpen] = useState(false);
@@ -186,10 +200,12 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
         window.location.href = res.url;
       },
       onError: (err) => {
-        toast.error(err.message || "Не удалось перейти к оплате");
+        toast.error(err.message || t("profile.subscription.checkoutError"));
       },
     })
   );
+
+  const expiresAtDate = my?.expiresAt ? new Date(my.expiresAt) : null;
 
   return (
     <section className="flex flex-col gap-6">
@@ -197,10 +213,10 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-5">
         <div className="flex flex-col gap-1">
           <h3 className="font-semibold text-foreground text-lg leading-6">
-            {my?.planName ?? "Без подписки"}
+            {my?.planName ?? t("profile.subscription.noPlan")}
           </h3>
           <p className="text-muted-foreground text-sm">
-            {subscriptionSubtitle(my)}
+            {subscriptionSubtitle(t, i18n.language, my)}
           </p>
         </div>
         <Button
@@ -211,7 +227,7 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
           variant="outline"
         >
           <Settings className="size-4" />
-          Управлять подпиской
+          {t("profile.subscription.manage")}
         </Button>
       </div>
 
@@ -224,24 +240,25 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
       {/* Usage — квоты месячные: окно идёт от даты активации подписки. */}
       {my && (
         <p className="text-muted-foreground text-sm">
-          Лимиты тарифа выдаются заново раз в месяц — следующее обновление{" "}
-          {formatQuotaResetDate("ru", my.quotaResetAt)}.
+          {t("profile.subscription.quotaReset", {
+            date: formatQuotaResetDate(i18n.language, my.quotaResetAt),
+          })}
         </p>
       )}
       {my && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <UsageCard
-            label="Использовано загрузок"
+            label={t("profile.subscription.usage.downloads")}
             quota={my.downloadQuota}
             used={my.downloadsUsed}
           />
           <UsageCard
-            label="Использовано редактирований"
+            label={t("profile.subscription.usage.edits")}
             quota={my.editQuota}
             used={my.editsUsed}
           />
           <UsageCard
-            label="Использовано проверок"
+            label={t("profile.subscription.usage.reviews")}
             quota={checksQuota}
             used={my.reviewsUsed}
           />
@@ -262,16 +279,18 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
       {history.length > 0 && (
         <div className="flex flex-col gap-4">
           <h2 className="font-semibold text-2xl text-foreground leading-6">
-            История покупок
+            {t("profile.subscription.history.title")}
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">
               <tbody>
                 {history.map((item) => {
-                  const meta = statusMeta(item.status);
+                  const meta = statusMeta(t, item.status);
                   const label =
                     item.description ||
-                    (item.purpose === "subscription" ? "Подписка" : "Договор");
+                    (item.purpose === "subscription"
+                      ? t("profile.subscription.history.subscription")
+                      : t("profile.subscription.history.document"));
                   return (
                     <tr
                       className="border-border border-b last:border-b-0"
@@ -279,7 +298,7 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
                     >
                       <td className="py-3 pr-4 text-foreground">{label}</td>
                       <td className="py-3 pr-4 text-muted-foreground">
-                        {formatPurchaseDate(item.createdAt)}
+                        {formatPurchaseDate(i18n.language, item.createdAt)}
                       </td>
                       <td className="py-3 pr-4 text-foreground">
                         {item.amount.toLocaleString("ru-RU")} ₸
@@ -290,10 +309,16 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
                       <td className="py-3 text-right">
                         <button
                           className="text-foreground text-sm underline hover:no-underline"
-                          onClick={() => toast.info("Скоро будет доступно")}
+                          onClick={() =>
+                            toast.info(
+                              t("profile.subscription.history.comingSoon")
+                            )
+                          }
                           type="button"
                         >
-                          {item.status === "paid" ? "Квитанция" : "Оплатить"}
+                          {item.status === "paid"
+                            ? t("profile.subscription.history.receipt")
+                            : t("profile.subscription.history.pay")}
                         </button>
                       </td>
                     </tr>
@@ -322,12 +347,17 @@ function SubscriptionTab({ justPaid }: { justPaid?: boolean }) {
             </span>
             <div className="flex flex-col gap-1.5">
               <h3 className="font-semibold text-foreground text-lg">
-                Подписка возобновлена!
+                {t("profile.subscription.success.title")}
               </h3>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Тариф «{my?.planName}» активирован.
-                {my?.expiresAt &&
-                  ` Действует до ${formatExpiryFull(my.expiresAt)}.`}
+                {t("profile.subscription.success.activated", {
+                  plan: my?.planName,
+                })}
+                {expiresAtDate &&
+                  ` ${t("profile.subscription.success.activeUntil", {
+                    date: formatDayMonth(i18n.language, expiresAtDate),
+                    year: expiresAtDate.getFullYear(),
+                  })}`}
               </p>
             </div>
           </div>
@@ -374,42 +404,45 @@ const EMPTY_DRAFT: RequisiteDraft = {
   basis: "",
 };
 
-// Editable inputs in the dialog (name/type are rendered separately above them).
-const FORM_FIELDS: {
-  label: string;
-  key: keyof RequisiteDraft;
-  full?: boolean;
-}[] = [
-  { label: "ИИН/БИН", key: "inn" },
-  { label: "Юридический адрес", key: "address", full: true },
-  { label: "Номер телефона", key: "phone" },
-  { label: "Электронная почта", key: "email" },
-  { label: "Банк", key: "bank" },
-  { label: "IBAN", key: "iban" },
-  { label: "БИК", key: "bik" },
-  { label: "КБе", key: "kbe" },
-  { label: "КНП", key: "knp" },
-  { label: "Подписант", key: "signatory", full: true },
-  { label: "Должность", key: "position" },
-  { label: "Действует на основании", key: "basis" },
+// Значение type хранится в БД как есть (русская аббревиатура) — переводим
+// только подпись в селекте и бейдже.
+const REQUISITE_TYPES: { value: string; labelKey: string }[] = [
+  { value: "ТОО", labelKey: "profile.requisites.types.too" },
+  { value: "ИП", labelKey: "profile.requisites.types.ip" },
+  { value: "АО", labelKey: "profile.requisites.types.ao" },
+  { value: "Физ. лицо", labelKey: "profile.requisites.types.individual" },
 ];
 
-const REQUISITE_FIELDS: { label: string; key: keyof Requisite }[] = [
-  { label: "ИИН/БИН", key: "inn" },
-  { label: "Юридический адрес", key: "address" },
-  { label: "Номер телефона", key: "phone" },
-  { label: "Электронная почта", key: "email" },
-  { label: "Банк", key: "bank" },
-  { label: "IBAN", key: "iban" },
-  { label: "БИК", key: "bik" },
-  { label: "КБе", key: "kbe" },
-  { label: "КНП", key: "knp" },
-  { label: "Подписант", key: "signatory" },
-  { label: "Должность", key: "position" },
-  { label: "Действует на основании", key: "basis" },
+function requisiteTypeLabel(t: TFunction, type: string): string {
+  const known = REQUISITE_TYPES.find((item) => item.value === type);
+  return known ? t(known.labelKey) : type;
+}
+
+type RequisiteFieldKey = Exclude<keyof RequisiteDraft, "name" | "type">;
+
+// Editable inputs in the dialog (name/type are rendered separately above them).
+// Подпись поля — profile.requisites.fields.<key>.
+const FORM_FIELDS: { key: RequisiteFieldKey; full?: boolean }[] = [
+  { key: "inn" },
+  { key: "address", full: true },
+  { key: "phone" },
+  { key: "email" },
+  { key: "bank" },
+  { key: "iban" },
+  { key: "bik" },
+  { key: "kbe" },
+  { key: "knp" },
+  { key: "signatory", full: true },
+  { key: "position" },
+  { key: "basis" },
 ];
+
+const REQUISITE_FIELDS: RequisiteFieldKey[] = FORM_FIELDS.map(
+  (field) => field.key
+);
 
 function RequisitesTab() {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const { data: requisites = [], isLoading } = useQuery(
@@ -427,7 +460,7 @@ function RequisitesTab() {
     trpc.requisites.create.mutationOptions({
       onSuccess: () => {
         invalidate();
-        toast.success("Реквизиты добавлены");
+        toast.success(t("profile.requisites.added"));
         setDialogOpen(false);
       },
       onError: (err) => toast.error(err.message),
@@ -437,7 +470,7 @@ function RequisitesTab() {
     trpc.requisites.update.mutationOptions({
       onSuccess: () => {
         invalidate();
-        toast.success("Сохранено");
+        toast.success(t("profile.actions.saved"));
         setDialogOpen(false);
       },
       onError: (err) => toast.error(err.message),
@@ -447,7 +480,7 @@ function RequisitesTab() {
     trpc.requisites.delete.mutationOptions({
       onSuccess: () => {
         invalidate();
-        toast.success("Удалено");
+        toast.success(t("profile.requisites.deleted"));
         setDialogOpen(false);
       },
       onError: (err) => toast.error(err.message),
@@ -486,7 +519,7 @@ function RequisitesTab() {
   };
   const save = () => {
     if (!draft.name.trim()) {
-      toast.error("Укажите наименование");
+      toast.error(t("profile.requisites.nameRequired"));
       return;
     }
     if (editingId) {
@@ -500,17 +533,17 @@ function RequisitesTab() {
     <section className="flex flex-col gap-4">
       {isLoading && (
         <p className="py-10 text-center text-muted-foreground text-sm">
-          Загрузка реквизитов…
+          {t("profile.requisites.loading")}
         </p>
       )}
 
       {!isLoading && requisites.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-xl border border-border border-dashed py-16">
           <p className="font-medium text-foreground text-sm">
-            Реквизитов пока нет
+            {t("profile.requisites.empty.title")}
           </p>
           <p className="mt-1 text-muted-foreground text-xs">
-            Добавьте реквизиты — они будут подставляться в договоры
+            {t("profile.requisites.empty.hint")}
           </p>
         </div>
       )}
@@ -526,7 +559,7 @@ function RequisitesTab() {
                 {requisite.name}
               </h3>
               <span className="rounded-md bg-secondary/40 px-2 py-0.5 font-medium text-secondary-foreground text-xs">
-                {requisite.type}
+                {requisiteTypeLabel(t, requisite.type)}
               </span>
             </div>
             <Button
@@ -536,20 +569,20 @@ function RequisitesTab() {
               type="button"
               variant="outline"
             >
-              Редактировать
+              {t("profile.actions.edit")}
             </Button>
           </div>
 
           <div className="my-4 h-px w-full bg-border" />
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3 lg:grid-cols-4">
-            {REQUISITE_FIELDS.map((field) => (
-              <div className="flex flex-col gap-1" key={field.label}>
+            {REQUISITE_FIELDS.map((key) => (
+              <div className="flex flex-col gap-1" key={key}>
                 <span className="font-medium text-foreground text-sm leading-5">
-                  {field.label}
+                  {t(`profile.requisites.fields.${key}`)}
                 </span>
                 <span className="break-words text-muted-foreground text-sm leading-5">
-                  {requisite[field.key] || "—"}
+                  {requisite[key] || "—"}
                 </span>
               </div>
             ))}
@@ -565,38 +598,41 @@ function RequisitesTab() {
         variant="outline"
       >
         <Plus className="size-4" />
-        Добавить реквизиты
+        {t("profile.requisites.add")}
       </Button>
 
       <Dialog onOpenChange={setDialogOpen} open={dialogOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Об организации</DialogTitle>
+            <DialogTitle>{t("profile.requisites.dialogTitle")}</DialogTitle>
           </DialogHeader>
           <div className="flex max-h-[60vh] flex-col gap-4 overflow-y-auto py-1">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="rq-name">Наименование</Label>
+              <Label htmlFor="rq-name">{t("profile.requisites.name")}</Label>
               <Input
                 id="rq-name"
                 onChange={(e) => setField("name", e.target.value)}
-                placeholder="ТОО «Название компании»"
+                placeholder={t("profile.requisites.namePlaceholder")}
                 value={draft.name}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Тип</Label>
+              <Label>{t("profile.requisites.type")}</Label>
               <Select
                 onValueChange={(value) => setField("type", value)}
                 value={draft.type}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Выберите тип" />
+                  <SelectValue
+                    placeholder={t("profile.requisites.typePlaceholder")}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ТОО">ТОО</SelectItem>
-                  <SelectItem value="ИП">ИП</SelectItem>
-                  <SelectItem value="АО">АО</SelectItem>
-                  <SelectItem value="Физ. лицо">Физ. лицо</SelectItem>
+                  {REQUISITE_TYPES.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {t(item.labelKey)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -609,7 +645,9 @@ function RequisitesTab() {
                   )}
                   key={field.key}
                 >
-                  <Label htmlFor={`rq-${field.key}`}>{field.label}</Label>
+                  <Label htmlFor={`rq-${field.key}`}>
+                    {t(`profile.requisites.fields.${field.key}`)}
+                  </Label>
                   <Input
                     id={`rq-${field.key}`}
                     onChange={(e) => setField(field.key, e.target.value)}
@@ -628,7 +666,7 @@ function RequisitesTab() {
                 type="button"
                 variant="ghost"
               >
-                Удалить
+                {t("profile.actions.delete")}
               </Button>
             )}
             <Button
@@ -637,7 +675,7 @@ function RequisitesTab() {
               type="button"
               variant="outline"
             >
-              Отменить
+              {t("profile.actions.cancel")}
             </Button>
             <Button
               className={APPLY_BTN}
@@ -645,7 +683,7 @@ function RequisitesTab() {
               onClick={save}
               type="button"
             >
-              {editingId ? "Сохранить" : "Добавить"}
+              {editingId ? t("profile.actions.save") : t("profile.actions.add")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -677,6 +715,7 @@ function SecurityRow({
 }
 
 function TwoFactorRow() {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const { data: me } = useQuery(trpc.account.me.queryOptions());
   const [dialogMode, setDialogMode] = useState<"enable" | "disable" | null>(
@@ -694,7 +733,9 @@ function TwoFactorRow() {
       type="button"
       variant="outline"
     >
-      {enabled ? "Отключить" : "Включить"}
+      {enabled
+        ? t("profile.security.twoFactor.disable")
+        : t("profile.security.twoFactor.enable")}
     </Button>
   );
 
@@ -711,7 +752,7 @@ function TwoFactorRow() {
                 <span className="inline-flex">{toggleButton}</span>
               </TooltipTrigger>
               <TooltipContent className="max-w-52 text-center">
-                Укажите почту в разделе «Личные данные», чтобы подключить 2FA
+                {t("profile.security.twoFactor.needEmail")}
               </TooltipContent>
             </Tooltip>
           )}
@@ -723,13 +764,18 @@ function TwoFactorRow() {
           />
         </>
       }
-      subtitle={enabled ? "Включена" : "Выключена"}
-      title="Двухфакторная аутентификация"
+      subtitle={
+        enabled
+          ? t("profile.security.twoFactor.enabled")
+          : t("profile.security.twoFactor.disabled")
+      }
+      title={t("profile.security.twoFactor.title")}
     />
   );
 }
 
 function SecurityTab() {
+  const { t } = useTranslation();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
 
@@ -743,7 +789,7 @@ function SecurityTab() {
               onClick={() => setForgotPasswordOpen(true)}
               type="button"
             >
-              Забыли пароль?
+              {t("profile.security.forgotPassword")}
             </button>
             <ForgotPasswordDialog
               onClose={() => setForgotPasswordOpen(false)}
@@ -755,7 +801,7 @@ function SecurityTab() {
               size="lg"
               variant="outline"
             >
-              Изменить пароль
+              {t("profile.security.changePassword")}
             </Button>
             <ChangePasswordDialog
               onClose={() => setChangePasswordOpen(false)}
@@ -764,7 +810,7 @@ function SecurityTab() {
           </>
         }
         subtitle="********"
-        title="Пароль"
+        title={t("profile.security.password")}
       />
       <TwoFactorRow />
     </section>
@@ -775,10 +821,18 @@ const OUTLINE_BTN = "border-[#d4d4d4] bg-transparent text-foreground text-sm";
 const APPLY_BTN =
   "h-9 bg-foreground px-4 text-background text-sm hover:bg-foreground/90";
 
-const LANGUAGE_LABELS: Record<string, string> = {
-  ru: "Русский",
-  kk: "Қазақша",
-};
+// Коды языков документа хранятся в БД — переводим только названия.
+const DOCUMENT_LANGUAGES: { value: "ru" | "kk"; labelKey: string }[] = [
+  { value: "ru", labelKey: "profile.personal.language.ru" },
+  { value: "kk", labelKey: "profile.personal.language.kk" },
+];
+
+function documentLanguageLabel(t: TFunction, code: string | null): string {
+  const known =
+    DOCUMENT_LANGUAGES.find((item) => item.value === code) ??
+    DOCUMENT_LANGUAGES[0];
+  return t(known.labelKey);
+}
 
 type EditField = "name" | "email" | "phone" | "language" | null;
 
@@ -797,6 +851,7 @@ function FieldDialog({
   onApply: () => void;
   children: React.ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
     <Dialog onOpenChange={(next) => !next && onClose()} open={open}>
       <DialogContent className="sm:max-w-md">
@@ -811,7 +866,7 @@ function FieldDialog({
             type="button"
             variant="outline"
           >
-            Отменить
+            {t("profile.actions.cancel")}
           </Button>
           <Button
             className={APPLY_BTN}
@@ -819,7 +874,7 @@ function FieldDialog({
             onClick={onApply}
             type="button"
           >
-            Применить
+            {t("profile.actions.apply")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -828,6 +883,7 @@ function FieldDialog({
 }
 
 function PersonalDataTab() {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const { data: me } = useQuery(trpc.account.me.queryOptions());
@@ -842,7 +898,7 @@ function PersonalDataTab() {
     trpc.account.updateProfile.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries(trpc.account.me.queryFilter());
-        toast.success("Сохранено");
+        toast.success(t("profile.actions.saved"));
         setEditing(null);
       },
       onError: (err) => toast.error(err.message),
@@ -871,7 +927,7 @@ function PersonalDataTab() {
         <div className="flex min-w-0 flex-1 items-center gap-4">
           {me?.image ? (
             <img
-              alt="Аватар"
+              alt={t("profile.personal.photo.alt")}
               className="size-12 shrink-0 rounded-full object-cover"
               height={48}
               src={me.image}
@@ -884,21 +940,21 @@ function PersonalDataTab() {
           )}
           <div className="flex min-w-0 flex-col gap-1">
             <h3 className="font-semibold text-base text-foreground leading-5">
-              Фотография профиля
+              {t("profile.personal.photo.title")}
             </h3>
             <p className="text-base text-muted-foreground leading-5">
-              Ваша аватарка, которая отображается в команде
+              {t("profile.personal.photo.subtitle")}
             </p>
           </div>
         </div>
         <Button
           className={OUTLINE_BTN}
-          onClick={() => toast.info("Загрузка фото скоро будет доступна")}
+          onClick={() => toast.info(t("profile.personal.photo.comingSoon"))}
           size="lg"
           type="button"
           variant="outline"
         >
-          Сменить фото
+          {t("profile.personal.photo.change")}
         </Button>
       </div>
 
@@ -911,11 +967,11 @@ function PersonalDataTab() {
             type="button"
             variant="outline"
           >
-            Редактировать
+            {t("profile.actions.edit")}
           </Button>
         }
         subtitle={me?.name || "—"}
-        title="Ф.И.О."
+        title={t("profile.personal.fullName")}
       />
 
       <SecurityRow
@@ -927,11 +983,13 @@ function PersonalDataTab() {
             type="button"
             variant="outline"
           >
-            {hasEmail ? "Сменить почту" : "Добавить почту"}
+            {hasEmail
+              ? t("profile.personal.email.change")
+              : t("profile.personal.email.add")}
           </Button>
         }
-        subtitle={me?.email || "Вы еще не указали электронную почту"}
-        title="Электронная почта"
+        subtitle={me?.email || t("profile.personal.email.empty")}
+        title={t("profile.personal.email.title")}
       />
 
       <SecurityRow
@@ -943,11 +1001,11 @@ function PersonalDataTab() {
             type="button"
             variant="outline"
           >
-            Сменить номер
+            {t("profile.personal.phone.change")}
           </Button>
         }
-        subtitle={me?.phoneNumber || "Не указан"}
-        title="Номер телефона"
+        subtitle={me?.phoneNumber || t("profile.personal.phone.empty")}
+        title={t("profile.personal.phone.title")}
       />
 
       <SecurityRow
@@ -959,23 +1017,21 @@ function PersonalDataTab() {
             type="button"
             variant="outline"
           >
-            Сменить язык
+            {t("profile.personal.language.change")}
           </Button>
         }
-        subtitle={
-          LANGUAGE_LABELS[me?.contractLanguage ?? "ru"] ?? LANGUAGE_LABELS.ru
-        }
-        title="Язык по умолчанию в договорах"
+        subtitle={documentLanguageLabel(t, me?.contractLanguage ?? null)}
+        title={t("profile.personal.language.title")}
       />
 
       {/* Удалить аккаунт */}
       <div className="flex flex-wrap items-center justify-between gap-4 py-4">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h3 className="font-semibold text-base text-destructive leading-5">
-            Удалить аккаунт
+            {t("profile.personal.deleteAccount.title")}
           </h3>
           <p className="text-base text-muted-foreground leading-5">
-            Полное удаление вашего аккаунта на платформе Zhebe.
+            {t("profile.personal.deleteAccount.subtitle")}
           </p>
         </div>
         <Button
@@ -986,7 +1042,7 @@ function PersonalDataTab() {
           type="button"
           variant="outline"
         >
-          Удалить аккаунт
+          {t("profile.personal.deleteAccount.action")}
         </Button>
       </div>
 
@@ -1005,10 +1061,12 @@ function PersonalDataTab() {
         onClose={() => setEditing(null)}
         open={editing === "name"}
         pending={update.isPending}
-        title="Личные данные"
+        title={t("profile.personal.nameDialog.title")}
       >
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="pd-first">Имя</Label>
+          <Label htmlFor="pd-first">
+            {t("profile.personal.nameDialog.firstName")}
+          </Label>
           <Input
             id="pd-first"
             onChange={(e) => setFirstName(e.target.value)}
@@ -1016,7 +1074,9 @@ function PersonalDataTab() {
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="pd-last">Фамилия</Label>
+          <Label htmlFor="pd-last">
+            {t("profile.personal.nameDialog.lastName")}
+          </Label>
           <Input
             id="pd-last"
             onChange={(e) => setLastName(e.target.value)}
@@ -1048,17 +1108,20 @@ function PersonalDataTab() {
         onClose={() => setEditing(null)}
         open={editing === "language"}
         pending={update.isPending}
-        title="Язык по умолчанию в договорах"
+        title={t("profile.personal.language.title")}
       >
         <div className="flex flex-col gap-1.5">
-          <Label>Язык</Label>
+          <Label>{t("profile.personal.language.label")}</Label>
           <Select onValueChange={setLanguageDraft} value={languageDraft}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ru">Русский</SelectItem>
-              <SelectItem value="kk">Қазақша</SelectItem>
+              {DOCUMENT_LANGUAGES.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {t(item.labelKey)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -1068,6 +1131,7 @@ function PersonalDataTab() {
 }
 
 function ProfilePage() {
+  const { t } = useTranslation();
   const search = Route.useSearch();
   const [activeTab, setActiveTab] = useState<ProfileTab>(
     search.tab ?? "personal"
@@ -1079,7 +1143,7 @@ function ProfilePage() {
         {/* Navigation: heading + tab bar */}
         <div className="flex flex-col gap-4 px-4 pt-4 sm:px-6">
           <h1 className="font-semibold text-2xl text-foreground leading-7">
-            Профиль
+            {t("profile.title")}
           </h1>
           {/* Табы не влезают на мобильных — скроллим по горизонтали */}
           <div className="flex items-start gap-1 overflow-x-auto border-border border-b">
@@ -1103,7 +1167,7 @@ function ProfilePage() {
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    {tab.label}
+                    {t(tab.labelKey)}
                   </span>
                 </button>
               );

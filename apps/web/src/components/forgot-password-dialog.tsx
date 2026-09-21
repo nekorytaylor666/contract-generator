@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { CheckIcon, Loader2Icon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -11,7 +12,6 @@ import {
   ErrorNote,
   formatCountdown,
   getNewPasswordState,
-  NETWORK_ERROR,
   NewPasswordFields,
   OUTLINE_BTN,
   PasswordChangedSuccess,
@@ -32,10 +32,6 @@ const CODE_LENGTH = 6;
 const CODE_REGEX = /^\d{6}$/;
 const NON_DIGIT_REGEX = /\D/g;
 const MILLIS_PER_SECOND = 1000;
-const NO_IDENTIFIER_ERROR = "В профиле не указаны почта и телефон";
-const INVALID_CODE_ERROR = "Неверный код.";
-const EXPIRED_CODE_ERROR = "Код устарел. Запросите новый.";
-const TOO_MANY_ATTEMPTS_ERROR = "Слишком много попыток. Запросите новый код.";
 
 type Step = "method" | "code" | "new" | "success";
 type Channel = "email" | "phone";
@@ -100,18 +96,19 @@ function MethodStep({
   onSend: () => void;
   sending: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       <div className="flex flex-col gap-3 py-1">
         <p className="text-muted-foreground text-sm">
-          Куда отправить код подтверждения?
+          {t("security.forgotPassword.whereToSend")}
         </p>
         {email && (
           <ChannelOption
             identifier={email}
             onSelect={() => onChannelChange("email")}
             selected={channel === "email"}
-            title="Код на почту"
+            title={t("security.forgotPassword.emailOption")}
           />
         )}
         {phoneNumber && (
@@ -119,11 +116,11 @@ function MethodStep({
             identifier={phoneNumber}
             onSelect={() => onChannelChange("phone")}
             selected={channel === "phone"}
-            title="Код по SMS"
+            title={t("security.forgotPassword.smsOption")}
           />
         )}
         {loaded && !(email || phoneNumber) && (
-          <ErrorNote message={NO_IDENTIFIER_ERROR} />
+          <ErrorNote message={t("security.forgotPassword.noIdentifier")} />
         )}
       </div>
       <DialogFooter>
@@ -134,7 +131,7 @@ function MethodStep({
           type="button"
           variant="outline"
         >
-          Отменить
+          {t("security.forgotPassword.cancel")}
         </Button>
         <Button
           className={PRIMARY_BTN}
@@ -144,11 +141,11 @@ function MethodStep({
         >
           {sending ? (
             <>
-              Отправляем
+              {t("security.forgotPassword.sending")}
               <Loader2Icon className="size-4 animate-spin" />
             </>
           ) : (
-            "Отправить код"
+            t("security.forgotPassword.sendCode")
           )}
         </Button>
       </DialogFooter>
@@ -177,11 +174,14 @@ function CodeStep({
   onBack: () => void;
   onContinue: () => void;
 }) {
+  const { t } = useTranslation();
   const codeFieldId = useId();
   return (
     <>
       <div className="flex flex-col gap-2 py-1">
-        <Label htmlFor={codeFieldId}>Код отправлен на {destination}</Label>
+        <Label htmlFor={codeFieldId}>
+          {t("security.forgotPassword.codeSentTo", { destination })}
+        </Label>
         <Input
           autoComplete="one-time-code"
           className={cn(
@@ -197,7 +197,7 @@ function CodeStep({
               e.target.value.replace(NON_DIGIT_REGEX, "").slice(0, CODE_LENGTH)
             )
           }
-          placeholder="Введите код"
+          placeholder={t("security.forgotPassword.codePlaceholder")}
           value={code}
         />
         {codeError && <ErrorNote message={codeError} />}
@@ -208,8 +208,10 @@ function CodeStep({
           type="button"
         >
           {resendRemainingSeconds > 0
-            ? `Отправить код ещё раз (${formatCountdown(resendRemainingSeconds)})`
-            : "Отправить код ещё раз"}
+            ? t("security.forgotPassword.resendIn", {
+                time: formatCountdown(resendRemainingSeconds),
+              })
+            : t("security.forgotPassword.resend")}
         </button>
       </div>
       <DialogFooter>
@@ -219,7 +221,7 @@ function CodeStep({
           type="button"
           variant="outline"
         >
-          Назад
+          {t("security.forgotPassword.back")}
         </Button>
         <Button
           className={PRIMARY_BTN}
@@ -227,7 +229,7 @@ function CodeStep({
           onClick={onContinue}
           type="button"
         >
-          Продолжить
+          {t("security.forgotPassword.continue")}
         </Button>
       </DialogFooter>
     </>
@@ -241,6 +243,7 @@ export function ForgotPasswordDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const { data: me } = useQuery(trpc.account.me.queryOptions());
 
@@ -307,6 +310,9 @@ export function ForgotPasswordDialog({
     }
   }, [resendAvailableAt, resendRemainingSeconds]);
 
+  const networkError = t("security.forgotPassword.networkError");
+  const noIdentifierError = t("security.forgotPassword.noIdentifier");
+
   const selectChannel = (next: Channel) => {
     setChannel(next);
     // Код привязан к каналу — при смене канала старый код неактуален.
@@ -321,7 +327,7 @@ export function ForgotPasswordDialog({
     try {
       const result = await requestMutation.mutateAsync({ channel });
       if (result.status === "no_identifier") {
-        toast.error(NO_IDENTIFIER_ERROR);
+        toast.error(noIdentifierError);
         return;
       }
       setNow(Date.now());
@@ -337,7 +343,7 @@ export function ForgotPasswordDialog({
       // просто показываем шаг ввода и таймер, ничего не очищая.
       setStep("code");
     } catch {
-      toast.error(NETWORK_ERROR);
+      toast.error(networkError);
     }
   };
 
@@ -362,23 +368,24 @@ export function ForgotPasswordDialog({
           setStep("success");
           return;
         case "invalid_code":
-          backToCodeWithError(INVALID_CODE_ERROR);
+          backToCodeWithError(t("security.forgotPassword.invalidCode"));
           return;
         case "code_expired":
-          backToCodeWithError(EXPIRED_CODE_ERROR);
+          backToCodeWithError(t("security.forgotPassword.expiredCode"));
           return;
         case "too_many_attempts":
-          backToCodeWithError(TOO_MANY_ATTEMPTS_ERROR);
+          backToCodeWithError(t("security.forgotPassword.tooManyAttempts"));
           return;
         default:
-          toast.error(NO_IDENTIFIER_ERROR);
+          toast.error(noIdentifierError);
       }
     } catch {
-      toast.error(NETWORK_ERROR);
+      toast.error(networkError);
     }
   };
 
   const { error: passwordError, canSave } = getNewPasswordState({
+    t,
     newPassword,
     confirmPassword,
   });
@@ -392,8 +399,12 @@ export function ForgotPasswordDialog({
 
   const destination =
     channel === "email"
-      ? `почту ${me?.email ?? ""}`
-      : `номер ${me?.phoneNumber ?? ""}`;
+      ? t("security.forgotPassword.destinationEmail", {
+          email: me?.email ?? "",
+        })
+      : t("security.forgotPassword.destinationPhone", {
+          phone: me?.phoneNumber ?? "",
+        });
 
   return (
     <Dialog
@@ -411,7 +422,7 @@ export function ForgotPasswordDialog({
         showCloseButton={!busy}
       >
         <DialogHeader>
-          <DialogTitle>Восстановление пароля</DialogTitle>
+          <DialogTitle>{t("security.forgotPassword.title")}</DialogTitle>
         </DialogHeader>
 
         {step === "method" && (
@@ -463,7 +474,7 @@ export function ForgotPasswordDialog({
                 type="button"
                 variant="outline"
               >
-                Назад
+                {t("security.forgotPassword.back")}
               </Button>
               <Button
                 className={PRIMARY_BTN}
@@ -473,11 +484,11 @@ export function ForgotPasswordDialog({
               >
                 {resetMutation.isPending ? (
                   <>
-                    Сохраняем
+                    {t("security.forgotPassword.saving")}
                     <Loader2Icon className="size-4 animate-spin" />
                   </>
                 ) : (
-                  "Сохранить"
+                  t("security.forgotPassword.save")
                 )}
               </Button>
             </DialogFooter>

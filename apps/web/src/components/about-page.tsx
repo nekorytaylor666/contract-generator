@@ -683,7 +683,7 @@ function FaqSection() {
 
 function Footer() {
   const { t } = useTranslation();
-  // «Решения» ведёт на секцию главного лендинга, «Библиотека договоров» — на
+  // «Решения» ведёт на секцию главного лендинга, «Библиотека документов» — на
   // публичную библиотеку, «О нас» — наверх этой страницы.
   const itemClassName =
     "flex min-h-8 items-center gap-2 rounded-md px-2 py-1.5 font-medium text-[#fafafa] text-sm hover:bg-white/10";

@@ -15,7 +15,7 @@ import type { TemplateVariable } from "@/routes/templates";
 import { CounterpartySectionPicker } from "./counterparty-section-picker";
 import { VariableField } from "./variable-field";
 
-// «Раздел N.» на языке договора: kk — «N Бөлім.», иначе русский.
+// «Раздел N.» на языке документа: kk — «N Бөлім.», иначе русский.
 function sectionHeading(locale: string | undefined, index: number): string {
   if (locale === "kk") {
     return `${index} Бөлім.`;

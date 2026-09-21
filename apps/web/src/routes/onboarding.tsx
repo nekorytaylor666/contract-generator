@@ -16,8 +16,10 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -46,60 +48,66 @@ export const Route = createFileRoute("/onboarding")({
 
 type AccountType = "individual" | "legal";
 
-const GOALS_INDIVIDUAL: { value: string; label: string; icon: LucideIcon }[] = [
-  { value: "study", label: "Учёба", icon: GraduationCap },
-  { value: "work", label: "Работа и подработка", icon: Briefcase },
-  { value: "personal", label: "Личные дела", icon: ListTodo },
+// Подписи вариантов живут в i18n (onboarding.*); в БД уходит `value`.
+interface IconOption {
+  value: string;
+  icon: LucideIcon;
+}
+
+const GOALS_INDIVIDUAL: IconOption[] = [
+  { value: "study", icon: GraduationCap },
+  { value: "work", icon: Briefcase },
+  { value: "personal", icon: ListTodo },
 ];
 
-const GOALS_LEGAL: { value: string; label: string; icon: LucideIcon }[] = [
-  { value: "management", label: "Управление бизнесом", icon: CircleGauge },
-  {
-    value: "team_templates",
-    label: "Шаблоны для команды",
-    icon: LayoutDashboard,
-  },
-  { value: "find_contracts", label: "Поиск договоров", icon: FileSearch2 },
-  {
-    value: "consulting",
-    label: "Юридические консультации",
-    icon: MessageCircleQuestion,
-  },
+const GOALS_LEGAL: IconOption[] = [
+  { value: "management", icon: CircleGauge },
+  { value: "team_templates", icon: LayoutDashboard },
+  { value: "find_contracts", icon: FileSearch2 },
+  { value: "consulting", icon: MessageCircleQuestion },
 ];
 
-const LEGALS_TAGS = [
-  "Аренда",
-  "Услуги",
-  "Трудовые",
-  "Купля и продажа",
-  "Займ",
-  "NDA",
-  "Другое",
+// Теги и индустрии исторически сохраняются в БД русской подписью — `value`
+// оставляем как есть, а `key` ведёт к переводу подписи.
+interface TagOption {
+  value: string;
+  key: string;
+}
+
+const LEGALS_TAGS: TagOption[] = [
+  { value: "Аренда", key: "rent" },
+  { value: "Услуги", key: "services" },
+  { value: "Трудовые", key: "employment" },
+  { value: "Купля и продажа", key: "sale" },
+  { value: "Займ", key: "loan" },
+  { value: "NDA", key: "nda" },
+  { value: "Другое", key: "other" },
 ];
 
-const OUTREACH_OPTIONS: { value: string; label: string; icon: LucideIcon }[] = [
-  { value: "google", label: "Поиск в интернете", icon: Search },
-  { value: "ai", label: "AI / ChatGPT", icon: Sparkles },
-  { value: "ads", label: "Реклама", icon: Megaphone },
-  { value: "social", label: "Социальные сети", icon: CircleFadingPlus },
-  { value: "referral", label: "Друзья / партнёры", icon: Handshake },
+const OUTREACH_OPTIONS: IconOption[] = [
+  { value: "google", icon: Search },
+  { value: "ai", icon: Sparkles },
+  { value: "ads", icon: Megaphone },
+  { value: "social", icon: CircleFadingPlus },
+  { value: "referral", icon: Handshake },
 ];
 
-const INDUSTRIES = [
-  "IT и технологии",
-  "Финансы и банкинг",
-  "Недвижимость",
-  "Строительство",
-  "Розничная торговля",
-  "Услуги",
-  "Производство",
-  "Образование",
-  "Медицина",
-  "Транспорт и логистика",
-  "Другое",
+const INDUSTRIES: TagOption[] = [
+  { value: "IT и технологии", key: "it" },
+  { value: "Финансы и банкинг", key: "finance" },
+  { value: "Недвижимость", key: "realty" },
+  { value: "Строительство", key: "construction" },
+  { value: "Розничная торговля", key: "retail" },
+  { value: "Услуги", key: "services" },
+  { value: "Производство", key: "manufacturing" },
+  { value: "Образование", key: "education" },
+  { value: "Медицина", key: "medicine" },
+  { value: "Транспорт и логистика", key: "logistics" },
+  { value: "Другое", key: "other" },
 ];
 
 function OnboardingComponent() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { session } = Route.useRouteContext();
   const accountType =
@@ -143,7 +151,9 @@ function OnboardingComponent() {
       // after it. Fall back to a generic workspace name (and a safe slug base).
       const rawName = session?.user.name;
       const orgName =
-        rawName && !looksLikePhone(rawName) ? rawName : "Мои документы";
+        rawName && !looksLikePhone(rawName)
+          ? rawName
+          : t("onboarding.defaultOrgName");
       const slugBase =
         orgName
           .toLowerCase()
@@ -154,12 +164,12 @@ function OnboardingComponent() {
         slug: `${slugBase}-${Date.now()}`,
       });
       if (result.error) {
-        toast.error(result.error.message || "Не удалось создать организацию");
+        toast.error(result.error.message || t("onboarding.errorOrg"));
         return;
       }
     }
     navigate({ to: "/dashboard" });
-  }, [navigate, session?.user.name]);
+  }, [navigate, session?.user.name, t]);
 
   // Гидратация из БД срабатывает один раз при первом получении статуса.
   const hydratedRef = useRef(false);
@@ -185,7 +195,9 @@ function OnboardingComponent() {
     try {
       await saveMutation.mutateAsync(partial);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Не удалось сохранить");
+      toast.error(
+        err instanceof Error ? err.message : t("onboarding.errorSave")
+      );
     }
   }
 
@@ -202,17 +214,21 @@ function OnboardingComponent() {
           queryKey: trpc.onboarding.status.queryKey(),
         }),
       ]);
-      toast.success("Добро пожаловать в Zhebe!");
+      toast.success(t("onboarding.welcome"));
       await ensureOrganizationAndGo();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Не удалось завершить");
+      toast.error(
+        err instanceof Error ? err.message : t("onboarding.errorFinish")
+      );
     }
   }
 
   if (statusQuery.isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-muted">
-        <p className="text-muted-foreground text-sm">Загрузка...</p>
+        <p className="text-muted-foreground text-sm">
+          {t("onboarding.loading")}
+        </p>
       </div>
     );
   }
@@ -233,8 +249,8 @@ function OnboardingComponent() {
             onSkip={() => setStep(2)}
             options={GOALS_INDIVIDUAL}
             selected={goals}
-            subtitle="Подберём договоры, которые подойдут именно вам"
-            title="Как вы собираетесь использовать Zhebe?"
+            subtitle={t("onboarding.goalsSubtitle")}
+            title={t("onboarding.goalsTitle")}
           />
         )}
         {step === 1 && accountType === "legal" && (
@@ -270,8 +286,8 @@ function OnboardingComponent() {
             }}
             options={GOALS_LEGAL}
             selected={goals}
-            subtitle="Подберём договоры, которые подойдут именно вам"
-            title="Как вы собираетесь использовать Zhebe?"
+            subtitle={t("onboarding.goalsSubtitle")}
+            title={t("onboarding.goalsTitle")}
           />
         )}
 
@@ -302,12 +318,21 @@ function OnboardingComponent() {
 }
 
 function StepHeader({ current, total }: { current: number; total: number }) {
+  const { t } = useTranslation();
   const pct = Math.round((current / total) * 100);
   return (
     <div className="mb-6 flex flex-col gap-3">
-      <p className="text-center text-foreground/80 text-sm">
-        Шаг {current} из {total}
-      </p>
+      {/* Переключатель языка — единственный способ сменить язык на этом
+          экране, у него нет сайдбара и шапки сайта. */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center">
+        <span />
+        <p className="text-center text-foreground/80 text-sm">
+          {t("onboarding.step", { current, total })}
+        </p>
+        <div className="flex justify-end">
+          <LanguageSwitcher />
+        </div>
+      </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full bg-foreground transition-all"
@@ -369,11 +394,12 @@ function StepGoals({
   multi: boolean;
   onNext: (next: string[]) => void;
   onSkip?: () => void;
-  options: { value: string; label: string; icon: LucideIcon }[];
+  options: IconOption[];
   selected: string[];
   subtitle: string;
   title: string;
 }) {
+  const { t } = useTranslation();
   const [local, setLocal] = useState<string[]>(selected);
 
   function toggle(value: string) {
@@ -396,7 +422,7 @@ function StepGoals({
           <MenuOption
             icon={o.icon}
             key={o.value}
-            label={o.label}
+            label={t(`onboarding.goals.${o.value}`)}
             onClick={() => toggle(o.value)}
             selected={local.includes(o.value)}
           />
@@ -409,7 +435,7 @@ function StepGoals({
           onClick={() => onNext(local)}
           type="button"
         >
-          Продолжить
+          {t("onboarding.continue")}
         </Button>
         {onSkip && (
           <Button
@@ -418,7 +444,7 @@ function StepGoals({
             type="button"
             variant="ghost"
           >
-            Пропустить
+            {t("onboarding.skip")}
           </Button>
         )}
       </div>
@@ -437,6 +463,7 @@ function StepLegals({
   onSkip: () => void;
   selected: string[];
 }) {
+  const { t } = useTranslation();
   const [local, setLocal] = useState<string[]>(selected);
 
   function toggle(tag: string) {
@@ -448,12 +475,12 @@ function StepLegals({
   return (
     <>
       <Heading
-        subtitle="Выберите одну или несколько категорий"
-        title="Какие договоры вам нужны чаще всего?"
+        subtitle={t("onboarding.legalsSubtitle")}
+        title={t("onboarding.legalsTitle")}
       />
       <div className="mb-6 flex flex-wrap justify-center gap-2">
         {LEGALS_TAGS.map((tag) => {
-          const isOn = local.includes(tag);
+          const isOn = local.includes(tag.value);
           return (
             <button
               className={cn(
@@ -462,11 +489,11 @@ function StepLegals({
                   ? "border-foreground bg-foreground text-background"
                   : "border-border bg-background text-foreground hover:border-foreground/40"
               )}
-              key={tag}
-              onClick={() => toggle(tag)}
+              key={tag.value}
+              onClick={() => toggle(tag.value)}
               type="button"
             >
-              {tag}
+              {t(`onboarding.legals.${tag.key}`)}
             </button>
           );
         })}
@@ -478,7 +505,7 @@ function StepLegals({
           onClick={() => onNext(local)}
           type="button"
         >
-          Продолжить
+          {t("onboarding.continue")}
         </Button>
         <Button
           className="h-10 w-full rounded-lg text-foreground/70 text-sm hover:bg-transparent hover:text-foreground"
@@ -486,7 +513,7 @@ function StepLegals({
           type="button"
           variant="ghost"
         >
-          Пропустить
+          {t("onboarding.skip")}
         </Button>
       </div>
       <button
@@ -494,7 +521,7 @@ function StepLegals({
         onClick={onBack}
         type="button"
       >
-        Назад
+        {t("onboarding.back")}
       </button>
     </>
   );
@@ -507,6 +534,7 @@ function StepIndustries({
   onNext: (next: string[]) => void;
   selected: string[];
 }) {
+  const { t } = useTranslation();
   const [local, setLocal] = useState<string[]>(selected);
   const primary = local[0] ?? "";
 
@@ -521,18 +549,18 @@ function StepIndustries({
   return (
     <>
       <Heading
-        subtitle="Выберите до 3 вариантов — настроим каталог под вас"
-        title="В какой сфере вы работаете?"
+        subtitle={t("onboarding.industriesSubtitle")}
+        title={t("onboarding.industriesTitle")}
       />
       <div className="mb-6">
         <Select onValueChange={setPrimary} value={primary}>
           <SelectTrigger className="h-10 w-full rounded-lg text-sm">
-            <SelectValue placeholder="Select an item" />
+            <SelectValue placeholder={t("onboarding.industriesPlaceholder")} />
           </SelectTrigger>
           <SelectContent>
             {INDUSTRIES.map((item) => (
-              <SelectItem key={item} value={item}>
-                {item}
+              <SelectItem key={item.value} value={item.value}>
+                {t(`onboarding.industries.${item.key}`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -544,7 +572,7 @@ function StepIndustries({
         onClick={() => onNext(local)}
         type="button"
       >
-        Продолжить
+        {t("onboarding.continue")}
       </Button>
     </>
   );
@@ -559,20 +587,21 @@ function StepOutreach({
   onNext: (next: string) => void;
   selected: string;
 }) {
+  const { t } = useTranslation();
   const [local, setLocal] = useState<string>(selected);
 
   return (
     <>
       <Heading
-        subtitle="Это помогает нам понять, где нас ищут"
-        title="Как вы узнали о Жебе?"
+        subtitle={t("onboarding.outreachSubtitle")}
+        title={t("onboarding.outreachTitle")}
       />
       <div className="mb-6 flex flex-col gap-1">
         {OUTREACH_OPTIONS.map((o) => (
           <MenuOption
             icon={o.icon}
             key={o.value}
-            label={o.label}
+            label={t(`onboarding.outreach.${o.value}`)}
             onClick={() => setLocal(o.value)}
             selected={local === o.value}
           />
@@ -584,14 +613,14 @@ function StepOutreach({
         onClick={() => onNext(local)}
         type="button"
       >
-        Продолжить
+        {t("onboarding.continue")}
       </Button>
       <button
         className="mt-3 w-full text-center text-muted-foreground text-xs hover:text-foreground"
         onClick={onBack}
         type="button"
       >
-        Назад
+        {t("onboarding.back")}
       </button>
     </>
   );
@@ -610,11 +639,12 @@ function StepPolicy({
   onBack: () => void;
   onNext: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       <Heading
-        subtitle="Пожалуйста, ознакомьтесь с условиями использования платформы"
-        title="Прежде чем начать"
+        subtitle={t("onboarding.policySubtitle")}
+        title={t("onboarding.policyTitle")}
       />
       <div className="mb-6 flex items-start gap-3">
         <Checkbox
@@ -627,15 +657,15 @@ function StepPolicy({
           className="flex-1 cursor-pointer text-foreground/80 text-sm"
           htmlFor="policy-accept"
         >
-          Я ознакомился и принимаю{" "}
+          {t("onboarding.policyPrefix")}
           <a className="underline" href="/terms">
-            условия использования
-          </a>{" "}
-          и{" "}
-          <a className="underline" href="/privacy">
-            политику конфиденциальности
+            {t("onboarding.policyTerms")}
           </a>
-          .
+          {t("onboarding.policyAnd")}
+          <a className="underline" href="/privacy">
+            {t("onboarding.policyPrivacy")}
+          </a>
+          {t("onboarding.policySuffix")}
         </label>
       </div>
       <Button
@@ -644,14 +674,14 @@ function StepPolicy({
         onClick={onNext}
         type="button"
       >
-        {isSubmitting ? "Завершаем..." : "Приступить к работе"}
+        {isSubmitting ? t("onboarding.finishing") : t("onboarding.start")}
       </Button>
       <button
         className="mt-3 w-full text-center text-muted-foreground text-xs hover:text-foreground"
         onClick={onBack}
         type="button"
       >
-        Назад
+        {t("onboarding.back")}
       </button>
     </>
   );

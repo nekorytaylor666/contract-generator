@@ -8,6 +8,7 @@ import {
   Search,
   Send,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 
@@ -32,37 +33,32 @@ export const SETTABLE_STATUSES = [
   "expired",
 ] as const;
 
+// Подписи — documents.status.<status> в i18n.
 const STATUS_META: Record<
   DocumentStatus,
-  { label: string; icon: LucideIcon; className: string }
+  { icon: LucideIcon; className: string }
 > = {
   signed: {
-    label: "Подписан",
     icon: CircleCheck,
     className: "bg-[#e5f3e6] text-[#2e6b2e]",
   },
   in_progress: {
-    label: "В процессе",
     icon: Search,
     className: "bg-[#fdf3d7] text-[#b07d15]",
   },
   draft: {
-    label: "Черновик",
     icon: CircleDashed,
     className: "bg-muted text-muted-foreground",
   },
   expired: {
-    label: "Истёк",
     icon: CircleAlert,
     className: "bg-[#fde7e7] text-[#c04545]",
   },
   terminated: {
-    label: "Расторгнут",
     icon: PenOff,
     className: "bg-[#ece5f6] text-[#7a5ea6]",
   },
   awaiting_signature: {
-    label: "Ожидает подписи",
     icon: Send,
     className: "bg-[#1d4f6e] text-white",
   },
@@ -73,11 +69,14 @@ export function normalizeDocumentStatus(raw: string): DocumentStatus {
   return raw in STATUS_META ? (raw as DocumentStatus) : "draft";
 }
 
-export function documentStatusLabel(status: string): string {
-  return STATUS_META[normalizeDocumentStatus(status)].label;
+type Translate = (key: string) => string;
+
+export function documentStatusLabel(status: string, t: Translate): string {
+  return t(`documents.status.${normalizeDocumentStatus(status)}`);
 }
 
 export function DocumentStatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
   const meta = STATUS_META[normalizeDocumentStatus(status)];
   const Icon = meta.icon;
   return (
@@ -88,28 +87,20 @@ export function DocumentStatusBadge({ status }: { status: string }) {
       )}
     >
       <Icon className="size-3.5" />
-      {meta.label}
+      {documentStatusLabel(status, t)}
     </span>
   );
 }
 
-const MONTHS_RU_GENITIVE = [
-  "января",
-  "февраля",
-  "марта",
-  "апреля",
-  "мая",
-  "июня",
-  "июля",
-  "августа",
-  "сентября",
-  "октября",
-  "ноября",
-  "декабря",
-];
 const MILLIS_PER_DAY = 24 * 60 * 60 * 1000;
 
-function formatDocumentDate(value: Date | string): string {
+// «2 сентября» / «2 қыркүйек» — родительный падеж даёт сам Intl, как в
+// formatQuotaResetDate.
+function formatDocumentDate(
+  value: Date | string,
+  language: string,
+  t: Translate
+): string {
   const date = new Date(value);
   const startOfDay = (d: Date) =>
     new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -117,20 +108,25 @@ function formatDocumentDate(value: Date | string): string {
     (startOfDay(new Date()) - startOfDay(date)) / MILLIS_PER_DAY
   );
   if (diffDays <= 0) {
-    return "Сегодня";
+    return t("documents.today");
   }
   if (diffDays === 1) {
-    return "Вчера";
+    return t("documents.yesterday");
   }
-  return `${date.getDate()} ${MONTHS_RU_GENITIVE[date.getMonth()]}`;
+  const locale = language === "kk" ? "kk-KZ" : "ru-RU";
+  return new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "long",
+  }).format(date);
 }
 
 /** Чип с датой последнего изменения — рядом с бейджем статуса. */
 export function DocumentDateChip({ value }: { value: Date | string }) {
+  const { t, i18n } = useTranslation();
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap text-muted-foreground text-xs">
       <History className="size-3.5" />
-      {formatDocumentDate(value)}
+      {formatDocumentDate(value, i18n.language, t)}
     </span>
   );
 }

@@ -1,5 +1,7 @@
+import type { TFunction } from "i18next";
 import { CheckIcon, CircleAlertIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { useEffect, useId, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 
@@ -15,7 +17,6 @@ import { Label } from "./ui/label";
 export const OUTLINE_BTN = "h-9 px-4 text-sm";
 export const PRIMARY_BTN =
   "h-9 bg-foreground px-4 text-background text-sm hover:bg-foreground/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100";
-export const NETWORK_ERROR = "Не удалось выполнить запрос. Попробуйте ещё раз.";
 export const COUNTDOWN_TICK_MS = 1000;
 const SECONDS_PER_MINUTE = 60;
 
@@ -135,10 +136,12 @@ export function getNewPasswordState({
   newPassword,
   confirmPassword,
   mustDifferFrom,
+  t,
 }: {
   newPassword: string;
   confirmPassword: string;
   mustDifferFrom?: string;
+  t: TFunction;
 }): { error: string | null; canSave: boolean } {
   const requirementsMet = PASSWORD_REQUIREMENTS.every((r) =>
     r.test(newPassword)
@@ -152,9 +155,9 @@ export function getNewPasswordState({
 
   let error: string | null = null;
   if (sameAsCurrent) {
-    error = "Новый пароль совпадает с текущим";
+    error = t("security.shared.sameAsCurrent");
   } else if (mismatch) {
-    error = "Пароли не совпадают";
+    error = t("security.shared.mismatch");
   }
   return {
     error,
@@ -176,6 +179,7 @@ export function NewPasswordFields({
   onConfirmPasswordChange: (value: string) => void;
   error: string | null;
 }) {
+  const { t } = useTranslation();
   const newFieldId = useId();
   const confirmFieldId = useId();
   const [showNew, setShowNew] = useState(false);
@@ -185,7 +189,7 @@ export function NewPasswordFields({
   return (
     <div className="flex flex-col gap-4 py-1">
       <div className="relative flex flex-col gap-2">
-        <Label htmlFor={newFieldId}>Новый пароль</Label>
+        <Label htmlFor={newFieldId}>{t("security.shared.newPassword")}</Label>
         <PasswordInput
           autoComplete="new-password"
           id={newFieldId}
@@ -200,7 +204,9 @@ export function NewPasswordFields({
         {focused && <PasswordRequirementsTooltip value={newPassword} />}
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor={confirmFieldId}>Подтвердите пароль</Label>
+        <Label htmlFor={confirmFieldId}>
+          {t("security.shared.confirmPassword")}
+        </Label>
         <PasswordInput
           autoComplete="new-password"
           id={confirmFieldId}
@@ -218,17 +224,18 @@ export function NewPasswordFields({
 
 /** Финальный экран «Пароль изменён!» — общий для обоих диалогов. */
 export function PasswordChangedSuccess() {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center gap-4 py-6 text-center">
       <div className="flex size-14 items-center justify-center rounded-full bg-green-100">
         <CheckIcon className="size-6 text-green-700" />
       </div>
       <div className="flex flex-col gap-1">
-        <p className="font-medium text-base text-foreground">Пароль изменён!</p>
-        <p className="text-muted-foreground text-sm">
-          Используйте новый пароль
-          <br />
-          для входа в аккаунт
+        <p className="font-medium text-base text-foreground">
+          {t("security.shared.changedTitle")}
+        </p>
+        <p className="whitespace-pre-line text-muted-foreground text-sm">
+          {t("security.shared.changedHint")}
         </p>
       </div>
     </div>

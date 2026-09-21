@@ -30,7 +30,7 @@ export function formatUpdated(value: Date | string): string {
 }
 
 /**
- * Модальное окно «О договоре» с карточки шаблона: название, описание, теги
+ * Модальное окно «О документе» с карточки шаблона: название, описание, теги
  * (тип документа + категории), строка об обновлении и действия «Скачать» /
  * «Редактировать». Полные данные тянет по getById при открытии.
  */
@@ -45,7 +45,7 @@ export function TemplateInfoDialog({
   onOpenChange: (open: boolean) => void;
   /**
    * Кнопки «Скачать»/«Редактировать» ведут через гейт страницы шаблона и
-   * СОЗДАЮТ новый черновик. Из конструктора и карточки документа (где договор
+   * СОЗДАЮТ новый черновик. Из конструктора и карточки документа (где документ
    * уже есть) их прячем — иначе клик форкает дубликат и списывает квоту.
    */
   showActions?: boolean;
@@ -72,7 +72,7 @@ export function TemplateInfoDialog({
     });
   };
 
-  // Клик по связанному договору ведёт на его страницу шаблона.
+  // Клик по связанному документу ведёт на его страницу шаблона.
   const goToRelated = (relatedId: string) => {
     onOpenChange(false);
     navigate({
@@ -81,7 +81,7 @@ export function TemplateInfoDialog({
     });
   };
 
-  // Связанные договоры, подобранные админом (getById отдаёт только
+  // Связанные документы, подобранные админом (getById отдаёт только
   // опубликованные, в заданном порядке).
   const relatedTemplates = template?.relatedTemplates ?? [];
 
@@ -122,7 +122,7 @@ export function TemplateInfoDialog({
         showCloseButton={false}
       >
         <DialogHeader className="shrink-0 flex-row items-center justify-between border-border border-b p-4">
-          <DialogTitle className="text-base">О договоре</DialogTitle>
+          <DialogTitle className="text-base">О документе</DialogTitle>
           <DialogClose
             aria-label="Закрыть"
             className="flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted"

@@ -77,7 +77,7 @@ const MOCK_KEY_TERMS = [
   { id: "nda", label: "NDA" },
   { id: "unilateral", label: "Односторонний отказ" },
   { id: "termination", label: "Порядок расторжения" },
-  { id: "duration", label: "Срок действия договора" },
+  { id: "duration", label: "Срок действия документа" },
   { id: "sla", label: "SLA и уровни сервиса" },
   { id: "payment-terms", label: "Предоплата/Постоплата" },
   { id: "ip", label: "Интеллектуальная собственность" },
@@ -158,30 +158,30 @@ export function CommandSearchDialog() {
           {/* About Contract Section */}
           <section className="flex flex-col gap-3">
             <div>
-              <h3 className="font-medium text-sm">О договоре</h3>
+              <h3 className="font-medium text-sm">О документе</h3>
               <p className="text-muted-foreground text-xs">
-                Выберите основные характеристики договора: категорию, стороны и
+                Выберите основные характеристики документа: категорию, стороны и
                 язык документа.
               </p>
             </div>
 
             <div className="grid grid-cols-3 gap-3">
               <FilterSelect
-                label="Категория договора"
+                label="Категория документа"
                 onChange={(value) => updateFilter("category", value)}
                 options={MOCK_CATEGORIES}
                 placeholder="Все категории"
                 value={filters.category}
               />
               <FilterSelect
-                label="Юрисдикция договора"
+                label="Юрисдикция документа"
                 onChange={(value) => updateFilter("jurisdiction", value)}
                 options={MOCK_JURISDICTIONS}
                 placeholder="Выберите"
                 value={filters.jurisdiction}
               />
               <FilterSelect
-                label="Язык договора"
+                label="Язык документа"
                 onChange={(value) => updateFilter("language1", value)}
                 options={MOCK_LANGUAGES}
                 placeholder="Выберите"
@@ -191,21 +191,21 @@ export function CommandSearchDialog() {
 
             <div className="grid grid-cols-3 gap-3">
               <FilterSelect
-                label="Стадия договора"
+                label="Стадия документа"
                 onChange={(value) => updateFilter("stage1", value)}
                 options={MOCK_CONTRACT_STAGES}
                 placeholder="Выберите"
                 value={filters.stage1}
               />
               <FilterSelect
-                label="Стадия договора"
+                label="Стадия документа"
                 onChange={(value) => updateFilter("stage2", value)}
                 options={MOCK_CONTRACT_TYPES}
                 placeholder="Выберите"
                 value={filters.stage2}
               />
               <FilterSelect
-                label="Язык договора"
+                label="Язык документа"
                 onChange={(value) => updateFilter("language2", value)}
                 options={MOCK_LANGUAGES}
                 placeholder="Выберите"
@@ -219,7 +219,7 @@ export function CommandSearchDialog() {
             <div>
               <h3 className="font-medium text-sm">Коммерческие условия</h3>
               <p className="text-muted-foreground text-xs">
-                Задайте финансовые параметры договора, чтобы отфильтровать
+                Задайте финансовые параметры документа, чтобы отфильтровать
                 документы по сумме.
               </p>
             </div>
@@ -233,7 +233,7 @@ export function CommandSearchDialog() {
                 value={filters.paymentType}
               />
               <FilterSelect
-                label="Валюта договора"
+                label="Валюта документа"
                 onChange={(value) => updateFilter("currency", value)}
                 options={MOCK_CURRENCIES}
                 placeholder="Выберите"
@@ -252,9 +252,11 @@ export function CommandSearchDialog() {
           {/* Key Contract Terms Section */}
           <section className="flex flex-col gap-3">
             <div>
-              <h3 className="font-medium text-sm">Ключевые условия договора</h3>
+              <h3 className="font-medium text-sm">
+                Ключевые условия документа
+              </h3>
               <p className="text-muted-foreground text-xs">
-                Отметьте условия, которые должны быть включены в договор.
+                Отметьте условия, которые должны быть включены в документ.
               </p>
             </div>
 
@@ -278,9 +280,9 @@ export function CommandSearchDialog() {
           {/* Contract Cost Section */}
           <section className="flex flex-col gap-3">
             <div>
-              <h3 className="font-medium text-sm">Стоимость договора</h3>
+              <h3 className="font-medium text-sm">Стоимость документа</h3>
               <p className="text-muted-foreground text-xs">
-                Укажите минимальную и максимальную стоимость шаблона договора.
+                Укажите минимальную и максимальную стоимость шаблона документа.
               </p>
             </div>
 
@@ -367,7 +369,7 @@ export function CommandSearchDialog() {
             Очистить фильтры
           </Button>
           <Button onClick={handleApplyFilters}>
-            Показать {resultCount} договоров
+            Показать {resultCount} документов
           </Button>
         </DialogFooter>
       </DialogContent>

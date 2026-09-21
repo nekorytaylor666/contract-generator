@@ -8,7 +8,8 @@ interface PaginationControlsProps {
   onPageChange: (page: number) => void;
 }
 
-/** Compact prev / "X из Y" / next pager. Renders nothing for a single page. */
+/** Compact prev / "X/Y" / next pager (language-neutral, no i18n needed).
+ * Renders nothing for a single page. */
 export function PaginationControls({
   page,
   pageCount,
@@ -29,7 +30,7 @@ export function PaginationControls({
         <ChevronLeft className="size-4" />
       </Button>
       <span className="text-muted-foreground text-sm">
-        {page} из {pageCount}
+        {page}/{pageCount}
       </span>
       <Button
         disabled={page >= pageCount}

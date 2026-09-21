@@ -48,9 +48,9 @@ function ReviewIllustration() {
 }
 
 /**
- * Модалка «Отправить договор на проверку?» (по макету): юрист компании получит
- * текущую версию договора с данными клиента на рабочую почту; после отправки —
- * экран «Договор отправлен» с почтой, на которую придёт заключение.
+ * Модалка «Отправить документ на проверку?» (по макету): юрист компании получит
+ * текущую версию документа с данными клиента на рабочую почту; после отправки —
+ * экран «Документ отправлен» с почтой, на которую придёт заключение.
  */
 export function LawyerReviewDialog({
   open,
@@ -108,7 +108,7 @@ export function LawyerReviewDialog({
       >
         <DialogHeader className="flex-row items-center justify-between border-[#e5e5e5] border-b p-4">
           <DialogTitle className="font-medium text-base leading-5">
-            {sent ? "Договор отправлен" : "Отправить договор на проверку?"}
+            {sent ? "Документ отправлен" : "Отправить документ на проверку?"}
           </DialogTitle>
           <DialogClose
             aria-label="Закрыть"
@@ -121,7 +121,7 @@ export function LawyerReviewDialog({
         {sent ? (
           <StatusView
             hint={`Ответ придёт на ${userEmail}`}
-            title="Договор отправлен на проверку!"
+            title="Документ отправлен на проверку!"
             tone="success"
           />
         ) : (
@@ -129,7 +129,7 @@ export function LawyerReviewDialog({
             <div className="flex flex-col items-center gap-5 px-6 pt-8 pb-2">
               <ReviewIllustration />
               <p className="max-w-[260px] text-center text-muted-foreground text-sm leading-[18px]">
-                Юрист получит текущую версию договора и пришлёт заключение на
+                Юрист получит текущую версию документа и пришлёт заключение на
                 вашу почту — обычно в течение 1–2 рабочих дней.
               </p>
             </div>

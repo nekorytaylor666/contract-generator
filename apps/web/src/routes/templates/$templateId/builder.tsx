@@ -194,7 +194,7 @@ function SaveStatus({
   );
 }
 
-// Название договора в хлебных крошках: клик — инлайн-редактирование,
+// Название документа в хлебных крошках: клик — инлайн-редактирование,
 // Enter/blur сохраняет, Escape отменяет.
 function EditableDocTitle({
   value,
@@ -230,7 +230,7 @@ function EditableDocTitle({
           setDraft(value);
           setEditing(true);
         }}
-        title="Переименовать договор"
+        title="Переименовать документ"
         type="button"
       >
         <span className="truncate font-medium text-foreground">{value}</span>
@@ -391,7 +391,7 @@ function RouteComponent() {
   );
   const [logo, setLogo] = useState<string | null>(null);
   // Contract language — starts from the UI language but is switched
-  // independently via the «Язык договора» select in the toolbar.
+  // independently via the «Язык документа» select in the toolbar.
   const [docLocale, setDocLocale] = useState<string>(i18n.language);
   const [documentStyle, setDocumentStyle] = useState<DocumentStyle>({
     font: "New Computer Modern",
@@ -400,8 +400,8 @@ function RouteComponent() {
   const [documentId, setDocumentId] = useState<string | undefined>(
     initialDocumentId
   );
-  // Кастомное название договора (null — ещё не задано, показываем название
-  // шаблона на языке договора).
+  // Кастомное название документа (null — ещё не задано, показываем название
+  // шаблона на языке документа).
   const [docTitle, setDocTitle] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const [currentVersion, setCurrentVersion] = useState(1);
@@ -413,7 +413,7 @@ function RouteComponent() {
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
   const [sidebarOpen, setSidebarOpen] = useState(true);
   // Мобильный конструктор: форма — выдвижная шторка поверх документа, чтобы
-  // не листать десятистраничный договор туда-сюда. Стартуем с открытой:
+  // не листать десятистраничный документ туда-сюда. Стартуем с открытой:
   // заполнение и есть основная задача, документ — в одном тапе по крестику.
   const [formSheetOpen, setFormSheetOpen] = useState(true);
   const [changedVars, setChangedVars] = useState<Set<string>>(new Set());
@@ -462,7 +462,7 @@ function RouteComponent() {
     enabled: !!documentId,
   });
 
-  // Скачанный договор закрыт для правок: сервер отклонит save, а в шапке
+  // Скачанный документ закрыт для правок: сервер отклонит save, а в шапке
   // вместо «Сохранить» показываем пометку.
   const docLocked = Boolean(existingDocument?.downloadedAt);
 
@@ -657,8 +657,8 @@ function RouteComponent() {
   );
 
   // Автосохранение контрагентов из заполненных секций сторон (по макету:
-  // «при заполнении договора — реквизиты сохранятся автоматически»).
-  // Дедупликацию по БИН делает сервер; сбой не ломает сохранение договора.
+  // «при заполнении документа — реквизиты сохранятся автоматически»).
+  // Дедупликацию по БИН делает сервер; сбой не ломает сохранение документа.
   const runCounterpartyAutosave = useCallback(async () => {
     const values = latestValuesRef.current;
     if (!(template && values && mySubscription?.isPaid)) {
@@ -692,7 +692,7 @@ function RouteComponent() {
           formApiRef.current?.setFieldValue(party.storageKey, result.id);
         }
       } catch {
-        // Сохранение договора важнее — сбой автосейва глотаем молча.
+        // Сохранение документа важнее — сбой автосейва глотаем молча.
       }
     }
   }, [
@@ -1053,7 +1053,7 @@ function RouteComponent() {
             value={docTitle ?? localized.title}
           />
           <button
-            aria-label="О договоре"
+            aria-label="О документе"
             className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground"
             onClick={() => setInfoOpen(true)}
             type="button"
@@ -1105,7 +1105,7 @@ function RouteComponent() {
                   "Скачивание…"
                 ) : (
                   <>
-                    <span className="hidden sm:inline">Скачать договор</span>
+                    <span className="hidden sm:inline">Скачать документ</span>
                     <span className="sm:hidden">Скачать</span>
                   </>
                 )}

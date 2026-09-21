@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { CheckIcon, CircleAlertIcon, Loader2Icon } from "lucide-react";
 import { useEffect, useId, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -8,7 +9,6 @@ import { useTRPC } from "@/utils/trpc";
 
 import {
   ErrorNote,
-  NETWORK_ERROR,
   OUTLINE_BTN,
   PRIMARY_BTN,
   useCountdown,
@@ -27,21 +27,19 @@ import { Label } from "./ui/label";
 const CODE_LENGTH = 6;
 const CODE_REGEX = /^\d{6}$/;
 const NON_DIGIT_REGEX = /\D/g;
+const MILLIS_PER_SECOND = 1000;
 const SUCCESS_REDIRECT_DELAY_MS = 5000;
+const SUCCESS_REDIRECT_DELAY_SECONDS =
+  SUCCESS_REDIRECT_DELAY_MS / MILLIS_PER_SECOND;
 const DESTRUCTIVE_BTN =
   "h-9 bg-destructive px-4 text-sm text-white hover:bg-destructive/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100";
-const INVALID_CODE_ERROR = "Неверный код";
-const EXPIRED_CODE_ERROR = "Код устарел. Запросите новый.";
-const TOO_MANY_ATTEMPTS_ERROR = "Слишком много попыток. Запросите новый код.";
-const COOLDOWN_NO_CODE_ERROR =
-  "Слишком часто. Подождите таймер и запросите код заново.";
 
 type Step = "confirm" | "code" | "success";
 
-const STEP_TITLES: Record<Step, string> = {
-  confirm: "Удалить аккаунт?",
-  code: "Подтверждение действия",
-  success: "Удаление аккаунта",
+const STEP_TITLE_KEYS: Record<Step, string> = {
+  confirm: "account.deleteAccount.titleConfirm",
+  code: "account.deleteAccount.titleCode",
+  success: "account.deleteAccount.titleSuccess",
 };
 
 /**
@@ -59,9 +57,12 @@ export function DeleteAccountDialog({
   email: string | null;
   phoneNumber: string | null;
 }) {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const confirmFieldId = useId();
   const codeFieldId = useId();
+  const networkError = t("account.deleteAccount.networkError");
+  const cooldownNoCodeError = t("account.deleteAccount.cooldownNoCode");
 
   const [step, setStep] = useState<Step>("confirm");
   const [contactInput, setContactInput] = useState("");
@@ -115,16 +116,16 @@ export function DeleteAccountDialog({
     try {
       const result = await requestMutation.mutateAsync();
       if (result.status === "no_contact") {
-        toast.error("У аккаунта не указаны ни почта, ни телефон");
+        toast.error(t("account.deleteAccount.noContact"));
         return;
       }
       resend.start(result.retryAfterSeconds);
       if (!result.sentTo) {
         // Кулдаун без живого кода — не ведём на шаг ввода.
         if (step === "code") {
-          setCodeError(COOLDOWN_NO_CODE_ERROR);
+          setCodeError(cooldownNoCodeError);
         } else {
-          toast.error(COOLDOWN_NO_CODE_ERROR);
+          toast.error(cooldownNoCodeError);
         }
         return;
       }
@@ -135,7 +136,7 @@ export function DeleteAccountDialog({
       }
       setStep("code");
     } catch {
-      toast.error(NETWORK_ERROR);
+      toast.error(networkError);
     }
   };
 
@@ -151,18 +152,18 @@ export function DeleteAccountDialog({
           return;
         case "code_expired":
           setCode("");
-          setCodeError(EXPIRED_CODE_ERROR);
+          setCodeError(t("account.deleteAccount.codeExpired"));
           return;
         case "too_many_attempts":
           setCode("");
-          setCodeError(TOO_MANY_ATTEMPTS_ERROR);
+          setCodeError(t("account.deleteAccount.tooManyAttempts"));
           return;
         default:
           setCode("");
-          setCodeError(INVALID_CODE_ERROR);
+          setCodeError(t("account.deleteAccount.invalidCode"));
       }
     } catch {
-      toast.error(NETWORK_ERROR);
+      toast.error(networkError);
     }
   };
 
@@ -195,7 +196,7 @@ export function DeleteAccountDialog({
         showCloseButton={!busy}
       >
         <DialogHeader>
-          <DialogTitle>{STEP_TITLES[step]}</DialogTitle>
+          <DialogTitle>{t(STEP_TITLE_KEYS[step])}</DialogTitle>
         </DialogHeader>
 
         {step === "confirm" && (
@@ -205,20 +206,18 @@ export function DeleteAccountDialog({
                 <CircleAlertIcon className="mt-0.5 size-4 shrink-0 text-destructive" />
                 <div className="flex flex-col gap-1">
                   <p className="font-medium text-destructive text-sm">
-                    Это действие необратимо
+                    {t("account.deleteAccount.irreversible")}
                   </p>
                   <p className="text-destructive text-sm">
-                    Все ваши данные, договоры и история покупок на Zhebe.kz
-                    будут удалены без возможности восстановления. Нам необходимо
-                    подтвердить, что это вы собираетесь удалить аккаунт.
+                    {t("account.deleteAccount.warning")}
                   </p>
                 </div>
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor={confirmFieldId}>
                   {isEmail
-                    ? "Для подтверждения введите почту"
-                    : "Для подтверждения введите номер телефона"}
+                    ? t("account.deleteAccount.confirmEmailLabel")
+                    : t("account.deleteAccount.confirmPhoneLabel")}
                 </Label>
                 <Input
                   autoComplete="off"
@@ -238,7 +237,7 @@ export function DeleteAccountDialog({
                 type="button"
                 variant="outline"
               >
-                Отменить
+                {t("account.deleteAccount.cancel")}
               </Button>
               <Button
                 className={PRIMARY_BTN}
@@ -248,11 +247,11 @@ export function DeleteAccountDialog({
               >
                 {requestMutation.isPending ? (
                   <>
-                    Отправляем
+                    {t("account.deleteAccount.sending")}
                     <Loader2Icon className="size-4 animate-spin" />
                   </>
                 ) : (
-                  "Подтвердить"
+                  t("account.deleteAccount.confirm")
                 )}
               </Button>
             </DialogFooter>
@@ -263,10 +262,16 @@ export function DeleteAccountDialog({
           <>
             <div className="flex flex-col gap-4 py-1">
               <p className="text-foreground text-sm">
-                Мы отправили код на <span className="underline">{sentTo}</span>
+                <Trans
+                  components={{ u: <span className="underline" /> }}
+                  i18nKey="account.deleteAccount.codeSentTo"
+                  values={{ contact: sentTo }}
+                />
               </p>
               <div className="flex flex-col gap-2">
-                <Label htmlFor={codeFieldId}>Введите код</Label>
+                <Label htmlFor={codeFieldId}>
+                  {t("account.deleteAccount.codeLabel")}
+                </Label>
                 <div className="relative">
                   <Input
                     autoComplete="one-time-code"
@@ -284,13 +289,15 @@ export function DeleteAccountDialog({
                       );
                       setCodeError(null);
                     }}
-                    placeholder="Введите код"
+                    placeholder={t("account.deleteAccount.codePlaceholder")}
                     value={code}
                   />
                   <div className="absolute top-1/2 right-3 -translate-y-1/2 text-sm">
                     {resend.active ? (
                       <span className="text-muted-foreground">
-                        {resend.remainingSeconds} с.
+                        {t("account.deleteAccount.resendSeconds", {
+                          seconds: resend.remainingSeconds,
+                        })}
                       </span>
                     ) : (
                       <button
@@ -299,7 +306,7 @@ export function DeleteAccountDialog({
                         onClick={sendCode}
                         type="button"
                       >
-                        Повторить
+                        {t("account.deleteAccount.resend")}
                       </button>
                     )}
                   </div>
@@ -315,7 +322,7 @@ export function DeleteAccountDialog({
                 type="button"
                 variant="outline"
               >
-                Назад
+                {t("account.deleteAccount.back")}
               </Button>
               <Button
                 className={DESTRUCTIVE_BTN}
@@ -325,11 +332,11 @@ export function DeleteAccountDialog({
               >
                 {confirmMutation.isPending ? (
                   <>
-                    Удаляем
+                    {t("account.deleteAccount.deleting")}
                     <Loader2Icon className="size-4 animate-spin" />
                   </>
                 ) : (
-                  "Удалить аккаунт"
+                  t("account.deleteAccount.deleteAccount")
                 )}
               </Button>
             </DialogFooter>
@@ -343,15 +350,16 @@ export function DeleteAccountDialog({
             </div>
             <div className="flex flex-col gap-1">
               <p className="font-medium text-base text-foreground">
-                Аккаунт успешно удалён!
+                {t("account.deleteAccount.successTitle")}
               </p>
               <p className="text-muted-foreground text-sm">
-                Вы будете перенаправлены на главную страницу в течение 5 секунд.
-                Если этого не произошло, нажмите на кнопку.
+                {t("account.deleteAccount.successDescription", {
+                  seconds: SUCCESS_REDIRECT_DELAY_SECONDS,
+                })}
               </p>
             </div>
             <Button className={PRIMARY_BTN} onClick={goHome} type="button">
-              На главную
+              {t("account.deleteAccount.goHome")}
             </Button>
           </div>
         )}

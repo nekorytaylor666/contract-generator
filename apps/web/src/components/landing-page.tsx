@@ -848,7 +848,7 @@ function Footer() {
         <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <ZhebeLogo className="h-[72px] w-auto text-[#fafafa]" />
           <div className="flex flex-wrap items-center gap-1">
-            {/* По макету в меню футера только «Библиотека договоров» и «О нас». */}
+            {/* По макету в меню футера только «Библиотека документов» и «О нас». */}
             <Link className={itemClassName} to="/library">
               {t("landing.footer.library")}
               <ArrowUpRight className="size-4" />

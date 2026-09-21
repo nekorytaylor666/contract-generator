@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { Check, X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,10 +9,24 @@ import { cn } from "@/lib/utils";
 // Сетка «Доступные планы» с переключателем периода — общая для вкладки
 // «Подписка» в профиле и попапа «Тарифы» в модалках скачивания/редактирования.
 
+// Ключи периодов уходят на сервер как есть; подписи и суффиксы цены берём из
+// переводов (plans.periods.* / plans.suffix.*).
 export const PERIODS = [
-  { key: "monthly", label: "Ежемесячно", suffix: "/ в месяц" },
-  { key: "quarterly", label: "Ежеквартально (- 7%)", suffix: "/ в квартал" },
-  { key: "yearly", label: "Ежегодно (-22%)", suffix: "/ в год" },
+  {
+    key: "monthly",
+    labelKey: "plans.periods.monthly",
+    suffixKey: "plans.suffix.monthly",
+  },
+  {
+    key: "quarterly",
+    labelKey: "plans.periods.quarterly",
+    suffixKey: "plans.suffix.quarterly",
+  },
+  {
+    key: "yearly",
+    labelKey: "plans.periods.yearly",
+    suffixKey: "plans.suffix.yearly",
+  },
 ] as const;
 export type PeriodKey = (typeof PERIODS)[number]["key"];
 
@@ -58,20 +73,26 @@ const NOT_INCLUDED = "—";
 
 // Под разделителем в карточке показываем только эти три возможности — как в
 // макете. Остальные фичи плана остаются в БД (лимиты, админка), но карточку не
-// раздувают. Порядок строк задаётся этим списком.
+// раздувают. Порядок строк задаётся этим списком. `label` — русский ключ
+// поиска фичи в БД (он там первичен), `i18nKey` — подпись для строки-заглушки,
+// когда фичи у плана нет.
 const CARD_FEATURES = [
-  "Поддержка",
-  "Сохранение реквизитов",
-  "Проверка документов",
+  { label: "Поддержка", i18nKey: "plans.features.support" },
+  { label: "Сохранение реквизитов", i18nKey: "plans.features.saveDetails" },
+  { label: "Проверка документов", i18nKey: "plans.features.documentCheck" },
 ];
 
 // Строки карточки ищем по русскому label (он первичен в БД), а показываем в
 // языке интерфейса: казахские labelKk/valueKk с фолбэком на русские.
-function cardFeatures(features: PlanFeature[], kk: boolean): PlanFeature[] {
-  return CARD_FEATURES.map((label) => {
+function cardFeatures(
+  features: PlanFeature[],
+  kk: boolean,
+  t: TFunction
+): PlanFeature[] {
+  return CARD_FEATURES.map(({ label, i18nKey }) => {
     const feature = features.find((f) => f.label === label);
     if (!feature) {
-      return { label, value: NOT_INCLUDED };
+      return { label: t(i18nKey), value: NOT_INCLUDED };
     }
     return localizeFeature(feature, kk);
   });
@@ -153,6 +174,7 @@ export function PlanCard({
   onSelect?: () => void;
   loading?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       className={cn(
@@ -210,7 +232,7 @@ export function PlanCard({
         onClick={onSelect}
         variant="outline"
       >
-        {loading ? "Переход к оплате…" : plan.cta}
+        {loading ? t("plans.goingToPayment") : plan.cta}
       </Button>
 
       <div className="h-px w-full bg-border" />
@@ -229,18 +251,24 @@ export function PlanCard({
 }
 
 // Квоты тарифа месячные — на карточке это должно быть видно («5 / мес»).
-export function quotaText(n: number): string {
-  return n === -1 ? "∞" : `${n} / мес`;
+// `perMonth` — локализованный суффикс (plans.perMonth).
+export function quotaText(n: number, perMonth: string): string {
+  return n === -1 ? "∞" : `${n} ${perMonth}`;
 }
 
-function planCta(name: string, isFree: boolean, isCurrent: boolean): string {
+function planCta(
+  name: string,
+  isFree: boolean,
+  isCurrent: boolean,
+  t: TFunction
+): string {
   if (isFree) {
-    return "Ваш тариф";
+    return t("plans.yourPlan");
   }
   if (isCurrent) {
-    return "Текущий тариф";
+    return t("plans.currentPlan");
   }
-  return `Перейти на ${name}`;
+  return t("plans.switchTo", { name });
 }
 
 // Price for the selected billing period. Quarterly/yearly fall back to the
@@ -259,27 +287,35 @@ export function dbPlanToCard(
   p: DbPlan,
   currentPlanId: string | null,
   period: PeriodKey,
-  language = "ru"
+  language: string,
+  t: TFunction
 ): PlanCardData {
   const isFree = p.priceMonthly === 0;
   const isCurrent = p.id === currentPlanId;
   const amount = priceForPeriod(p, period);
-  const suffix = PERIODS.find((x) => x.key === period)?.suffix ?? "/ в месяц";
+  const suffixKey =
+    PERIODS.find((x) => x.key === period)?.suffixKey ?? PERIODS[0].suffixKey;
   const { name, description } = localizePlanText(p, language);
+  const perMonth = t("plans.perMonth");
   return {
     id: p.id,
     name,
     discount: p.discountLabel ?? undefined,
     description,
-    price: isFree ? "Бесплатно" : `${amount.toLocaleString("ru-RU")} ₸`,
-    period: isFree ? undefined : suffix,
-    cta: planCta(name, isFree, isCurrent),
+    price: isFree
+      ? t("plans.free")
+      : t("plans.priceValue", { price: amount.toLocaleString("ru-RU") }),
+    period: isFree ? undefined : t(suffixKey),
+    cta: planCta(name, isFree, isCurrent, t),
     current: isCurrent,
     quotas: [
-      { label: "Скачивание", value: quotaText(p.downloadQuota) },
-      { label: "Редактирование", value: quotaText(p.editQuota) },
+      {
+        label: t("plans.download"),
+        value: quotaText(p.downloadQuota, perMonth),
+      },
+      { label: t("plans.edit"), value: quotaText(p.editQuota, perMonth) },
     ],
-    features: cardFeatures(p.features ?? [], isKazakh(language)),
+    features: cardFeatures(p.features ?? [], isKazakh(language), t),
   };
 }
 
@@ -291,9 +327,10 @@ export function PeriodTabs({
   period: PeriodKey;
   onChange: (period: PeriodKey) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-      <span className="text-foreground text-xs">Период подписки</span>
+      <span className="text-foreground text-xs">{t("plans.periodLabel")}</span>
       <div className="flex flex-wrap items-center gap-1 rounded-[10px] bg-muted p-1">
         {PERIODS.map((option) => {
           const isActive = option.key === period;
@@ -309,7 +346,7 @@ export function PeriodTabs({
               onClick={() => onChange(option.key)}
               type="button"
             >
-              {option.label}
+              {t(option.labelKey)}
             </button>
           );
         })}
@@ -331,17 +368,17 @@ export function PlansPicker({
   onSelectPlan: (planId: string, period: PeriodKey) => void;
   loadingPlanId?: string | null;
 }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [period, setPeriod] = useState<PeriodKey>("monthly");
   const cards = plans.map((p) =>
-    dbPlanToCard(p, currentPlanId, period, i18n.language)
+    dbPlanToCard(p, currentPlanId, period, i18n.language, t)
   );
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="font-semibold text-2xl text-foreground leading-6">
-          Доступные планы
+          {t("plans.availablePlans")}
         </h2>
         <PeriodTabs onChange={setPeriod} period={period} />
       </div>

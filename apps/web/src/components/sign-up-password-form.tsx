@@ -2,6 +2,7 @@ import { useForm } from "@tanstack/react-form";
 import { useMutation } from "@tanstack/react-query";
 import { CheckIcon, EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -33,18 +34,16 @@ const passwordSchema = z
   });
 
 interface Requirement {
-  label: string;
+  key: string;
   test: (v: string) => boolean;
 }
 
+// `key` → security.passwordRules.<key> в i18n.
 export const PASSWORD_REQUIREMENTS: Requirement[] = [
-  {
-    label: "Минимум 8 символов",
-    test: (v) => v.length >= MIN_PASSWORD_LENGTH,
-  },
-  { label: "Минимум одна строчная буква", test: (v) => LOWERCASE_RE.test(v) },
-  { label: "Минимум одна цифра", test: (v) => DIGIT_RE.test(v) },
-  { label: "Минимум одна заглавная буква", test: (v) => UPPERCASE_RE.test(v) },
+  { key: "minLength", test: (v) => v.length >= MIN_PASSWORD_LENGTH },
+  { key: "lowercase", test: (v) => LOWERCASE_RE.test(v) },
+  { key: "digit", test: (v) => DIGIT_RE.test(v) },
+  { key: "uppercase", test: (v) => UPPERCASE_RE.test(v) },
 ];
 
 export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
@@ -213,6 +212,7 @@ export function SignUpPasswordForm({ onDone }: { onDone?: () => void } = {}) {
 }
 
 export function PasswordRequirementsTooltip({ value }: { value: string }) {
+  const { t } = useTranslation();
   return (
     <div className="absolute top-0 left-full ml-3 hidden w-max rounded-lg bg-foreground px-2 py-1.5 text-background text-xs shadow-lg md:block">
       <ul className="flex flex-col gap-1">
@@ -224,14 +224,14 @@ export function PasswordRequirementsTooltip({ value }: { value: string }) {
                 "flex items-center gap-1.5",
                 ok ? "text-background" : "text-background/50"
               )}
-              key={r.label}
+              key={r.key}
             >
               {ok ? (
                 <CheckIcon className="size-3" />
               ) : (
                 <XIcon className="size-3" />
               )}
-              {r.label}
+              {t(`security.passwordRules.${r.key}`)}
             </li>
           );
         })}

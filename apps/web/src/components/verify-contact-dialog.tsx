@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { Loader2Icon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -9,7 +11,6 @@ import { useTRPC } from "@/utils/trpc";
 import {
   ErrorNote,
   formatCountdown,
-  NETWORK_ERROR,
   OUTLINE_BTN,
   PasswordInput,
   PRIMARY_BTN,
@@ -29,47 +30,48 @@ import { Label } from "./ui/label";
 const CODE_LENGTH = 6;
 const CODE_REGEX = /^\d{6}$/;
 const NON_DIGIT_REGEX = /\D/g;
-const PASSWORD_REQUIRED_ERROR = "Введите текущий пароль";
-const NO_STEP_UP_ERROR = "Установите пароль, чтобы изменить контактные данные.";
-const INVALID_CODE_ERROR = "Неверный код.";
-const EXPIRED_CODE_ERROR = "Код устарел. Запросите новый.";
-const TOO_MANY_ATTEMPTS_ERROR = "Слишком много попыток. Запросите новый код.";
-const COOLDOWN_NO_CODE_ERROR =
-  "Слишком часто. Подождите таймер и запросите код заново.";
-const STATUS_FAILED_ERROR = "Не удалось загрузить данные. Обновите страницу.";
 
 type Channel = "email" | "phone";
 type Step = "value" | "code";
 
-const COPY = {
-  email: {
-    title: "Электронная почта",
-    fieldLabel: "Электронная почта",
-    placeholder: "you@example.com",
-    inputType: "email",
-    invalidValue: "Введите корректную почту",
-    taken: "Эта почта уже используется",
-    removed: "Почта удалена",
-    saved: "Почта обновлена",
-    remove: "Удалить почту",
-  },
-  phone: {
-    title: "Номер телефона",
-    fieldLabel: "Номер телефона",
-    placeholder: "+7 700 000 00 00",
-    inputType: "tel",
-    invalidValue: "Введите корректный номер",
-    taken: "Этот номер уже используется",
-    removed: "Номер удалён",
-    saved: "Номер обновлён",
-    remove: "Удалить номер",
-  },
-} as const;
+interface ChannelCopy {
+  title: string;
+  fieldLabel: string;
+  placeholder: string;
+  inputType: "email" | "tel";
+  invalidValue: string;
+  taken: string;
+  removed: string;
+  saved: string;
+  remove: string;
+}
+
+const INPUT_TYPES: Record<Channel, ChannelCopy["inputType"]> = {
+  email: "email",
+  phone: "tel",
+};
+
+function getChannelCopy(t: TFunction, channel: Channel): ChannelCopy {
+  const prefix = `account.verifyContact.${channel}`;
+  return {
+    title: t(`${prefix}.title`),
+    fieldLabel: t(`${prefix}.fieldLabel`),
+    placeholder: t(`${prefix}.placeholder`),
+    inputType: INPUT_TYPES[channel],
+    invalidValue: t(`${prefix}.invalidValue`),
+    taken: t(`${prefix}.taken`),
+    removed: t(`${prefix}.removed`),
+    saved: t(`${prefix}.saved`),
+    remove: t(`${prefix}.remove`),
+  };
+}
 
 // Куда реально ушёл код, решает сервер: новый контакт (при подтверждении
 // паролем) или текущий телефон (для аккаунтов без пароля).
-function describeDestination(sentTo: string) {
-  return sentTo.includes("@") ? `почту ${sentTo}` : `номер ${sentTo}`;
+function describeDestination(t: TFunction, sentTo: string) {
+  return sentTo.includes("@")
+    ? t("account.verifyContact.destinationEmail", { email: sentTo })
+    : t("account.verifyContact.destinationPhone", { phone: sentTo });
 }
 
 function ValueStep({
@@ -93,7 +95,7 @@ function ValueStep({
   onRemove,
   onSend,
 }: {
-  copy: (typeof COPY)[Channel];
+  copy: ChannelCopy;
   value: string;
   onValueChange: (value: string) => void;
   valueError: string | null;
@@ -113,6 +115,7 @@ function ValueStep({
   onRemove: () => void;
   onSend: () => void;
 }) {
+  const { t } = useTranslation();
   const valueFieldId = useId();
   const passwordFieldId = useId();
   return (
@@ -132,7 +135,9 @@ function ValueStep({
         </div>
         {withPassword && (
           <div className="flex flex-col gap-2">
-            <Label htmlFor={passwordFieldId}>Текущий пароль</Label>
+            <Label htmlFor={passwordFieldId}>
+              {t("account.verifyContact.currentPassword")}
+            </Label>
             <PasswordInput
               autoComplete="current-password"
               id={passwordFieldId}
@@ -155,7 +160,7 @@ function ValueStep({
           type="button"
           variant="outline"
         >
-          Отменить
+          {t("account.verifyContact.cancel")}
         </Button>
         {isRemoval ? (
           <Button
@@ -164,7 +169,7 @@ function ValueStep({
             onClick={onRemove}
             type="button"
           >
-            {removing ? "Удаляем..." : copy.remove}
+            {removing ? t("account.verifyContact.removing") : copy.remove}
           </Button>
         ) : (
           <Button
@@ -175,11 +180,11 @@ function ValueStep({
           >
             {sending ? (
               <>
-                Отправляем
+                {t("account.verifyContact.sending")}
                 <Loader2Icon className="size-4 animate-spin" />
               </>
             ) : (
-              "Отправить код"
+              t("account.verifyContact.sendCode")
             )}
           </Button>
         )}
@@ -213,11 +218,14 @@ function CodeStep({
   saving: boolean;
   busy: boolean;
 }) {
+  const { t } = useTranslation();
   const codeFieldId = useId();
   return (
     <>
       <div className="flex flex-col gap-2 py-1">
-        <Label htmlFor={codeFieldId}>Код отправлен на {destination}</Label>
+        <Label htmlFor={codeFieldId}>
+          {t("account.verifyContact.codeSentTo", { destination })}
+        </Label>
         <Input
           autoComplete="one-time-code"
           className={cn(codeError && "border-destructive")}
@@ -230,7 +238,7 @@ function CodeStep({
               e.target.value.replace(NON_DIGIT_REGEX, "").slice(0, CODE_LENGTH)
             )
           }
-          placeholder="Введите код"
+          placeholder={t("account.verifyContact.codePlaceholder")}
           value={code}
         />
         {codeError && <ErrorNote message={codeError} />}
@@ -241,8 +249,10 @@ function CodeStep({
           type="button"
         >
           {resendRemainingSeconds > 0
-            ? `Отправить код ещё раз (${formatCountdown(resendRemainingSeconds)})`
-            : "Отправить код ещё раз"}
+            ? t("account.verifyContact.resendIn", {
+                countdown: formatCountdown(resendRemainingSeconds),
+              })
+            : t("account.verifyContact.resend")}
         </button>
       </div>
       <DialogFooter>
@@ -253,7 +263,7 @@ function CodeStep({
           type="button"
           variant="outline"
         >
-          Назад
+          {t("account.verifyContact.back")}
         </Button>
         <Button
           className={PRIMARY_BTN}
@@ -265,11 +275,11 @@ function CodeStep({
         >
           {saving ? (
             <>
-              Сохраняем
+              {t("account.verifyContact.saving")}
               <Loader2Icon className="size-4 animate-spin" />
             </>
           ) : (
-            "Подтвердить"
+            t("account.verifyContact.confirm")
           )}
         </Button>
       </DialogFooter>
@@ -288,9 +298,11 @@ export function VerifyContactDialog({
   channel: Channel;
   currentValue: string | null;
 }) {
+  const { t } = useTranslation();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const copy = COPY[channel];
+  const copy = getChannelCopy(t, channel);
+  const networkError = t("account.verifyContact.networkError");
 
   const [step, setStep] = useState<Step>("value");
   const [value, setValue] = useState("");
@@ -367,8 +379,8 @@ export function VerifyContactDialog({
     if (result.status === "invalid_password") {
       setPasswordError(
         result.attemptsLeft === 1
-          ? "Неверный пароль.\nОсталась одна попытка."
-          : "Неверный пароль"
+          ? t("account.verifyContact.invalidPasswordLastAttempt")
+          : t("account.verifyContact.invalidPassword")
       );
       return;
     }
@@ -376,10 +388,10 @@ export function VerifyContactDialog({
       // signupStatus устарел (пароль появился в другой вкладке) — обновляем,
       // чтобы показать поле пароля.
       queryClient.invalidateQueries(trpc.auth.signupStatus.queryFilter());
-      setPasswordError(PASSWORD_REQUIRED_ERROR);
+      setPasswordError(t("account.verifyContact.passwordRequired"));
       return;
     }
-    setValueError(NO_STEP_UP_ERROR);
+    setValueError(t("account.verifyContact.noStepUp"));
   };
 
   const sendCode = async () => {
@@ -409,7 +421,7 @@ export function VerifyContactDialog({
           if (!result.sentTo) {
             // "cooldown" без живого кода (прежний использован/сгорел): не ведём
             // на шаг ввода, где любой код был бы неверным — просим подождать.
-            const wait = COOLDOWN_NO_CODE_ERROR;
+            const wait = t("account.verifyContact.cooldownNoCode");
             if (step === "code") {
               setCodeError(wait);
             } else {
@@ -428,7 +440,7 @@ export function VerifyContactDialog({
         }
       }
     } catch {
-      toast.error(NETWORK_ERROR);
+      toast.error(networkError);
     }
   };
 
@@ -441,7 +453,7 @@ export function VerifyContactDialog({
       toast.success(copy.removed);
       onClose();
     } catch {
-      toast.error(NETWORK_ERROR);
+      toast.error(networkError);
     }
   };
 
@@ -459,22 +471,22 @@ export function VerifyContactDialog({
           return;
         case "invalid_code":
           setCode("");
-          setCodeError(INVALID_CODE_ERROR);
+          setCodeError(t("account.verifyContact.invalidCode"));
           return;
         case "code_expired":
           setCode("");
-          setCodeError(EXPIRED_CODE_ERROR);
+          setCodeError(t("account.verifyContact.codeExpired"));
           return;
         case "too_many_attempts":
           setCode("");
-          setCodeError(TOO_MANY_ATTEMPTS_ERROR);
+          setCodeError(t("account.verifyContact.tooManyAttempts"));
           return;
         default:
           setStep("value");
           setValueError(copy.taken);
       }
     } catch {
-      toast.error(NETWORK_ERROR);
+      toast.error(networkError);
     }
   };
 
@@ -489,7 +501,9 @@ export function VerifyContactDialog({
   };
 
   const passwordStepError = lock.active
-    ? `Слишком много попыток.\nПовторите через ${formatCountdown(lock.remainingSeconds)}.`
+    ? t("account.verifyContact.locked", {
+        countdown: formatCountdown(lock.remainingSeconds),
+      })
     : passwordError;
   const canSend =
     !unchanged &&
@@ -539,7 +553,9 @@ export function VerifyContactDialog({
             removing={clearMutation.isPending}
             sending={requestMutation.isPending}
             showPassword={showPassword}
-            statusError={statusFailed ? STATUS_FAILED_ERROR : null}
+            statusError={
+              statusFailed ? t("account.verifyContact.statusFailed") : null
+            }
             value={value}
             valueError={valueError}
             withPassword={hasPassword}
@@ -551,7 +567,7 @@ export function VerifyContactDialog({
             busy={busy}
             code={code}
             codeError={codeError}
-            destination={describeDestination(sentTo)}
+            destination={describeDestination(t, sentTo)}
             onBack={() => setStep("value")}
             onCodeChange={(next) => {
               setCode(next);

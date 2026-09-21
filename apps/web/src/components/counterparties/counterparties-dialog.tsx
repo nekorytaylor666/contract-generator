@@ -49,7 +49,7 @@ function EmptyState({ hasCounterparties }: { hasCounterparties: boolean }) {
         <p className="mx-auto mt-1 max-w-[300px] text-muted-foreground text-xs">
           {hasCounterparties
             ? "Попробуйте изменить поисковый запрос"
-            : "Добавьте контрагента здесь или при заполнении договора — его реквизиты сохранятся автоматически"}
+            : "Добавьте контрагента здесь или при заполнении документа — его реквизиты сохранятся автоматически"}
         </p>
       </div>
     </div>

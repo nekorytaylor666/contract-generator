@@ -92,7 +92,7 @@ interface FormState {
   isPublished: boolean;
   categories: string[];
   documentType: string;
-  // Связанные договоры — id шаблонов в порядке показа в модалке «О договоре».
+  // Связанные документы — id шаблонов в порядке показа в модалке «О документе».
   relatedTemplateIds: string[];
   // Per-locale overrides (kk/ru). Empty fields fall back to the defaults.
   localizedContent: Record<string, LocaleForm>;
@@ -455,10 +455,10 @@ function withVariables(
 // быть большим, а пагинации в пикере нет — уточнение запроса дешевле DOM-а.
 const MAX_RELATED_PICKER_RESULTS = 30;
 
-// Поле «Связанные договоры» админ-формы: кнопка открывает отдельное окно с
+// Поле «Связанные документы» админ-формы: кнопка открывает отдельное окно с
 // поиском (fuzzy по названию и описанию — как поиск по списку админки), клик
-// по строке добавляет договор в конец списка; чипсы показывают выбранное в
-// порядке показа в модалке «О договоре». Неопубликованные выбрать можно —
+// по строке добавляет документ в конец списка; чипсы показывают выбранное в
+// порядке показа в модалке «О документе». Неопубликованные выбрать можно —
 // публичная выдача (getById) отфильтрует их, пока они не опубликованы.
 function RelatedTemplatesField({
   rows,
@@ -496,7 +496,7 @@ function RelatedTemplatesField({
   );
   return (
     <div className="grid max-w-md gap-2">
-      <Label>Связанные договоры</Label>
+      <Label>Связанные документы</Label>
       <div>
         <Button
           onClick={() => setPickerOpen(true)}
@@ -505,7 +505,7 @@ function RelatedTemplatesField({
           variant="outline"
         >
           <Plus className="size-4" />
-          Добавить договор
+          Добавить документ
         </Button>
       </div>
       <Dialog
@@ -519,10 +519,10 @@ function RelatedTemplatesField({
       >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Связанные договоры</DialogTitle>
+            <DialogTitle>Связанные документы</DialogTitle>
             <DialogDescription>
-              Клик по договору добавляет его в список — окно можно не закрывать,
-              пока не соберёте все.
+              Клик по документу добавляет его в список — окно можно не
+              закрывать, пока не соберёте все.
             </DialogDescription>
           </DialogHeader>
           <div className="relative">
