@@ -595,7 +595,8 @@ const DISCLAIMER_PARAGRAPH_KEYS = [
 ];
 
 function DisclaimerSection() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isKk = i18n.language.startsWith("kk");
   return (
     <section className="py-16 lg:py-[144px]">
       <div className="mx-auto flex max-w-[864px] flex-col px-4 sm:px-8">
@@ -609,7 +610,11 @@ function DisclaimerSection() {
               alt={t("about.disclaimer.screenshotAlt")}
               className="block h-auto w-full"
               height={810}
-              src="/landing/step-catalog.jpg"
+              src={
+                isKk
+                  ? "/landing/step-catalog-kk.jpg"
+                  : "/landing/step-catalog.jpg"
+              }
               width={1440}
             />
           </div>

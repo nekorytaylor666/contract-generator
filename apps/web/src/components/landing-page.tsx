@@ -353,14 +353,14 @@ const STEPS: Step[] = [
   },
   {
     n: 2,
-    image: "/landing/step-builder.jpg",
-    imageKk: "/landing/step-builder-kk.jpg",
+    image: "/landing/step-fill.jpg",
+    imageKk: "/landing/step-fill-kk.jpg",
     offset: { left: "-31%", top: "-35%" },
   },
   {
     n: 3,
-    image: "/landing/step-builder.jpg",
-    imageKk: "/landing/step-builder-kk.jpg",
+    image: "/landing/step-download.jpg",
+    imageKk: "/landing/step-download-kk.jpg",
     offset: { left: "-33%", top: "10%" },
   },
 ];
